@@ -56,7 +56,14 @@ async function whoopGet(path) {
   const isNetlify = window.location.hostname !== "localhost";
 
   if (isNetlify) {
-    const res = await fetch(`/.netlify/functions/whoop-data?path=${path}`, {
+    const endpointMap = {
+      "/recovery?limit=14&order=desc": "whoop-recovery",
+      "/activity/sleep?limit=14&order=desc": "whoop-sleep",
+      "/activity/workout?limit=20&order=desc": "whoop-workouts",
+      "/cycle?limit=14&order=desc": "whoop-cycles",
+    };
+    const fn = endpointMap[path] || "whoop-recovery";
+    const res = await fetch(`/.netlify/functions/${fn}`, {
       headers: { Authorization: `Bearer ${t}` },
     });
     if (!res.ok) throw new Error(`Whoop proxy ${res.status}`);
