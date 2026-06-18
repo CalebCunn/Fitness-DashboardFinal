@@ -3,27 +3,26 @@ exports.handler = async (event) => {
     const token = event.headers.authorization;
     if (!token) return { statusCode: 401, body: "Unauthorized" };
     
-    // Try multiple endpoints
-    const endpoints = [
+    // Try v2 API first, fall back to v1
+    const urls = [
+      "https://api.prod.whoop.com/developer/v2/cycle?limit=7",
       "https://api.prod.whoop.com/developer/v1/recovery?limit=7&order=desc",
-      "https://api.prod.whoop.com/developer/v1/recovery?limit=7",
     ];
     
-    let response, text;
-    for (const url of endpoints) {
-      response = await fetch(url, { headers: { Authorization: token } });
-      text = await response.text();
-      console.log(`URL: ${url} Status: ${response.status} Body: ${text.substring(0, 200)}`);
-      if (response.status === 200) break;
+    let lastStatus, lastText;
+    for (const url of urls) {
+      const res = await fetch(url, { headers: { Authorization: token } });
+      lastText = await res.text();
+      lastStatus = res.status;
+      console.log(`${url} -> ${res.status}: ${lastText.substring(0, 300)}`);
+      if (res.status === 200) {
+        return { statusCode: 200, headers: { "Content-Type": "application/json", "Access-Control-Allow-Origin": "*" }, body: lastText };
+      }
     }
     
-    return {
-      statusCode: response.status,
-      headers: { "Content-Type": "application/json", "Access-Control-Allow-Origin": "*" },
-      body: text,
-    };
+    return { statusCode: lastStatus, headers: { "Content-Type": "application/json", "Access-Control-Allow-Origin": "*" }, body: lastText };
   } catch (err) {
-    console.error(err);
+    console.error(err.message);
     return { statusCode: 500, body: JSON.stringify({ error: err.message }) };
   }
 };
