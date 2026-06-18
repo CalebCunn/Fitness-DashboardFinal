@@ -1,4 +1,4 @@
-const BASE = "https://api.prod.whoop.com/developer/v1";
+const WHOOP_BASE = "https://api.prod.whoop.com/developer/v1";
 
 export const isWhoopConnected = () => !!localStorage.getItem("whoop_refresh_token");
 
@@ -6,12 +6,8 @@ export function disconnectWhoop() {
   ["whoop_access_token","whoop_refresh_token","whoop_token_expiry","whoop_pending","whoop_state"].forEach(k => localStorage.removeItem(k));
 }
 
-// Use Netlify function as proxy to avoid CORS on localhost
 async function tokenExchange(params) {
-  // In production, use Netlify function proxy
-  // In development, try direct (will fail due to CORS, handled below)
   const isNetlify = window.location.hostname !== "localhost";
-  
   if (isNetlify) {
     const res = await fetch("/.netlify/functions/whoop-token", {
       method: "POST",
@@ -20,7 +16,6 @@ async function tokenExchange(params) {
     });
     return res.json();
   } else {
-    // Development: direct call (CORS will be handled by browser extension or works in some envs)
     const res = await fetch("https://api.prod.whoop.com/oauth/oauth2/token", {
       method: "POST",
       headers: { "Content-Type": "application/x-www-form-urlencoded" },
@@ -58,9 +53,22 @@ async function whoopToken() {
 
 async function whoopGet(path) {
   const t = await whoopToken();
-  const res = await fetch(`${BASE}${path}`, { headers: { Authorization: `Bearer ${t}` } });
-  if (!res.ok) throw new Error(`Whoop ${res.status}`);
-  return res.json();
+  const isNetlify = window.location.hostname !== "localhost";
+
+  if (isNetlify) {
+    // Use Netlify proxy to avoid CORS
+    const res = await fetch(`/.netlify/functions/whoop-data?path=${encodeURIComponent(path)}`, {
+      headers: { Authorization: `Bearer ${t}` },
+    });
+    if (!res.ok) throw new Error(`Whoop proxy ${res.status}`);
+    return res.json();
+  } else {
+    const res = await fetch(`${WHOOP_BASE}${path}`, {
+      headers: { Authorization: `Bearer ${t}` },
+    });
+    if (!res.ok) throw new Error(`Whoop ${res.status}`);
+    return res.json();
+  }
 }
 
 export async function exchangeWhoopCode(code) {
