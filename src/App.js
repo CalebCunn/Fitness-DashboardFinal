@@ -777,12 +777,10 @@ Be direct, specific and use Caleb's actual data in your responses. Keep response
 
     try {
       const context = buildContext();
-      const res = await fetch("https://api.anthropic.com/v1/messages", {
+      const res = await fetch("/.netlify/functions/claude-chat", {
         method:"POST",
         headers: { "Content-Type":"application/json" },
         body: JSON.stringify({
-          model:"claude-sonnet-4-6",
-          max_tokens:1000,
           system: context,
           messages: [...messages.filter(m => m.role!=="system"), userMsg].map(m => ({ role:m.role, content:m.content })),
         })
