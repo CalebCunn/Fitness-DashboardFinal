@@ -649,13 +649,18 @@ function Races() {
 }
 
 // ─── TRAINING PLAN ───────────────────────────────────────────────────────────
-function TrainingPlan({ onChat }) {
+function TrainingPlan({ onChat, externalPlan }) {
   const [plan, setPlan] = useState(JSON.parse(localStorage.getItem("training_plan") || "null"));
 
   const savePlan = (p) => {
     setPlan(p);
-    localStorage.setItem("training_plan", JSON.stringify(p));
+    if (p) localStorage.setItem("training_plan", JSON.stringify(p));
+    else localStorage.removeItem("training_plan");
   };
+
+  useEffect(() => {
+    if (externalPlan) savePlan(externalPlan);
+  }, [externalPlan]);
 
   const samplePlan = {
     title: "Berlin Marathon Block — Week 1",
@@ -730,11 +735,16 @@ function TrainingPlan({ onChat }) {
 }
 
 // ─── CHAT ────────────────────────────────────────────────────────────────────
-function Chat({ activities, stats, whoopData, whoopOk }) {
-  const [messages, setMessages] = useState([{
-    role:"assistant",
-    content:"Hi Caleb! I can see your training data and I'm ready to help. Ask me anything about your running, recovery, training plan, race strategy — whatever you need."
-  }]);
+function Chat({ activities, stats, whoopData, whoopOk, onPlanSaved }) {
+  const [messages, setMessages] = useState(() => {
+    try {
+      const saved = localStorage.getItem("chat_history");
+      return saved ? JSON.parse(saved) : [{
+        role:"assistant",
+        content:"Hi Caleb! I can see your training data. Ask me anything about your running, recovery, training plans, race strategy — whatever you need. If you want a training plan added to your Plan tab, just ask!"
+      }];
+    } catch { return [{ role:"assistant", content:"Hi Caleb! How can I help with your training today?" }]; }
+  });
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
   const bottomRef = useRef(null);
@@ -742,6 +752,35 @@ function Chat({ activities, stats, whoopData, whoopOk }) {
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior:"smooth" });
   }, [messages]);
+
+  useEffect(() => {
+    try { localStorage.setItem("chat_history", JSON.stringify(messages.slice(-50))); } catch {}
+  }, [messages]);
+
+  const extractPlan = (text) => {
+    // Detect if the reply contains a training plan and parse it
+    if (!text.toLowerCase().includes("monday") && !text.toLowerCase().includes("tuesday") && !text.toLowerCase().includes("week")) return null;
+    const days = ["Mon","Tue","Wed","Thu","Fri","Sat","Sun"];
+    const sessions = [];
+    const lines = text.split("\n");
+    for (const line of lines) {
+      for (const day of days) {
+        if (line.toLowerCase().includes(day.toLowerCase())) {
+          const types = ["Long Run","Interval","Tempo","Easy","Rest","Gym"];
+          let type = "Run";
+          for (const t of types) { if (line.toLowerCase().includes(t.toLowerCase())) { type = t; break; } }
+          const distMatch = line.match(/(\d+\.?\d*)\s*km/);
+          const paceMatch = line.match(/(\d+:\d+)/);
+          sessions.push({ day, type, dist: distMatch ? distMatch[1]+"km" : undefined, pace: paceMatch ? paceMatch[1]+"/km" : undefined, notes: line.replace(/^[*-]\s*/, "").trim() });
+          break;
+        }
+      }
+    }
+    if (sessions.length >= 3) {
+      return { title: "Training Plan — Berlin Block", startDate: new Date().toISOString().split("T")[0], sessions };
+    }
+    return null;
+  };
 
   const buildContext = () => {
     const runs = activities.filter(a => a.type==="Run").slice(0,5);
@@ -789,6 +828,12 @@ Be direct, specific and use Caleb's actual data in your responses. Keep response
       const data = await res.json();
       const reply = data.content?.[0]?.text || "Sorry, I couldn't get a response.";
       setMessages(prev => [...prev, { role:"assistant", content:reply }]);
+      // Auto-detect and save training plans
+      const plan = extractPlan(reply);
+      if (plan && onPlanSaved) {
+        onPlanSaved(plan);
+        setMessages(prev => [...prev.slice(0,-1), { role:"assistant", content:reply + "\n\n✓ Training plan saved to your Plan tab!" }]);
+      }
     } catch(e) {
       setMessages(prev => [...prev, { role:"assistant", content:"Something went wrong. Please try again." }]);
     }
@@ -798,6 +843,9 @@ Be direct, specific and use Caleb's actual data in your responses. Keep response
   return (
     <div style={{ display:"flex", flexDirection:"column", height:"100%", gap:0 }}>
       {/* Messages */}
+      <div style={{ display:"flex", justifyContent:"flex-end", marginBottom:8 }}>
+        <button onClick={() => { setMessages([{role:"assistant",content:"Hi Caleb! How can I help with your training today?"}]); localStorage.removeItem("chat_history"); }} style={{ fontSize:9, color:C.muted, background:"transparent", border:`1px solid ${C.border}`, borderRadius:5, padding:"3px 8px", cursor:"pointer" }}>Clear chat</button>
+      </div>
       <div style={{ flex:1, overflowY:"auto", display:"flex", flexDirection:"column", gap:10, paddingBottom:12 }}>
         {messages.map((m,i) => (
           <div key={i} style={{ display:"flex", justifyContent: m.role==="user" ? "flex-end" : "flex-start" }}>
@@ -871,6 +919,7 @@ export default function App() {
   const [loading, setLoading] = useState(false);
   const [mobileMenu, setMobileMenu] = useState(false);
   const [whoopPending, setWhoopPending] = useState(false);
+  const [savedPlan, setSavedPlan] = useState(null);
 
   // Handle OAuth callbacks
   useEffect(() => {
@@ -925,9 +974,9 @@ export default function App() {
     running:  <Running activities={activities} stats={stats} />,
     gym:      <Gym activities={activities} />,
     recovery: <Recovery whoopData={whoopData} whoopOk={whoopOk} onConnectWhoop={handleConnectWhoop} />,
-    plan:     <TrainingPlan onChat={() => setPage("chat")} />,
+    plan:     <TrainingPlan onChat={() => setPage("chat")} externalPlan={savedPlan} />,
     races:    <Races />,
-    chat:     <Chat activities={activities} stats={stats} whoopData={whoopData} whoopOk={whoopOk} />,
+    chat:     <Chat activities={activities} stats={stats} whoopData={whoopData} whoopOk={whoopOk} onPlanSaved={(p) => { setSavedPlan(p); setPage("plan"); }} />,
   };
 
   const NavItem = ({ n }) => (
