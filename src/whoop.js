@@ -56,8 +56,7 @@ async function whoopGet(path) {
   const isNetlify = window.location.hostname !== "localhost";
 
   if (isNetlify) {
-    // Use Netlify proxy to avoid CORS
-    const res = await fetch(`/.netlify/functions/whoop-data?path=${encodeURIComponent(path)}`, {
+    const res = await fetch(`/.netlify/functions/whoop-data?path=${path}`, {
       headers: { Authorization: `Bearer ${t}` },
     });
     if (!res.ok) throw new Error(`Whoop proxy ${res.status}`);

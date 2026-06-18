@@ -1,21 +1,38 @@
 exports.handler = async (event) => {
-  const token = event.headers.authorization;
-  if (!token) return { statusCode: 401, body: "Unauthorized" };
+  try {
+    const token = event.headers.authorization;
+    if (!token) return { statusCode: 401, body: "Unauthorized" };
 
-  const path = event.queryStringParameters?.path || "/recovery?limit=14&order=desc";
+    // Get the path from query params, default to recovery
+    const path = event.queryStringParameters?.path || "/recovery";
+    const url = `https://api.prod.whoop.com/developer/v1${path}`;
 
-  const response = await fetch(`https://api.prod.whoop.com/developer/v1${path}`, {
-    headers: { Authorization: token },
-  });
+    console.log("Fetching Whoop URL:", url);
 
-  const data = await response.text();
+    const response = await fetch(url, {
+      headers: {
+        Authorization: token,
+        "Content-Type": "application/json",
+      },
+    });
 
-  return {
-    statusCode: response.status,
-    headers: {
-      "Content-Type": "application/json",
-      "Access-Control-Allow-Origin": "*",
-    },
-    body: data,
-  };
+    const text = await response.text();
+    console.log("Whoop response status:", response.status);
+
+    return {
+      statusCode: response.status,
+      headers: {
+        "Content-Type": "application/json",
+        "Access-Control-Allow-Origin": "*",
+        "Access-Control-Allow-Headers": "Authorization, Content-Type",
+      },
+      body: text,
+    };
+  } catch (err) {
+    console.error("Whoop proxy error:", err);
+    return {
+      statusCode: 500,
+      body: JSON.stringify({ error: err.message }),
+    };
+  }
 };
