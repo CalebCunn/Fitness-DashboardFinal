@@ -650,13 +650,13 @@ function Races() {
 }
 
 // ─── TRAINING PLAN ───────────────────────────────────────────────────────────
-function SessionCard({ session: s, typeC }) {
+function SessionCard({ session: s, typeC, onAddToCoros }) {
   const [expanded, setExpanded] = useState(false);
   const col = typeC[s.type] || C.teal;
   const isRest = s.type === "Rest";
 
   const addToCoros = () => {
-    alert("To add to Coros: open the Fitness Dashboard chat and ask me to push this session to your Coros calendar. I can schedule it with full pace targets and step structure.");
+    if (onAddToCoros) onAddToCoros(s);
   };
 
   return (
@@ -705,7 +705,7 @@ function SessionCard({ session: s, typeC }) {
   );
 }
 
-function TrainingPlan({ onChat, externalPlan }) {
+function TrainingPlan({ onChat, externalPlan, onAddToCoros }) {
   const [plan, setPlan] = useState(null);
   const [planLoaded, setPlanLoaded] = useState(false);
 
@@ -771,7 +771,7 @@ function TrainingPlan({ onChat, externalPlan }) {
 
           <div style={{ display:"flex", flexDirection:"column", gap:8 }}>
             {plan.sessions.map((s,i) => (
-              <SessionCard key={i} session={s} typeC={typeC} />
+              <SessionCard key={i} session={s} typeC={typeC} onAddToCoros={onAddToCoros} />
             ))}
           </div>
         </>
@@ -781,7 +781,7 @@ function TrainingPlan({ onChat, externalPlan }) {
 }
 
 // ─── CHAT ────────────────────────────────────────────────────────────────────
-function Chat({ activities, stats, whoopData, whoopOk, onPlanSaved }) {
+function Chat({ activities, stats, whoopData, whoopOk, onPlanSaved, corosSession, onCorosSessionHandled }) {
   const [messages, setMessages] = useState([{
     role:"assistant",
     content:"Hi Caleb! I can see your training data. Ask me anything about your running, recovery, training plans, race strategy — whatever you need. If you want a training plan added to your Plan tab, just ask!"
@@ -805,6 +805,14 @@ function Chat({ activities, stats, whoopData, whoopOk, onPlanSaved }) {
   useEffect(() => {
     if (chatLoaded) saveChatHistory(messages);
   }, [messages, chatLoaded]);
+
+  useEffect(() => {
+    if (corosSession && chatLoaded) {
+      const msg = `Please add this session to my Coros calendar for today: ${corosSession.day} - ${corosSession.type}, ${corosSession.dist}, target pace ${corosSession.pace}, shoe: ${corosSession.shoe}. Session notes: ${corosSession.notes}`;
+      setInput(msg);
+      if (onCorosSessionHandled) onCorosSessionHandled();
+    }
+  }, [corosSession, chatLoaded]);
 
   const extractPlan = (text) => {
     if (!text.includes("PLAN_START") || !text.includes("PLAN_END")) return null;
@@ -1021,6 +1029,7 @@ export default function App() {
   const [mobileMenu, setMobileMenu] = useState(window.innerWidth > 640);
   const [whoopPending, setWhoopPending] = useState(false);
   const [savedPlan, setSavedPlan] = useState(null);
+  const [corosSession, setCorosSession] = useState(null);
 
   // Handle OAuth callbacks
   useEffect(() => {
@@ -1075,9 +1084,9 @@ export default function App() {
     running:  <Running activities={activities} stats={stats} />,
     gym:      <Gym activities={activities} />,
     recovery: <Recovery whoopData={whoopData} whoopOk={whoopOk} onConnectWhoop={handleConnectWhoop} />,
-    plan:     <TrainingPlan onChat={() => setPage("chat")} externalPlan={savedPlan} />,
+    plan:     <TrainingPlan onChat={() => setPage("chat")} externalPlan={savedPlan} onAddToCoros={(session) => { setCorosSession(session); setPage("chat"); }} />,
     races:    <Races />,
-    chat:     <Chat activities={activities} stats={stats} whoopData={whoopData} whoopOk={whoopOk} onPlanSaved={(p) => { setSavedPlan(p); }} />,
+    chat:     <Chat activities={activities} stats={stats} whoopData={whoopData} whoopOk={whoopOk} onPlanSaved={(p) => { setSavedPlan(p); }} corosSession={corosSession} onCorosSessionHandled={() => setCorosSession(null)} />,
   };
 
   const NavItem = ({ n }) => (
