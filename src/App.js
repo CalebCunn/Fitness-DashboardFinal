@@ -650,6 +650,61 @@ function Races() {
 }
 
 // ─── TRAINING PLAN ───────────────────────────────────────────────────────────
+function SessionCard({ session: s, typeC }) {
+  const [expanded, setExpanded] = useState(false);
+  const col = typeC[s.type] || C.teal;
+  const isRest = s.type === "Rest";
+
+  const addToCoros = () => {
+    alert("To add to Coros: open the Fitness Dashboard chat and ask me to push this session to your Coros calendar. I can schedule it with full pace targets and step structure.");
+  };
+
+  return (
+    <Card style={{ opacity: isRest ? 0.6 : 1 }}>
+      <button onClick={() => !isRest && setExpanded(!expanded)} style={{ background:"transparent", border:"none", width:"100%", textAlign:"left", cursor: isRest ? "default" : "pointer", padding:0 }}>
+        <div style={{ display:"flex", gap:12, alignItems:"flex-start" }}>
+          <div style={{ textAlign:"center", minWidth:40, flexShrink:0 }}>
+            <div style={{ fontSize:9, color:C.muted, letterSpacing:"0.1em", textTransform:"uppercase", marginBottom:4 }}>{s.day}</div>
+            <div style={{ width:36, height:36, borderRadius:"50%", background:`${col}20`, border:`1px solid ${col}40`, display:"flex", alignItems:"center", justifyContent:"center" }}>
+              <div style={{ width:10, height:10, borderRadius:"50%", background:col }} />
+            </div>
+          </div>
+          <div style={{ flex:1, minWidth:0 }}>
+            <div style={{ display:"flex", alignItems:"center", gap:7, marginBottom:5, flexWrap:"wrap" }}>
+              <span style={{ fontSize:13, fontWeight:700, color:C.text }}>{s.type}</span>
+              {s.dist && s.dist !== "0km" && <Pill color={col}>{s.dist}</Pill>}
+              {s.pace && s.pace !== "N/A" && <Pill color={C.amber}>{s.pace}</Pill>}
+            </div>
+            {s.shoe && s.shoe !== "N/A" && (
+              <div style={{ fontSize:10, color:C.purple, marginBottom:3 }}>👟 {s.shoe}</div>
+            )}
+            {!expanded && s.notes && (
+              <div style={{ fontSize:10, color:C.sub, lineHeight:1.6, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{s.notes}</div>
+            )}
+          </div>
+          {!isRest && <div style={{ color:C.muted, fontSize:12, flexShrink:0 }}>{expanded ? "▲" : "▼"}</div>}
+        </div>
+      </button>
+
+      {expanded && (
+        <div style={{ marginTop:12, paddingTop:12, borderTop:`1px solid ${C.border}` }}>
+          {s.notes && <div style={{ fontSize:11, color:C.sub, lineHeight:1.8, marginBottom:12 }}>{s.notes}</div>}
+          <div style={{ display:"grid", gridTemplateColumns:"repeat(2,1fr)", gap:8, marginBottom:12 }}>
+            {s.dist && s.dist !== "0km" && <Stat label="Distance" value={s.dist} size="sm" />}
+            {s.pace && s.pace !== "N/A" && <Stat label="Target Pace" value={s.pace} color={C.amber} size="sm" />}
+            {s.shoe && s.shoe !== "N/A" && <Stat label="Shoe" value={s.shoe} color={C.purple} size="sm" />}
+          </div>
+          {!isRest && s.dist !== "0km" && (
+            <button onClick={addToCoros} style={{ background:"transparent", border:`1px solid ${C.teal}`, color:C.teal, borderRadius:8, padding:"7px 14px", fontSize:11, fontWeight:600, cursor:"pointer", width:"100%" }}>
+              + Add to Coros Calendar
+            </button>
+          )}
+        </div>
+      )}
+    </Card>
+  );
+}
+
 function TrainingPlan({ onChat, externalPlan }) {
   const [plan, setPlan] = useState(null);
   const [planLoaded, setPlanLoaded] = useState(false);
@@ -716,24 +771,7 @@ function TrainingPlan({ onChat, externalPlan }) {
 
           <div style={{ display:"flex", flexDirection:"column", gap:8 }}>
             {plan.sessions.map((s,i) => (
-              <Card key={i}>
-                <div style={{ display:"flex", gap:12, alignItems:"flex-start" }}>
-                  <div style={{ textAlign:"center", minWidth:36 }}>
-                    <div style={{ fontSize:9, color:C.muted, letterSpacing:"0.1em", textTransform:"uppercase" }}>{s.day}</div>
-                    <div style={{ width:32, height:32, borderRadius:"50%", background:`${typeC[s.type]||C.teal}20`, border:`1px solid ${typeC[s.type]||C.teal}40`, display:"flex", alignItems:"center", justifyContent:"center", marginTop:4 }}>
-                      <div style={{ width:8, height:8, borderRadius:"50%", background:typeC[s.type]||C.teal }} />
-                    </div>
-                  </div>
-                  <div style={{ flex:1 }}>
-                    <div style={{ display:"flex", alignItems:"center", gap:7, marginBottom:4, flexWrap:"wrap" }}>
-                      <span style={{ fontSize:12, fontWeight:700, color:C.text }}>{s.type}</span>
-                      {s.dist && <Pill color={typeC[s.type]||C.teal}>{s.dist}</Pill>}
-                      {s.pace && <Pill color={C.muted}>{s.pace}</Pill>}
-                    </div>
-                    {(s.notes||s.desc) && <div style={{ fontSize:10, color:C.sub, lineHeight:1.6 }}>{s.notes||s.desc}</div>}
-                  </div>
-                </div>
-              </Card>
+              <SessionCard key={i} session={s} typeC={typeC} />
             ))}
           </div>
         </>
@@ -769,28 +807,45 @@ function Chat({ activities, stats, whoopData, whoopOk, onPlanSaved }) {
   }, [messages, chatLoaded]);
 
   const extractPlan = (text) => {
-    // Detect if the reply contains a training plan and parse it
-    if (!text.toLowerCase().includes("monday") && !text.toLowerCase().includes("tuesday") && !text.toLowerCase().includes("week")) return null;
-    const days = ["Mon","Tue","Wed","Thu","Fri","Sat","Sun"];
-    const sessions = [];
-    const lines = text.split("\n");
-    for (const line of lines) {
-      for (const day of days) {
-        if (line.toLowerCase().includes(day.toLowerCase())) {
-          const types = ["Long Run","Interval","Tempo","Easy","Rest","Gym"];
-          let type = "Run";
-          for (const t of types) { if (line.toLowerCase().includes(t.toLowerCase())) { type = t; break; } }
-          const distMatch = line.match(/(\d+\.?\d*)\s*km/);
-          const paceMatch = line.match(/(\d+:\d+)/);
-          sessions.push({ day, type, dist: distMatch ? distMatch[1]+"km" : undefined, pace: paceMatch ? paceMatch[1]+"/km" : undefined, notes: line.replace(/^[*-]\s*/, "").trim() });
-          break;
+    if (!text.includes("PLAN_START") || !text.includes("PLAN_END")) return null;
+    try {
+      const planSection = text.split("PLAN_START")[1].split("PLAN_END")[0].trim();
+      const lines = planSection.split("\n").map(l => l.trim()).filter(Boolean);
+      
+      let title = "Training Plan";
+      const sessions = [];
+      
+      for (const line of lines) {
+        if (line.startsWith("TITLE:")) {
+          title = line.replace("TITLE:", "").trim();
+          continue;
+        }
+        const parts = line.split("|").map(p => p.trim());
+        if (parts.length >= 4) {
+          sessions.push({
+            day: parts[0],
+            type: parts[1],
+            dist: parts[2],
+            pace: parts[3],
+            shoe: parts[4] || "",
+            notes: parts[5] || "",
+          });
         }
       }
-    }
-    if (sessions.length >= 3) {
-      return { title: "Training Plan — Berlin Block", startDate: new Date().toISOString().split("T")[0], sessions };
-    }
+      
+      if (sessions.length >= 3) {
+        return { title, startDate: new Date().toISOString().split("T")[0], sessions };
+      }
+    } catch(e) { console.error("Plan parse error", e); }
     return null;
+  };
+
+  const cleanReply = (text) => {
+    // Remove the plan block from the chat reply so it shows clean
+    if (!text.includes("PLAN_START")) return text;
+    const before = text.split("PLAN_START")[0].trim();
+    const after = text.split("PLAN_END")[1]?.trim() || "";
+    return (before + (after ? "\n\n" + after : "")).trim();
   };
 
   const buildContext = () => {
@@ -809,13 +864,30 @@ KEY INFO:
 - Brother Noah has Duchenne Muscular Dystrophy — runs for charity
 - YTD: ${ytd.distance ? (ytd.distance/1000).toFixed(1) : 442.9}km, ${ytd.count||57} runs
 - Coros fitness test (Mar 2026): VO2 Max 67, threshold pace 3:57/km, max HR 208bpm
-${rec ? `- Latest recovery score: ${Math.round(rec.score?.recovery_score||0)}%, HRV: ${Math.round(rec.score?.hrv_rmssd_milli||0)}ms, RHR: ${Math.round(rec.score?.resting_heart_rate||0)}bpm` : ""}
-${sleep ? `- Last sleep score: ${Math.round(sleep.score?.sleep_performance_percentage||0)}%` : ""}
+- Shoe rotation: Metaspeed Sky Tokyo (race), Vaporfly 3/4 (intervals), Novablast 5 (easy/long), Adidas Evo SL (daily/tempo), ZoomFly 5 (training)
+${rec ? \`- Latest recovery score: \${Math.round(rec.score?.recovery_score||0)}%, HRV: \${Math.round(rec.score?.hrv_rmssd_milli||0)}ms, RHR: \${Math.round(rec.score?.resting_heart_rate||0)}bpm\` : ""}
+${sleep ? \`- Last sleep score: \${Math.round(sleep.score?.sleep_performance_percentage||0)}%\` : ""}
 
 RECENT RUNS:
-${runs.map(r => `- ${r.name} (${new Date(r.start_date_local).toLocaleDateString("en-GB")}): ${(r.distance/1000).toFixed(2)}km at ${fPace(r.average_speed)}/km avg${r.average_heartrate ? `, ${Math.round(r.average_heartrate)}bpm` : ""}`).join("\n")}
+${runs.map(r => \`- \${r.name} (\${new Date(r.start_date_local).toLocaleDateString("en-GB")}): \${(r.distance/1000).toFixed(2)}km at \${fPace(r.average_speed)}/km avg\${r.average_heartrate ? \`, \${Math.round(r.average_heartrate)}bpm\` : ""}\`).join("\n")}
 
-Be direct, specific and use Caleb's actual data in your responses. Keep responses concise but thorough. Never use double dashes. If asked to make a training plan, format it clearly with days, distances and paces.`;
+Be direct, specific and use Caleb's actual data. Never use double dashes. Keep responses concise but thorough.
+
+CRITICAL — TRAINING PLAN FORMAT: When asked to create a training plan, ALWAYS respond conversationally first (2-3 sentences about the plan), then include the plan in this EXACT format. Every single day must have distance, pace and shoe. No exceptions:
+
+PLAN_START
+TITLE: [plan title]
+Mon | [type] | [X]km | [pace range]/km | [shoe] | [description]
+Tue | [type] | [X]km | [pace range]/km | [shoe] | [description]
+Wed | [type] | [X]km | [pace range]/km | [shoe] | [description]
+Thu | [type] | [X]km | [pace range]/km | [shoe] | [description]
+Fri | [type] | [X]km | [pace range]/km | [shoe] | [description]
+Sat | [type] | [X]km | [pace range]/km | [shoe] | [description]
+Sun | [type] | [X]km | [pace range]/km | [shoe] | [description]
+PLAN_END
+
+For rest days use: Mon | Rest | 0km | N/A | N/A | Full rest or gym only
+Types: Easy, Interval, Tempo, Long Run, Rest, Gym`;
   };
 
   const send = async () => {
@@ -838,12 +910,12 @@ Be direct, specific and use Caleb's actual data in your responses. Keep response
 
       const data = await res.json();
       const reply = data.content?.[0]?.text || "Sorry, I couldn't get a response.";
-      setMessages(prev => [...prev, { role:"assistant", content:reply }]);
-      // Auto-detect and save training plans
       const plan = extractPlan(reply);
+      const cleanedReply = cleanReply(reply);
+      const finalReply = plan ? cleanedReply + "\n\n✓ Training plan saved to your Plan tab!" : cleanedReply;
+      setMessages(prev => [...prev, { role:"assistant", content:finalReply }]);
       if (plan && onPlanSaved) {
         onPlanSaved(plan);
-        setMessages(prev => [...prev.slice(0,-1), { role:"assistant", content:reply + "\n\n✓ Training plan saved to your Plan tab!" }]);
       }
     } catch(e) {
       setMessages(prev => [...prev, { role:"assistant", content:"Something went wrong. Please try again." }]);
@@ -987,7 +1059,7 @@ export default function App() {
     recovery: <Recovery whoopData={whoopData} whoopOk={whoopOk} onConnectWhoop={handleConnectWhoop} />,
     plan:     <TrainingPlan onChat={() => setPage("chat")} externalPlan={savedPlan} />,
     races:    <Races />,
-    chat:     <Chat activities={activities} stats={stats} whoopData={whoopData} whoopOk={whoopOk} onPlanSaved={(p) => { setSavedPlan(p); setPage("plan"); }} />,
+    chat:     <Chat activities={activities} stats={stats} whoopData={whoopData} whoopOk={whoopOk} onPlanSaved={(p) => { setSavedPlan(p); }} />,
   };
 
   const NavItem = ({ n }) => (
