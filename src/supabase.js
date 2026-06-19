@@ -7,38 +7,30 @@ const headers = {
   "Authorization": `Bearer ${SUPABASE_KEY}`,
 };
 
-export async function loadChatHistory() {
+async function sbGet(table, select = "*") {
   try {
-    const res = await fetch(`${SUPABASE_URL}/rest/v1/chat_history?user_id=eq.caleb&select=messages`, { headers });
+    const res = await fetch(`${SUPABASE_URL}/rest/v1/${table}?user_id=eq.caleb&select=${select}`, { headers });
     const data = await res.json();
-    return data?.[0]?.messages || [];
-  } catch { return []; }
-}
-
-export async function saveChatHistory(messages) {
-  try {
-    await fetch(`${SUPABASE_URL}/rest/v1/chat_history?user_id=eq.caleb`, {
-      method: "PATCH",
-      headers: { ...headers, "Prefer": "return=minimal" },
-      body: JSON.stringify({ messages: messages.slice(-50), updated_at: new Date().toISOString() }),
-    });
-  } catch (e) { console.error("Chat save failed", e); }
-}
-
-export async function loadTrainingPlan() {
-  try {
-    const res = await fetch(`${SUPABASE_URL}/rest/v1/training_plan?user_id=eq.caleb&select=plan`, { headers });
-    const data = await res.json();
-    return data?.[0]?.plan || null;
+    return data?.[0] || null;
   } catch { return null; }
 }
 
-export async function saveTrainingPlan(plan) {
+async function sbPatch(table, body) {
   try {
-    await fetch(`${SUPABASE_URL}/rest/v1/training_plan?user_id=eq.caleb`, {
+    await fetch(`${SUPABASE_URL}/rest/v1/${table}?user_id=eq.caleb`, {
       method: "PATCH",
       headers: { ...headers, "Prefer": "return=minimal" },
-      body: JSON.stringify({ plan, updated_at: new Date().toISOString() }),
+      body: JSON.stringify({ ...body, updated_at: new Date().toISOString() }),
     });
-  } catch (e) { console.error("Plan save failed", e); }
+  } catch (e) { console.error(`${table} save failed`, e); }
 }
+
+export const loadChatHistory = async () => (await sbGet("chat_history", "messages"))?.messages || [];
+export const saveChatHistory = (messages) => sbPatch("chat_history", { messages: messages.slice(-50) });
+
+export const loadTrainingPlan = async () => (await sbGet("training_plan", "plan"))?.plan || null;
+export const saveTrainingPlan = (plan) => sbPatch("training_plan", { plan });
+
+// User preferences — races, goals, gym lifts, sponsorship
+export const loadUserPrefs = async () => (await sbGet("user_prefs", "prefs"))?.prefs || null;
+export const saveUserPrefs = (prefs) => sbPatch("user_prefs", { prefs });

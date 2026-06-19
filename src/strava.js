@@ -68,3 +68,28 @@ export const getStats = (id) => get(`/athletes/${id}/stats`);
 export const getActivities = (n = 50) => get(`/athlete/activities?per_page=${n}`);
 export const getActivity = (id) => get(`/activities/${id}`);
 export const getStreams = (id) => get(`/activities/${id}/streams?keys=heartrate,cadence,watts,velocity_smooth,altitude,time&key_by_type=true`);
+export const getGear = (id) => get(`/gear/${id}`);
+
+// Get all athlete gear (shoes)
+export async function getAllGear(athlete) {
+  if (!athlete?.shoes) return [];
+  return Promise.all(athlete.shoes.map(s => getGear(s.id).catch(() => s)));
+}
+
+// Get best efforts from activities
+export function extractBestEfforts(activities) {
+  const efforts = { "400m": null, "1K": null, "1 mile": null, "5K": null, "10K": null, "Half-Marathon": null, "Marathon": null };
+  const order = { "400m":400, "1K":1000, "1 mile":1609, "5K":5000, "10K":10000, "Half-Marathon":21097, "Marathon":42195 };
+  
+  for (const act of activities) {
+    if (!act.best_efforts) continue;
+    for (const e of act.best_efforts) {
+      const key = Object.keys(efforts).find(k => k === e.name);
+      if (!key) continue;
+      if (!efforts[key] || e.moving_time < efforts[key].moving_time) {
+        efforts[key] = { ...e, date: act.start_date_local };
+      }
+    }
+  }
+  return efforts;
+}
