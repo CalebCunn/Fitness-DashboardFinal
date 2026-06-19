@@ -3,6 +3,7 @@ import { AreaChart, Area, LineChart, Line, BarChart, Bar, XAxis, YAxis, Tooltip,
 import { isConnected, disconnect, exchangeCode, getAthlete, getStats, getActivities, getActivity, getStreams } from "./strava";
 import { isWhoopConnected, disconnectWhoop, exchangeWhoopCode, getWhoopAuthUrl, getWhoopData } from "./whoop";
 import { PBS, SHOES, LIFTS, RACES, SPONSORSHIP, fPace, fTime, fDist, actType, typeCol, recCol, weeklyVol } from "./data";
+import { loadChatHistory, saveChatHistory, loadTrainingPlan, saveTrainingPlan } from "./supabase";
 
 // ─── DESIGN ───────────────────────────────────────────────────────────────────
 const C = {
@@ -650,17 +651,24 @@ function Races() {
 
 // ─── TRAINING PLAN ───────────────────────────────────────────────────────────
 function TrainingPlan({ onChat, externalPlan }) {
-  const [plan, setPlan] = useState(JSON.parse(localStorage.getItem("training_plan") || "null"));
+  const [plan, setPlan] = useState(null);
+  const [planLoaded, setPlanLoaded] = useState(false);
+
+  useEffect(() => {
+    loadTrainingPlan().then(p => {
+      if (p) setPlan(p);
+      setPlanLoaded(true);
+    });
+  }, []);
 
   const savePlan = (p) => {
     setPlan(p);
-    if (p) localStorage.setItem("training_plan", JSON.stringify(p));
-    else localStorage.removeItem("training_plan");
+    saveTrainingPlan(p);
   };
 
   useEffect(() => {
-    if (externalPlan) savePlan(externalPlan);
-  }, [externalPlan]);
+    if (externalPlan && planLoaded) savePlan(externalPlan);
+  }, [externalPlan, planLoaded]);
 
   const samplePlan = {
     title: "Berlin Marathon Block — Week 1",
@@ -736,15 +744,18 @@ function TrainingPlan({ onChat, externalPlan }) {
 
 // ─── CHAT ────────────────────────────────────────────────────────────────────
 function Chat({ activities, stats, whoopData, whoopOk, onPlanSaved }) {
-  const [messages, setMessages] = useState(() => {
-    try {
-      const saved = localStorage.getItem("chat_history");
-      return saved ? JSON.parse(saved) : [{
-        role:"assistant",
-        content:"Hi Caleb! I can see your training data. Ask me anything about your running, recovery, training plans, race strategy — whatever you need. If you want a training plan added to your Plan tab, just ask!"
-      }];
-    } catch { return [{ role:"assistant", content:"Hi Caleb! How can I help with your training today?" }]; }
-  });
+  const [messages, setMessages] = useState([{
+    role:"assistant",
+    content:"Hi Caleb! I can see your training data. Ask me anything about your running, recovery, training plans, race strategy — whatever you need. If you want a training plan added to your Plan tab, just ask!"
+  }]);
+  const [chatLoaded, setChatLoaded] = useState(false);
+
+  useEffect(() => {
+    loadChatHistory().then(msgs => {
+      if (msgs && msgs.length > 0) setMessages(msgs);
+      setChatLoaded(true);
+    });
+  }, []);
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
   const bottomRef = useRef(null);
@@ -754,8 +765,8 @@ function Chat({ activities, stats, whoopData, whoopOk, onPlanSaved }) {
   }, [messages]);
 
   useEffect(() => {
-    try { localStorage.setItem("chat_history", JSON.stringify(messages.slice(-50))); } catch {}
-  }, [messages]);
+    if (chatLoaded) saveChatHistory(messages);
+  }, [messages, chatLoaded]);
 
   const extractPlan = (text) => {
     // Detect if the reply contains a training plan and parse it
@@ -844,7 +855,7 @@ Be direct, specific and use Caleb's actual data in your responses. Keep response
     <div style={{ display:"flex", flexDirection:"column", height:"100%", gap:0 }}>
       {/* Messages */}
       <div style={{ display:"flex", justifyContent:"flex-end", marginBottom:8 }}>
-        <button onClick={() => { setMessages([{role:"assistant",content:"Hi Caleb! How can I help with your training today?"}]); localStorage.removeItem("chat_history"); }} style={{ fontSize:9, color:C.muted, background:"transparent", border:`1px solid ${C.border}`, borderRadius:5, padding:"3px 8px", cursor:"pointer" }}>Clear chat</button>
+        <button onClick={() => { const fresh = [{role:"assistant",content:"Hi Caleb! How can I help with your training today?"}]; setMessages(fresh); saveChatHistory(fresh); }} style={{ fontSize:9, color:C.muted, background:"transparent", border:`1px solid ${C.border}`, borderRadius:5, padding:"3px 8px", cursor:"pointer" }}>Clear chat</button>
       </div>
       <div style={{ flex:1, overflowY:"auto", display:"flex", flexDirection:"column", gap:10, paddingBottom:12 }}>
         {messages.map((m,i) => (
