@@ -917,7 +917,7 @@ export default function App() {
   const [athlete, setAthlete] = useState(null);
   const [whoopData, setWhoopData] = useState(null);
   const [loading, setLoading] = useState(false);
-  const [mobileMenu, setMobileMenu] = useState(false);
+  const [mobileMenu, setMobileMenu] = useState(window.innerWidth > 640);
   const [whoopPending, setWhoopPending] = useState(false);
   const [savedPlan, setSavedPlan] = useState(null);
 
@@ -1028,42 +1028,37 @@ export default function App() {
   return (
     <div style={{ display:"flex", height:"100vh", background:C.bg, color:C.text, fontFamily:"Inter,sans-serif", overflow:"hidden" }}>
 
-      {/* Desktop sidebar */}
-      <div style={{ width:185, background:C.surface, borderRight:`1px solid ${C.border}`, flexShrink:0, height:"100vh", overflowY:"auto" }}>
-        <SidebarInner />
-      </div>
-
-      {/* Mobile header */}
-      <div style={{ display:"none", position:"fixed", top:0, left:0, right:0, zIndex:50, background:C.surface, borderBottom:`1px solid ${C.border}`, padding:"11px 16px", alignItems:"center", justifyContent:"space-between" }} className="mob-header">
-        <div style={{ fontFamily:C.mono, fontSize:9, color:C.teal, letterSpacing:"0.18em" }}>FITNESS DASHBOARD</div>
-        <button onClick={() => setMobileMenu(!mobileMenu)} style={{ background:"transparent", border:`1px solid ${C.border}`, color:C.sub, borderRadius:7, padding:"5px 9px", fontSize:15 }}>☰</button>
-      </div>
-
-      {/* Mobile menu overlay */}
-      {mobileMenu && (
-        <div style={{ position:"fixed", inset:0, zIndex:100, display:"flex" }}>
-          <div style={{ width:200, background:C.surface, borderRight:`1px solid ${C.border}`, height:"100%", overflowY:"auto" }}>
-            <div style={{ padding:"14px 16px", borderBottom:`1px solid ${C.border}`, display:"flex", justifyContent:"space-between", alignItems:"center" }}>
-              <div style={{ fontFamily:C.mono, fontSize:9, color:C.teal, letterSpacing:"0.15em" }}>MENU</div>
-              <button onClick={() => setMobileMenu(false)} style={{ background:"transparent", border:"none", color:C.muted, fontSize:16, cursor:"pointer" }}>✕</button>
-            </div>
-            <nav style={{ padding:"8px" }}>
-              {NAV.map(n => <NavItem key={n.id} n={n} />)}
-            </nav>
-          </div>
-          <div onClick={() => setMobileMenu(false)} style={{ flex:1, background:"rgba(0,0,0,0.6)" }} />
+      {/* Sidebar — collapsible on mobile */}
+      <div style={{
+        width: mobileMenu ? 185 : 0,
+        minWidth: mobileMenu ? 185 : 0,
+        background: C.surface,
+        borderRight: mobileMenu ? `1px solid ${C.border}` : "none",
+        flexShrink: 0,
+        height: "100vh",
+        overflowY: "auto",
+        overflowX: "hidden",
+        transition: "width 0.25s ease, min-width 0.25s ease",
+        position: "relative",
+        zIndex: 10,
+      }} className="sidebar">
+        <div style={{ width: 185, minWidth: 185 }}>
+          <SidebarInner />
         </div>
-      )}
+      </div>
 
       {/* Main content */}
-      <div style={{ flex:1, display:"flex", flexDirection:"column", height:"100vh", overflow:"hidden" }} className="main-wrap">
-        <div style={{ flex:1, overflowY: page==="chat" ? "hidden" : "auto", padding:"18px 16px", display:"flex", flexDirection:"column" }}>
-          <style>{`
-            @media (max-width:640px) {
-              .mob-header { display: flex !important; }
-              .main-wrap > div { padding-top: 56px !important; }
-            }
-          `}</style>
+      <div style={{ flex:1, display:"flex", flexDirection:"column", height:"100vh", overflow:"hidden" }}>
+        {/* Top bar with hamburger */}
+        <div style={{ display:"flex", alignItems:"center", gap:12, padding:"10px 16px", borderBottom:`1px solid ${C.border}`, background:C.surface, flexShrink:0 }}>
+          <button onClick={() => setMobileMenu(!mobileMenu)} style={{ background:"transparent", border:`1px solid ${C.border}`, color:C.sub, borderRadius:7, padding:"5px 9px", fontSize:14, cursor:"pointer", flexShrink:0, lineHeight:1 }}>
+            {mobileMenu ? "✕" : "☰"}
+          </button>
+          <div style={{ fontFamily:C.mono, fontSize:9, color:C.teal, letterSpacing:"0.18em" }}>FITNESS DASHBOARD</div>
+          <div style={{ flex:1 }} />
+          <div style={{ fontSize:10, color:C.muted }}>{NAV.find(n => n.id===page)?.label}</div>
+        </div>
+        <div style={{ flex:1, overflowY: page==="chat" ? "hidden" : "auto", padding:"16px", display:"flex", flexDirection:"column" }}>
           {loading ? <Loader text="Loading your data..." /> : views[page]}
         </div>
       </div>
