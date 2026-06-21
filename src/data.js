@@ -1,37 +1,20 @@
-export const PBS = [
-  { label: "5K",       time: "18:42",   pace: "3:44/km", date: "2024" },
-  { label: "10K",      time: "40:52",   pace: "4:05/km", date: "2024" },
-  { label: "HM",       time: "1:32:48", pace: "4:23/km", date: "Feb 2026" },
-  { label: "Marathon", time: "3:48:59", pace: "5:25/km", date: "Apr 2026" },
-];
-
-export const SHOES = [
-  { name: "Metaspeed Sky Tokyo",  colour: "Green", role: "Race Day",        carbon: true  },
-  { name: "Metaspeed Sky Tokyo",  colour: "Red",   role: "Carbon Trainer",  carbon: true  },
-  { name: "Adidas Evo SL",        colour: "",      role: "Daily / Tempo",   carbon: false },
-  { name: "Novablast 5",          colour: "",      role: "Easy / Long Run", carbon: false },
-  { name: "Nike Vaporfly 3",      colour: "",      role: "Intervals",       carbon: true  },
-  { name: "Nike Vaporfly 4",      colour: "",      role: "Intervals",       carbon: true  },
-  { name: "Nike ZoomFly 5",       colour: "",      role: "Training",        carbon: false },
-];
-
 export const LIFTS = [
   { name: "Smith Flat Bench",    weight: "20kg/side", sets: 3, reps: 10 },
   { name: "Smith Incline Press", weight: "15kg/side", sets: 3, reps: 10 },
   { name: "Pec Deck",            weight: "73kg",      sets: 3, reps: 12 },
   { name: "Preacher Curl",       weight: "39kg",      sets: 3, reps: 10 },
   { name: "Hammer Curl",         weight: "16kg DBs",  sets: 3, reps: 12 },
-  { name: "Lateral Raises",      weight: "8–10kg",    sets: 3, reps: 15 },
+  { name: "Lateral Raises",      weight: "8-10kg",    sets: 3, reps: 15 },
 ];
 
 export const RACES = [
-  { name: "London Marathon",   date: "2024 & Apr 2026", charity: "Duchenne Family Support Group", target: "Completed",  done: true  },
-  { name: "Berlin Marathon",   date: "28 Sep 2026",     charity: "Get Kids Going",                target: "Sub 3:20",   next: true  },
-  { name: "Seville Marathon",  date: "Feb 2027",        charity: "TBC",                           target: "Sub 3:00"              },
-  { name: "Valencia Marathon", date: "Dec 2027",        charity: "TBC",                           target: "Sub 3:00+"             },
-  { name: "Tokyo",             date: "TBC",             charity: "TBC",                           target: "Major #4"              },
-  { name: "Chicago",           date: "TBC",             charity: "TBC",                           target: "Major #5"              },
-  { name: "New York",          date: "TBC",             charity: "TBC",                           target: "Major #6"              },
+  { name: "London Marathon",   date: "2024 & Apr 2026", charity: "Duchenne Family Support Group", target: "Completed", done: true },
+  { name: "Berlin Marathon",   date: "28 Sep 2026",     charity: "Get Kids Going",                target: "Sub 3:20",  next: true },
+  { name: "Seville Marathon",  date: "Feb 2027",        charity: "TBC",                           target: "Sub 3:00" },
+  { name: "Valencia Marathon", date: "Dec 2027",        charity: "TBC",                           target: "Sub 3:00+" },
+  { name: "Tokyo",             date: "TBC",             charity: "TBC",                           target: "Major #4" },
+  { name: "Chicago",           date: "TBC",             charity: "TBC",                           target: "Major #5" },
+  { name: "New York",          date: "TBC",             charity: "TBC",                           target: "Major #6" },
 ];
 
 export const SPONSORSHIP = [
@@ -41,11 +24,10 @@ export const SPONSORSHIP = [
   { name: "Satisfy Running",   status: "DM sent",             state: "pending" },
   { name: "Adidas Testing",    status: "Registered",          state: "success" },
   { name: "Saucony Lab",       status: "Registered",          state: "success" },
-  { name: "Puma Project 3",    status: "Target: post sub-3",  state: "future"  },
-  { name: "Asics Frontrunner", status: "Apply Jan 2027",      state: "future"  },
+  { name: "Puma Project 3",    status: "Target: post sub-3",  state: "future" },
+  { name: "Asics Frontrunner", status: "Apply Jan 2027",      state: "future" },
 ];
 
-// ── Formatters ────────────────────────────────────────────────────────────────
 export const fPace = (mps) => {
   if (!mps) return "—";
   const s = 1000 / mps;
@@ -62,7 +44,6 @@ export const fTime = (secs) => {
 };
 
 export const fDist = (m) => (m/1000).toFixed(2);
-export const fDistShort = (m) => (m/1000).toFixed(1);
 
 export const actType = (a) => {
   const n = (a.name||"").toLowerCase();
@@ -79,11 +60,11 @@ export const actType = (a) => {
 };
 
 export const typeCol = (t) => ({
-  Interval: "#e879f9", Tempo: "#fb923c", Race: "#a78bfa",
-  "Long Run": "#60a5fa", Easy: "#34d399", Run: "#34d399",
-}[t] || "#34d399");
+  Interval: "#f97316", Tempo: "#f59e0b", Race: "#8b5cf6",
+  "Long Run": "#3b82f6", Easy: "#10b981", Run: "#10b981",
+}[t] || "#10b981");
 
-export const recCol = (s) => !s ? "#374151" : s >= 67 ? "#34d399" : s >= 34 ? "#fb923c" : "#f87171";
+export const recCol = (s) => !s ? "#9ca3af" : s >= 67 ? "#10b981" : s >= 34 ? "#f59e0b" : "#ef4444";
 
 export const weeklyVol = (activities) => {
   const runs = activities.filter(a => a.type === "Run" || a.sport_type === "Run");
