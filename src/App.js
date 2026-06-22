@@ -72,29 +72,28 @@ if (!document.getElementById("inter-font")) {
   document.head.appendChild(link);
 }
 
-const buildC = (dark) => ({
-  bg:       dark?"#0f0f11":"#f5f5f7",
-  surface:  dark?"#1c1c1e":"#ffffff",
-  card:     dark?"#2c2c2e":"#ffffff",
-  border:   dark?"#3a3a3c":"#e5e5e7",
-  divider:  dark?"#2c2c2e":"#f0f0f2",
+const C = {
+  bg:       "#f5f5f7",
+  surface:  "#ffffff",
+  card:     "#ffffff",
+  border:   "#e5e5e7",
+  divider:  "#f0f0f2",
   orange:   "#f97316",
-  orangeL:  dark?"#431407":"#fff7ed",
-  orangeB:  dark?"#7c2d12":"#fed7aa",
-  blue:     dark?"#60a5fa":"#0071e3",
-  blueL:    dark?"#1e3a5f":"#eff6ff",
+  orangeL:  "#fff7ed",
+  orangeB:  "#fed7aa",
+  blue:     "#0071e3",
+  blueL:    "#eff6ff",
   green:    "#34c759",
-  greenL:   dark?"#052e16":"#f0fdf4",
+  greenL:   "#f0fdf4",
   red:      "#ff3b30",
   yellow:   "#ff9500",
   purple:   "#af52de",
-  text:     dark?"#f5f5f7":"#1d1d1f",
-  sub:      dark?"#98989e":"#6e6e73",
-  muted:    dark?"#636366":"#aeaeb2",
+  text:     "#1d1d1f",
+  sub:      "#6e6e73",
+  muted:    "#aeaeb2",
   mono:     "'SF Mono','JetBrains Mono',monospace",
   sans:     "'Inter',-apple-system,BlinkMacSystemFont,sans-serif",
-});
-const C = buildC(false);
+};
 
 // ─── UI PRIMITIVES ────────────────────────────────────────────────────────────
 const Card = ({ children, style={} }) => (
@@ -693,7 +692,7 @@ function Overview({ stats, activities, whoopData, whoopOk, onConnectWhoop, bestE
       )}
 
       {/* Berlin countdown */}
-      <Card style={{ background:darkMode?"linear-gradient(135deg,#431407,#1c1c1e)":`linear-gradient(135deg,#fff7ed,#fff)` }}>
+      <Card style={{ background:`linear-gradient(135deg,#fff7ed,#fff)` }}>
         <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", flexWrap:"wrap", gap:10, marginBottom:14 }}>
           <div>
             <div style={{ fontSize:11, fontWeight:600, color:C.orange, textTransform:"uppercase", letterSpacing:"0.06em", marginBottom:4, fontFamily:C.sans }}>Next Race</div>
@@ -1693,7 +1692,6 @@ export default function App() {
   const [savedWorkout, setSavedWorkout] = useState(null);
   const [corosSession, setCorosSession] = useState(null);
   const [userPrefs, setUserPrefs] = useState(null);
-  const [darkMode, setDarkMode] = useState(false);
 
   useEffect(()=>{
     const params=new URLSearchParams(window.location.search);
@@ -1726,7 +1724,6 @@ export default function App() {
 
   if(!connected||whoopPending)return <ConnectScreen whoopPending={whoopPending}/>;
 
-  const C = buildC(darkMode);
   const sharedProps={activities,stats,whoopData,whoopOk,onConnectWhoop:handleConnectWhoop,onRefreshWhoop:loadWhoop};
 
   const views={
@@ -1780,7 +1777,7 @@ export default function App() {
           <div style={{ fontSize:13, fontWeight:700, color:C.orange, letterSpacing:"0.04em" }}>Fitness Dashboard</div>
           <div style={{ flex:1 }}/>
           <div style={{ fontSize:13, color:C.sub, fontWeight:500 }}>{NAV.find(n=>n.id===page)?.label}</div>
-          <button onClick={()=>setDarkMode(!darkMode)} style={{ background:"transparent", border:"none", fontSize:16, cursor:"pointer", opacity:0.7 }}>{darkMode?"☀️":"🌙"}</button>
+
         </div>
 
         {/* Content */}
