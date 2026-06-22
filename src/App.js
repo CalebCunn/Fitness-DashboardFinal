@@ -1382,7 +1382,7 @@ function Races({ userPrefs, onSavePrefs }) {
 
 // ─── CHAT ────────────────────────────────────────────────────────────────────
 function Chat({ activities, stats, whoopData, whoopOk, onPlanSaved, onGymSaved, corosSession, onCorosSessionHandled, userPrefs }) {
-  const [messages, setMessages] = useState([{role:"assistant",content:"Hi Caleb! I know everything about you and your training, including your live Strava and Whoop data. Ask me anything — running, recovery, training plans, race strategy, nutrition, gym. Ask me to make a training plan and it will save straight to your Plan tab!"}]);
+  const [messages, setMessages] = useState([{role:"assistant",content:"Hi Caleb! I know everything about you — your training, Strava data, Whoop recovery, nutrition logs and goals. Ask me anything, or tap a suggestion below to get started."}]);
   const [chatLoaded, setChatLoaded] = useState(false);
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
@@ -1390,68 +1390,45 @@ function Chat({ activities, stats, whoopData, whoopOk, onPlanSaved, onGymSaved, 
   const bottomRef = useRef(null);
   const fileRef = useRef(null);
 
-  useEffect(()=>{loadChatHistory().then(msgs=>{if(msgs&&msgs.length>0)setMessages(msgs);setChatLoaded(true);});},[]);
-  useEffect(()=>{bottomRef.current?.scrollIntoView({behavior:"smooth"});},[messages]);
-  useEffect(()=>{if(chatLoaded)saveChatHistory(messages);},[messages,chatLoaded]);
-  useEffect(()=>{
-    if(corosSession&&chatLoaded){
+  useEffect(() => { loadChatHistory().then(msgs => { if(msgs&&msgs.length>0) setMessages(msgs); setChatLoaded(true); }); }, []);
+  useEffect(() => { bottomRef.current?.scrollIntoView({behavior:"smooth"}); }, [messages]);
+  useEffect(() => { if(chatLoaded) saveChatHistory(messages); }, [messages, chatLoaded]);
+  useEffect(() => {
+    if(corosSession && chatLoaded) {
       setInput(`Please add this session to my Coros calendar: ${corosSession.day} - ${corosSession.type}, ${corosSession.dist}, target pace ${corosSession.pace}, shoe: ${corosSession.shoe}. Notes: ${corosSession.notes}`);
-      if(onCorosSessionHandled)onCorosSessionHandled();
+      if(onCorosSessionHandled) onCorosSessionHandled();
     }
-  },[corosSession,chatLoaded]);
+  }, [corosSession, chatLoaded]);
 
   const handleImages = (e) => {
     const files = Array.from(e.target.files);
     if (!files.length) return;
-    const newImages = [];
     let loaded = 0;
+    const newImgs = [];
     files.forEach(file => {
       const reader = new FileReader();
-      reader.onload = (ev) => {
-        newImages.push({ base64: ev.target.result.split(",")[1], mediaType: file.type, preview: ev.target.result });
+      reader.onload = ev => {
+        newImgs.push({ base64: ev.target.result.split(",")[1], mediaType: file.type, preview: ev.target.result });
         loaded++;
-        if (loaded === files.length) setImages(prev => [...prev, ...newImages].slice(0, 5));
+        if (loaded === files.length) setImages(prev => [...prev, ...newImgs].slice(0, 5));
       };
       reader.readAsDataURL(file);
     });
   };
 
-  const extractGymWorkout = text => {
-    if(!text.includes("GYM_START")||!text.includes("GYM_END"))return null;
-    try {
-      const section=text.split("GYM_START")[1].split("GYM_END")[0].trim();
-      const lines=section.split("\n").map(l=>l.trim()).filter(Boolean);
-      let title="Gym Session"; const exercises=[];
-      for(const line of lines){
-        if(line.startsWith("TITLE:")){title=line.replace("TITLE:","").trim();continue;}
-        const parts=line.split("|").map(p=>p.trim());
-        if(parts.length>=3)exercises.push({name:parts[0],sets:parts[1],weight:parts[2],notes:parts[3]||""});
-      }
-      if(exercises.length>=2)return{title,date:new Date().toISOString().split("T")[0],exercises};
-    }catch(e){console.error(e);}
-    return null;
-  };
-
-  const cleanGymReply = text => {
-    if(!text.includes("GYM_START"))return text;
-    const before=text.split("GYM_START")[0].trim();
-    const after=text.split("GYM_END")[1]?.trim()||"";
-    return(before+(after?"\n\n"+after:"")).trim();
-  };
-
   const extractPlan = text => {
-    if(!text.includes("PLAN_START")||!text.includes("PLAN_END"))return null;
+    if (!text.includes("PLAN_START") || !text.includes("PLAN_END")) return null;
     try {
-      const section=text.split("PLAN_START")[1].split("PLAN_END")[0].trim();
-      const lines=section.split("\n").map(l=>l.trim()).filter(Boolean);
-      let title="Training Plan";const sessions=[];
-      for(const line of lines){
-        if(line.startsWith("TITLE:")){title=line.replace("TITLE:","").trim();continue;}
-        const parts=line.split("|").map(p=>p.trim());
-        if(parts.length>=4)sessions.push({day:parts[0],type:parts[1],dist:parts[2],pace:parts[3],shoe:parts[4]||"",notes:parts[5]||""});
+      const section = text.split("PLAN_START")[1].split("PLAN_END")[0].trim();
+      const lines = section.split("\n").map(l => l.trim()).filter(Boolean);
+      let title = "Training Plan"; const sessions = [];
+      for (const line of lines) {
+        if (line.startsWith("TITLE:")) { title = line.replace("TITLE:", "").trim(); continue; }
+        const parts = line.split("|").map(p => p.trim());
+        if (parts.length >= 4) sessions.push({ day:parts[0], type:parts[1], dist:parts[2], pace:parts[3], shoe:parts[4]||"", notes:parts[5]||"" });
       }
-      if(sessions.length>=3)return{title,startDate:new Date().toISOString().split("T")[0],sessions};
-    }catch(e){console.error(e);}
+      if (sessions.length >= 3) return { title, startDate: new Date().toISOString().split("T")[0], sessions };
+    } catch(e) { console.error(e); }
     return null;
   };
 
@@ -1460,14 +1437,12 @@ function Chat({ activities, stats, whoopData, whoopOk, onPlanSaved, onGymSaved, 
     try {
       const section = text.split("GYM_START")[1].split("GYM_END")[0].trim();
       const lines = section.split("\n").map(l => l.trim()).filter(Boolean);
-      let title = "Gym Session";
-      const exercises = [];
+      let title = "Gym Session"; const exercises = [];
       for (const line of lines) {
         if (line.startsWith("TITLE:")) { title = line.replace("TITLE:", "").trim(); continue; }
         const parts = line.split("|").map(p => p.trim());
         if (parts.length >= 3) {
-          const sr = parts[1];
-          const nums = sr.match(/(\d+)[xX](\d+)/);
+          const nums = parts[1].match(/(\d+)[xX](\d+)/);
           exercises.push({ name:parts[0], sets:nums?parseInt(nums[1]):3, reps:nums?parseInt(nums[2]):10, weight:parts[2], notes:parts[3]||"" });
         }
       }
@@ -1480,181 +1455,171 @@ function Chat({ activities, stats, whoopData, whoopOk, onPlanSaved, onGymSaved, 
     let out = text;
     if (out.includes("PLAN_START") && out.includes("PLAN_END")) {
       const b = out.split("PLAN_START")[0].trim();
-      const a = out.split("PLAN_END")[1]?.trim()||"";
-      out = (b+(a?"\n\n"+a:"")).trim();
+      const a = out.split("PLAN_END")[1]?.trim() || "";
+      out = (b + (a ? "\n\n" + a : "")).trim();
     }
     if (out.includes("GYM_START") && out.includes("GYM_END")) {
       const b = out.split("GYM_START")[0].trim();
-      const a = out.split("GYM_END")[1]?.trim()||"";
-      out = (b+(a?"\n\n"+a:"")).trim();
+      const a = out.split("GYM_END")[1]?.trim() || "";
+      out = (b + (a ? "\n\n" + a : "")).trim();
     }
     return out;
   };
 
   const buildContext = () => {
-    const runs=activities.filter(a=>a.type==="Run").slice(0,5);
-    const ytd=stats?.ytd_run_totals||{};
-    const rec=whoopData?.recoveries?.records?.[0];
-    const sleep=whoopData?.sleeps?.records?.[0];
-    const cyc=whoopData?.cycles?.records?.[0];
-    const recentRecs=(whoopData?.recoveries?.records||[]).slice(0,7).map(r=>`${new Date(r.created_at).toLocaleDateString("en-GB",{day:"numeric",month:"short"})}: recovery ${Math.round(r.score?.recovery_score||0)}%, HRV ${Math.round(r.score?.hrv_rmssd_milli||0)}ms, RHR ${Math.round(r.score?.resting_heart_rate||0)}bpm`).join("\n");
-    const recentSleeps=(whoopData?.sleeps?.records||[]).slice(0,7).map(s=>`${new Date(s.start).toLocaleDateString("en-GB",{day:"numeric",month:"short"})}: sleep score ${Math.round(s.score?.sleep_performance_percentage||0)}%, time in bed ${s.score?.stage_summary?.total_in_bed_time_milli?(s.score.stage_summary.total_in_bed_time_milli/3600000).toFixed(1):0}h`).join("\n");
-    return `You are a personal running coach and fitness assistant for Caleb Cunningham. Be direct, use his actual data, never use double dashes or the em dash character.
+    const runs = activities.filter(a => a.type==="Run").slice(0, 5);
+    const ytd = stats?.ytd_run_totals || {};
+    const rec = whoopData?.recoveries?.records?.[0];
+    const sleep = whoopData?.sleeps?.records?.[0];
+    const cyc = whoopData?.cycles?.records?.[0];
+    const recentRecs = (whoopData?.recoveries?.records || []).slice(0, 7)
+      .map(r => `${new Date(r.created_at).toLocaleDateString("en-GB",{day:"numeric",month:"short"})}: recovery ${Math.round(r.score?.recovery_score||0)}%, HRV ${Math.round(r.score?.hrv_rmssd_milli||0)}ms, RHR ${Math.round(r.score?.resting_heart_rate||0)}bpm`).join("\n");
+    const recentSleeps = (whoopData?.sleeps?.records || []).slice(0, 7)
+      .map(s => `${new Date(s.start).toLocaleDateString("en-GB",{day:"numeric",month:"short"})}: sleep ${Math.round(s.score?.sleep_performance_percentage||0)}%, ${s.score?.stage_summary?.total_in_bed_time_milli?(s.score.stage_summary.total_in_bed_time_milli/3600000).toFixed(1):0}h in bed`).join("\n");
+    const nutrition = userPrefs?.nutrition || {};
+    const recentNutrition = Object.entries(nutrition).sort((a,b)=>b[0].localeCompare(a[0])).slice(0,7)
+      .map(([date,log]) => `${new Date(date).toLocaleDateString("en-GB",{weekday:"short",day:"numeric",month:"short"})}: ${[log.kcal&&log.kcal+"kcal",log.protein&&log.protein+"g protein",log.carbs&&log.carbs+"g carbs"].filter(Boolean).join(", ")}`).join("\n");
 
-WHO HE IS: 20 years old, graphic design student at Kingston University London, from Southport. Lives in Kingston with girlfriend Taylor (Taz). Started running July 2024, progressed rapidly, took a break at university, restarted Christmas 2025. Raised over 5000 pounds for the Duchenne Family Support Group across two London Marathons. Brother Noah has Duchenne Muscular Dystrophy, this is why he runs. Mission: all six World Marathon Majors for a different charity each time.
+    return `You are a personal running coach and fitness assistant for Caleb Cunningham. Be direct, conversational, use his actual data. Never use double dashes.
 
-RUNNING PBs: 5K 18:42 (3:44/km). 10K 40:52 (4:05/km). HM 1:32:48 (4:23/km). Marathon 3:48:59 London April 2026. He managed ankle pain from 6km, stopped to see family, had a fun day, did NOT hit the wall. Hampton Court HM March 2026: 1:33:16 trail, equivalent to around 1:29-1:30 road.
+WHO HE IS: 20 years old, graphic design student at Kingston University London, from Southport. Lives in Kingston with girlfriend Taylor (Taz). Started running July 2024. Raised over £5,000 for the Duchenne Family Support Group. Brother Noah has Duchenne Muscular Dystrophy. Mission: all six World Marathon Majors for a different charity each time.
 
-COROS FITNESS (March 2026): VO2 Max 67, threshold pace 3:57/km, threshold HR 186bpm, max HR 208bpm. Kaizen prediction 3:16. KEY: cardiovascular engine well ahead of structural fitness. Berlin block closes that gap.
+RUNNING PBs: 5K 18:42, 10K 40:52, HM 1:32:48, Marathon 3:48:59 (London Apr 2026). VO2 Max 67, threshold pace 3:57/km, max HR 208bpm.
 
-RACE PIPELINE: Berlin Marathon 28 Sep 2026, Get Kids Going, target Sub 3:20. Seville Feb 2027 Sub 3:00. Valencia Dec 2027. Then Tokyo, Chicago, New York. GFA London requires around 2:52.
+RACE PIPELINE: Berlin 28 Sep 2026 (Get Kids Going, Sub 3:20). Seville Feb 2027 (Sub 3:00). Valencia Dec 2027. Then Tokyo, Chicago, New York.
 
-SHOES: Metaspeed Sky Tokyo Green (race), Metaspeed Sky Tokyo Red (carbon trainer), Vaporfly 3 and 4 (intervals), ZoomFly 5 (training), Novablast 5 (easy/long), Adidas Evo SL (daily/tempo).
+SHOES: Metaspeed Sky Tokyo Green (race), Metaspeed Sky Tokyo Red (carbon trainer), Vaporfly 3+4 (intervals), ZoomFly 5 (training), Novablast 5 (easy/long), Adidas Evo SL (daily/tempo).
 
-GYM: Chest focus. Smith flat bench 20kg/side 3x10, incline 15kg/side 3x10, pec deck 73kg 3x12, preacher curl 39kg 3x10, hammer curl 16kg 3x12, lateral raises 8-10kg 3x15. Weight 58-61kg, height 5ft7, targeting 65kg.
+GYM: Chest focus. Smith flat bench 20kg/side 3x10, incline 15kg/side 3x10, pec deck 73kg 3x12, preacher curl 39kg 3x10, hammer curl 16kg 3x12, lateral raises 8-10kg 3x15. Weight 58-61kg, targeting 65kg.
 
-NUTRITION: 2800-3200 kcal/day, 130-150g protein, 250-350g carbs. SiS Beta Fuel gels every 30 mins on long runs.
+NUTRITION TARGETS: 2800-3200 kcal/day, 130-150g protein, 250-350g carbs. SiS Beta Fuel gels on long runs.
 
-INJURIES: Ankle pain London Marathon from 6km. Arch pain in non-carbon shoes (Superfeet insoles). Upper left shin pain appeared post-marathon, monitor carefully.
+INJURIES: Ankle pain London Marathon. Arch pain in non-carbon shoes (Superfeet insoles). Left shin to monitor.
 
-LIVE NUTRITION (last 7 days):
-${(() => {
-  const nutrition = userPrefs?.nutrition || {};
-  const entries = Object.entries(nutrition).sort((a,b)=>b[0].localeCompare(a[0])).slice(0,7);
-  if (!entries.length) return "No nutrition logged yet";
-  return entries.map(([date,log]) => {
-    const d = new Date(date).toLocaleDateString("en-GB",{weekday:"short",day:"numeric",month:"short"});
-    return d + ": " + [log.kcal&&log.kcal+"kcal", log.protein&&log.protein+"g protein", log.carbs&&log.carbs+"g carbs", log.fat&&log.fat+"g fat", log.notes&&"notes: "+log.notes].filter(Boolean).join(", ");
-  }).join("\n");
-})()}
-
-LIVE STRAVA DATA:
-YTD: ${ytd.distance?(ytd.distance/1000).toFixed(1):"442.9"}km, ${ytd.count||57} runs
+LIVE STRAVA: YTD ${ytd.distance?(ytd.distance/1000).toFixed(1):"442.9"}km, ${ytd.count||57} runs
 
 RECENT RUNS:
-${runs.map(r=>`- ${r.name} (${new Date(r.start_date_local).toLocaleDateString("en-GB")}): ${(r.distance/1000).toFixed(2)}km at ${fPace(r.average_speed)}/km${r.average_heartrate?`, avg HR ${Math.round(r.average_heartrate)}bpm`:""}`).join("\n")}
+${runs.map(r=>`- ${r.name} (${new Date(r.start_date_local).toLocaleDateString("en-GB")}): ${(r.distance/1000).toFixed(2)}km at ${fPace(r.average_speed)}/km${r.average_heartrate?`, ${Math.round(r.average_heartrate)}bpm`:""}`).join("\n")}
 
-LIVE WHOOP DATA:
-${rec?`Today: recovery ${Math.round(rec.score?.recovery_score||0)}%, HRV ${Math.round(rec.score?.hrv_rmssd_milli||0)}ms, RHR ${Math.round(rec.score?.resting_heart_rate||0)}bpm, resp rate ${rec.score?.respiratory_rate?.toFixed(1)||"N/A"}`:"Whoop recovery: not loaded"}
-${cyc?`Today strain: ${cyc.score?.strain?.toFixed(1)||"N/A"}`:""}
-${sleep?`Last sleep: ${Math.round(sleep.score?.sleep_performance_percentage||0)}% score, ${sleep.score?.stage_summary?.total_in_bed_time_milli?(sleep.score.stage_summary.total_in_bed_time_milli/3600000).toFixed(1):0}h in bed, REM ${sleep.score?.stage_summary?.total_rem_sleep_time_milli?(sleep.score.stage_summary.total_rem_sleep_time_milli/60000).toFixed(0):0}m, deep sleep ${sleep.score?.stage_summary?.total_slow_wave_sleep_time_milli?(sleep.score.stage_summary.total_slow_wave_sleep_time_milli/60000).toFixed(0):0}m`:"Last sleep: not loaded"}
+LIVE WHOOP:
+${rec?`Today: recovery ${Math.round(rec.score?.recovery_score||0)}%, HRV ${Math.round(rec.score?.hrv_rmssd_milli||0)}ms, RHR ${Math.round(rec.score?.resting_heart_rate||0)}bpm`:"Recovery: not loaded"}
+${cyc?`Strain: ${cyc.score?.strain?.toFixed(1)||"N/A"}`:""}
+${sleep?`Last sleep: ${Math.round(sleep.score?.sleep_performance_percentage||0)}% score, ${sleep.score?.stage_summary?.total_in_bed_time_milli?(sleep.score.stage_summary.total_in_bed_time_milli/3600000).toFixed(1):0}h in bed`:"Sleep: not loaded"}
 
-RECENT WHOOP RECOVERY (7 days):
+WHOOP HISTORY (7 days):
 ${recentRecs||"No data"}
 
-RECENT SLEEP (7 days):
+SLEEP HISTORY (7 days):
 ${recentSleeps||"No data"}
 
-CRITICAL GYM WORKOUT FORMAT: When asked for a gym session or workout, reply conversationally first (1-2 sentences), then use this EXACT format so it saves to the Gym tab automatically:
+NUTRITION (last 7 days):
+${recentNutrition||"No nutrition logged"}
 
-GYM_START
-TITLE: [session title e.g. "Chest and Arms - Tuesday"]
-[Exercise name] | [Sets x Reps] | [Weight] | [Notes e.g. "increase from last week" or "slow negatives"]
-[Exercise name] | [Sets x Reps] | [Weight] | [Notes]
-GYM_END
-
-Always reference his current lifts and suggest progressive overload where appropriate. Default focus is chest unless asked otherwise.
-
-CRITICAL TRAINING PLAN FORMAT: When asked for a training plan, reply conversationally first (2-3 sentences), then use this EXACT format. Every day needs distance, pace and shoe:
-
+TRAINING PLAN FORMAT — when asked, reply conversationally first (2-3 sentences) then use:
 PLAN_START
 TITLE: [title]
-Mon | [type] | [X]km | [pace]/km | [shoe] | [full description]
-Tue | [type] | [X]km | [pace]/km | [shoe] | [description]
-Wed | [type] | [X]km | [pace]/km | [shoe] | [description]
-Thu | [type] | [X]km | [pace]/km | [shoe] | [description]
-Fri | [type] | [X]km | [pace]/km | [shoe] | [description]
-Sat | [type] | [X]km | [pace]/km | [shoe] | [description]
-Sun | [type] | [X]km | [pace]/km | [shoe] | [description]
+Mon | [type] | [X]km | [pace]/km | [shoe] | [description]
+...repeat for all 7 days...
 PLAN_END
+Rest days: Mon | Rest | 0km | N/A | N/A | Rest
+Types: Easy, Interval, Tempo, Long Run, Rest, Gym
 
-Rest days: Mon | Rest | 0km | N/A | N/A | Full rest or gym only
-Types: Easy, Interval, Tempo, Long Run, Rest, Gym`;
+GYM WORKOUT FORMAT — when asked, reply conversationally first then use:
+GYM_START
+TITLE: [session title]
+[Exercise] | [Sets]x[Reps] | [Weight] | [Notes]
+...repeat for all exercises...
+GYM_END
+Always reference current lifts and suggest progressive overload.`;
   };
 
   const send = async () => {
-    if((!input.trim()&&!images.length)||loading)return;
+    if ((!input.trim() && !images.length) || loading) return;
     const contentArr = [];
-    images.forEach(img => contentArr.push({type:"image",source:{type:"base64",media_type:img.mediaType,data:img.base64}}));
-    if(input.trim()) contentArr.push({type:"text",text:input.trim()});
-    const userMsg = {role:"user", content:images.length?contentArr:input.trim()};
-    const displayMsg = {role:"user", content:input.trim()||(images.length?`[${images.length} image${images.length>1?"s":""} attached]`:""), hasImage:images.length>0, imagePreviews:images.map(i=>i.preview)};
-    setMessages(prev=>[...prev,displayMsg]);
+    images.forEach(img => contentArr.push({ type:"image", source:{type:"base64", media_type:img.mediaType, data:img.base64} }));
+    if (input.trim()) contentArr.push({ type:"text", text:input.trim() });
+    const userMsg = { role:"user", content: images.length ? contentArr : input.trim() };
+    const displayMsg = { role:"user", content: input.trim() || `${images.length} image${images.length>1?"s":""} attached`, imagePreviews: images.map(i=>i.preview) };
+    setMessages(prev => [...prev, displayMsg]);
     setInput("");
     setImages([]);
     setLoading(true);
     try {
-      const apiMessages = [...messages.filter(m=>m.role!=="system"), userMsg].map(m=>({role:m.role,content:m.content}));
-      const res=await fetch("/.netlify/functions/claude-chat",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({system:buildContext(),messages:apiMessages})});
-      const data=await res.json();
-      const reply=data.content?.[0]?.text||"Sorry, something went wrong.";
-      const plan=extractPlan(reply);
-      const gym=extractGym(reply);
-      const cleaned=cleanReply(reply);
-      const notification=(plan?"\n\n✓ Training plan saved to your Plan tab!":"")+(gym?"\n\n💪 Gym workout saved to your Gym tab!":"");
-      const final=cleaned+notification;
-      setMessages(prev=>[...prev,{role:"assistant",content:final}]);
-      if(plan&&onPlanSaved)onPlanSaved(plan);
-      if(gym&&onGymSaved)onGymSaved(gym);
-      if(gym&&onGymSaved)onGymSaved(gym);
-    }catch(e){setMessages(prev=>[...prev,{role:"assistant",content:"Something went wrong. Please try again."}]);}
+      const apiMsgs = [...messages.filter(m=>m.role!=="system"), userMsg].map(m => ({ role:m.role, content:m.content }));
+      const res = await fetch("/.netlify/functions/claude-chat", {
+        method:"POST",
+        headers:{"Content-Type":"application/json"},
+        body:JSON.stringify({ system: buildContext(), messages: apiMsgs })
+      });
+      const data = await res.json();
+      const reply = data.content?.[0]?.text || "Something went wrong. Please try again.";
+      const plan = extractPlan(reply);
+      const gym = extractGym(reply);
+      const cleaned = cleanReply(reply);
+      const suffix = (plan ? "\n\n✓ Training plan saved to your Plan tab!" : "") + (gym ? "\n\n💪 Gym workout saved to your Gym tab!" : "");
+      setMessages(prev => [...prev, { role:"assistant", content: cleaned + suffix }]);
+      if (plan && onPlanSaved) onPlanSaved(plan);
+      if (gym && onGymSaved) onGymSaved(gym);
+    } catch(e) {
+      setMessages(prev => [...prev, { role:"assistant", content:"Something went wrong. Please try again." }]);
+    }
     setLoading(false);
   };
 
+  const SUGGESTIONS = ["How am I recovering?", "Make me a training plan", "Gym session today", "Am I on track for Berlin?", "Analyse my recent runs"];
+
   return (
-    <div style={{ display:"flex", flexDirection:"column", height:"100%", gap:0 }}>
-      <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:10 }}>
+    <div style={{ display:"flex", flexDirection:"column", height:"100%", fontFamily:C.sans }}>
+      <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:10, flexShrink:0 }}>
         {messages.length <= 1 && (
           <div style={{ display:"flex", gap:6, flexWrap:"wrap", flex:1, marginRight:8 }}>
-            {["How am I recovering?","Make me a training plan","Gym session today","Am I on track for Berlin?","Analyse my recent runs"].map(p=>(
-              <button key={p} onClick={()=>setInput(p)} style={{ background:C.orangeL, border:`1px solid ${C.orangeB}`, color:C.orange, borderRadius:20, padding:"5px 12px", fontSize:11, fontWeight:600, cursor:"pointer", fontFamily:C.sans, whiteSpace:"nowrap" }}>{p}</button>
+            {SUGGESTIONS.map(s => (
+              <button key={s} onClick={()=>setInput(s)} style={{ background:C.orangeL, border:`1px solid ${C.orangeB}`, color:C.orange, borderRadius:20, padding:"5px 12px", fontSize:11, fontWeight:600, cursor:"pointer", fontFamily:C.sans, whiteSpace:"nowrap" }}>{s}</button>
             ))}
           </div>
         )}
-        <button onClick={()=>{const f=[{role:"assistant",content:"Hi Caleb! How can I help today?"}];setMessages(f);saveChatHistory(f);}} style={{ background:"transparent", border:`1px solid ${C.border}`, color:C.sub, borderRadius:20, padding:"4px 12px", fontSize:11, cursor:"pointer", fontFamily:C.sans, flexShrink:0 }}>Clear</button>
+        <button onClick={()=>{ const f=[{role:"assistant",content:"Hi Caleb! How can I help today?"}]; setMessages(f); saveChatHistory(f); }} style={{ background:"transparent", border:`1px solid ${C.border}`, color:C.sub, borderRadius:20, padding:"4px 12px", fontSize:11, cursor:"pointer", fontFamily:C.sans, flexShrink:0, marginLeft:"auto" }}>Clear</button>
       </div>
+
       <div style={{ flex:1, overflowY:"auto", display:"flex", flexDirection:"column", gap:10, paddingBottom:12 }}>
-        {messages.map((m,i)=>(
+        {messages.map((m,i) => (
           <div key={i} style={{ display:"flex", justifyContent:m.role==="user"?"flex-end":"flex-start" }}>
             <div style={{ maxWidth:"82%", padding:"11px 15px", borderRadius:18, background:m.role==="user"?C.orange:C.surface, color:m.role==="user"?"#fff":C.text, border:m.role==="assistant"?`1px solid ${C.border}`:"none", fontSize:13, lineHeight:1.6, fontFamily:C.sans, whiteSpace:"pre-wrap" }}>
-              {m.hasImage&&(
-                <div style={{ marginBottom:6 }}>
-                  {m.imagePreviews?.length>0 ? (
-                    <div style={{ display:"flex", gap:4, flexWrap:"wrap", marginBottom:4 }}>
-                      {m.imagePreviews.map((p,i)=><img key={i} src={p} alt="" style={{ height:48, width:48, objectFit:"cover", borderRadius:6 }}/>)}
-                    </div>
-                  ) : <div style={{ fontSize:11, opacity:0.7, marginBottom:4 }}>📷 Image attached</div>}
+              {m.imagePreviews?.length > 0 && (
+                <div style={{ display:"flex", gap:4, flexWrap:"wrap", marginBottom:6 }}>
+                  {m.imagePreviews.map((p,j) => <img key={j} src={p} alt="" style={{ height:52, width:52, objectFit:"cover", borderRadius:8, opacity:0.9 }}/>)}
                 </div>
               )}
               {m.content}
             </div>
           </div>
         ))}
-        {loading&&(
+        {loading && (
           <div style={{ display:"flex", justifyContent:"flex-start" }}>
             <div style={{ background:C.surface, border:`1px solid ${C.border}`, borderRadius:18, padding:"11px 16px", display:"flex", gap:5 }}>
-              {[0,1,2].map(i=><div key={i} style={{ width:6, height:6, borderRadius:"50%", background:C.muted, animation:`bounce .9s ${i*0.15}s infinite` }}/>)}
+              {[0,1,2].map(i => <div key={i} style={{ width:6, height:6, borderRadius:"50%", background:C.muted, animation:`bounce .9s ${i*0.15}s infinite` }}/>)}
             </div>
           </div>
         )}
         <div ref={bottomRef}/>
       </div>
-      {images.length>0 && (
-        <div style={{ display:"flex", gap:8, marginBottom:8, flexWrap:"wrap" }}>
-          {images.map((img,i)=>(
-            <div key={i} style={{ position:"relative", display:"inline-block" }}>
-              <img src={img.preview} alt="preview" style={{ height:56, width:56, objectFit:"cover", borderRadius:8, border:`1px solid ${C.border}` }}/>
-              <button onClick={()=>setImages(prev=>prev.filter((_,j)=>j!==i))} style={{ position:"absolute", top:-5, right:-5, background:C.red, color:"#fff", border:"none", borderRadius:"50%", width:16, height:16, fontSize:10, cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center", lineHeight:1 }}>×</button>
+
+      {images.length > 0 && (
+        <div style={{ display:"flex", gap:8, marginBottom:8, flexWrap:"wrap", flexShrink:0 }}>
+          {images.map((img,i) => (
+            <div key={i} style={{ position:"relative" }}>
+              <img src={img.preview} alt="" style={{ height:52, width:52, objectFit:"cover", borderRadius:8, border:`1px solid ${C.border}` }}/>
+              <button onClick={()=>setImages(prev=>prev.filter((_,j)=>j!==i))} style={{ position:"absolute", top:-5, right:-5, background:C.red, color:"#fff", border:"none", borderRadius:"50%", width:16, height:16, fontSize:11, cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center", lineHeight:1 }}>×</button>
             </div>
           ))}
-          <button onClick={()=>setImages([])} style={{ height:56, padding:"0 10px", background:"transparent", border:`1px dashed ${C.border}`, borderRadius:8, color:C.muted, fontSize:11, cursor:"pointer", fontFamily:C.sans }}>Clear all</button>
         </div>
       )}
-      <div style={{ display:"flex", gap:8, paddingTop:10, borderTop:`1px solid ${C.divider}`, alignItems:"flex-end" }}>
-        <button onClick={()=>fileRef.current?.click()} style={{ background:C.bg, border:`1px solid ${C.border}`, color:C.sub, borderRadius:20, padding:"10px 12px", fontSize:16, cursor:"pointer", flexShrink:0 }}>📷</button>
+
+      <div style={{ display:"flex", gap:8, paddingTop:10, borderTop:`1px solid ${C.divider}`, alignItems:"flex-end", flexShrink:0 }}>
+        <button onClick={()=>fileRef.current?.click()} style={{ background:C.bg, border:`1px solid ${C.border}`, color:C.sub, borderRadius:20, padding:"10px 13px", fontSize:16, cursor:"pointer", flexShrink:0 }}>📷</button>
         <input ref={fileRef} type="file" accept="image/*" multiple style={{ display:"none" }} onChange={handleImages}/>
         <input value={input} onChange={e=>setInput(e.target.value)} onKeyDown={e=>e.key==="Enter"&&!e.shiftKey&&send()} placeholder="Ask me anything..." style={{ flex:1, background:C.bg, border:`1px solid ${C.border}`, borderRadius:20, padding:"10px 16px", color:C.text, fontSize:13, outline:"none", fontFamily:C.sans }}/>
-        <button onClick={send} disabled={loading||(!input.trim()&&!images.length)} style={{ background:C.orange, color:"#fff", border:"none", borderRadius:20, padding:"10px 18px", fontSize:13, fontWeight:700, cursor:"pointer", opacity:loading||(!input.trim()&&!image)?0.4:1, fontFamily:C.sans, flexShrink:0 }}>Send</button>
+        <button onClick={send} disabled={loading||(!input.trim()&&!images.length)} style={{ background:C.orange, color:"#fff", border:"none", borderRadius:20, padding:"10px 20px", fontSize:13, fontWeight:600, cursor:"pointer", opacity:loading||(!input.trim()&&!images.length)?0.4:1, fontFamily:C.sans, flexShrink:0 }}>Send</button>
       </div>
       <style>{`@keyframes bounce{0%,100%{transform:translateY(0)}50%{transform:translateY(-5px)}}`}</style>
     </div>
