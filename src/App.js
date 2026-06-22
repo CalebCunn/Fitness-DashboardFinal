@@ -63,28 +63,38 @@ function predictRaces(activities, vo2max=67) {
 }
 
 // Apple-inspired light design system
-const C = {
-  bg:       "#f5f5f7",
-  surface:  "#ffffff",
-  card:     "#ffffff",
-  border:   "#e5e5e7",
-  divider:  "#f0f0f2",
+// Inject Inter font
+if (!document.getElementById("inter-font")) {
+  const link = document.createElement("link");
+  link.id = "inter-font";
+  link.rel = "stylesheet";
+  link.href = "https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap";
+  document.head.appendChild(link);
+}
+
+const buildC = (dark) => ({
+  bg:       dark?"#0f0f11":"#f5f5f7",
+  surface:  dark?"#1c1c1e":"#ffffff",
+  card:     dark?"#2c2c2e":"#ffffff",
+  border:   dark?"#3a3a3c":"#e5e5e7",
+  divider:  dark?"#2c2c2e":"#f0f0f2",
   orange:   "#f97316",
-  orangeL:  "#fff7ed",
-  orangeB:  "#fed7aa",
-  blue:     "#0071e3",
-  blueL:    "#eff6ff",
+  orangeL:  dark?"#431407":"#fff7ed",
+  orangeB:  dark?"#7c2d12":"#fed7aa",
+  blue:     dark?"#60a5fa":"#0071e3",
+  blueL:    dark?"#1e3a5f":"#eff6ff",
   green:    "#34c759",
-  greenL:   "#f0fdf4",
+  greenL:   dark?"#052e16":"#f0fdf4",
   red:      "#ff3b30",
   yellow:   "#ff9500",
   purple:   "#af52de",
-  text:     "#1d1d1f",
-  sub:      "#6e6e73",
-  muted:    "#aeaeb2",
+  text:     dark?"#f5f5f7":"#1d1d1f",
+  sub:      dark?"#98989e":"#6e6e73",
+  muted:    dark?"#636366":"#aeaeb2",
   mono:     "'SF Mono','JetBrains Mono',monospace",
-  sans:     "-apple-system,BlinkMacSystemFont,'Inter',sans-serif",
-};
+  sans:     "'Inter',-apple-system,BlinkMacSystemFont,sans-serif",
+});
+const C = buildC(false);
 
 // ─── UI PRIMITIVES ────────────────────────────────────────────────────────────
 const Card = ({ children, style={} }) => (
@@ -578,6 +588,24 @@ function Nutrition({ userPrefs, onSavePrefs }) {
             </div>
           ))}
         </div>
+        <div style={{ marginTop:12, background:C.bg, borderRadius:12, padding:"12px 16px" }}>
+          <div style={{ fontSize:11, fontWeight:600, color:C.sub, textTransform:"uppercase", letterSpacing:"0.04em", marginBottom:8, fontFamily:C.sans }}>Log Today's Weight</div>
+          <div style={{ display:"flex", gap:8, alignItems:"center" }}>
+            <input type="number" step="0.1" placeholder="e.g. 60.5"
+              style={{ flex:1, background:C.surface, border:`1px solid ${C.border}`, borderRadius:8, padding:"7px 10px", color:C.text, fontSize:14, fontFamily:C.mono, fontWeight:700, outline:"none" }}
+              onBlur={e=>{
+                const w = parseFloat(e.target.value);
+                if (!w) return;
+                const log = userPrefs?.weightLog || [];
+                const today = new Date().toISOString().split("T")[0];
+                const updated = [...log.filter(l=>l.date!==today),{date:today,weight:w}].slice(-60);
+                onSavePrefs({...userPrefs,weightLog:updated});
+                e.target.value = "";
+              }}
+            />
+            <span style={{ fontSize:12, color:C.sub, fontFamily:C.sans }}>kg · target 65kg</span>
+          </div>
+        </div>
       </Card>
 
       {recent.length > 0 && (
@@ -616,11 +644,13 @@ function Overview({ stats, activities, whoopData, whoopOk, onConnectWhoop, bestE
     return{week:w.week,pace:avg?parseFloat((1000/avg/60).toFixed(2)):null};
   }).filter(w=>w.pace);
 
-  const berlin = new Date("2026-09-28");
+  const berlin = new Date("2026-09-28T00:00:00");
   const today = new Date();
   const daysLeft = Math.max(0,Math.ceil((berlin-today)/(1000*60*60*24)));
-  const blockStart = new Date("2026-06-22");
-  const progress = Math.min(100,Math.round(Math.max(0,(today-blockStart)/(berlin-blockStart))*100));
+  const blockStart = new Date("2026-06-22T00:00:00");
+  const totalMs = berlin.getTime() - blockStart.getTime();
+  const elapsedMs = today.getTime() - blockStart.getTime();
+  const progress = Math.min(100,Math.max(0,Math.round((elapsedMs/totalMs)*100)));
 
   const PBs = [{label:"5K",time:"18:42",pace:"3:44/km"},{label:"10K",time:"40:52",pace:"4:05/km"},{label:"HM",time:"1:32:48",pace:"4:23/km"},{label:"Marathon",time:"3:48:59",pace:"5:25/km"}];
 
@@ -651,8 +681,19 @@ function Overview({ stats, activities, whoopData, whoopOk, onConnectWhoop, bestE
         </div>
       </Card>
 
+      {/* Low recovery alert */}
+      {whoopOk && rec && Math.round(rec.score?.recovery_score||0) < 34 && (
+        <div style={{ background:"#fff1f2", border:"1.5px solid #fecdd3", borderRadius:14, padding:"12px 16px", display:"flex", alignItems:"center", gap:10 }}>
+          <span style={{ fontSize:18 }}>⚠️</span>
+          <div>
+            <div style={{ fontSize:13, fontWeight:700, color:C.red, fontFamily:C.sans }}>Low recovery today ({Math.round(rec.score?.recovery_score||0)}%)</div>
+            <div style={{ fontSize:12, color:"#9f1239", fontFamily:C.sans, marginTop:2 }}>Consider an easy session or rest day. Your body needs it.</div>
+          </div>
+        </div>
+      )}
+
       {/* Berlin countdown */}
-      <Card style={{ background:`linear-gradient(135deg,#fff7ed,#fff)` }}>
+      <Card style={{ background:darkMode?"linear-gradient(135deg,#431407,#1c1c1e)":`linear-gradient(135deg,#fff7ed,#fff)` }}>
         <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", flexWrap:"wrap", gap:10, marginBottom:14 }}>
           <div>
             <div style={{ fontSize:11, fontWeight:600, color:C.orange, textTransform:"uppercase", letterSpacing:"0.06em", marginBottom:4, fontFamily:C.sans }}>Next Race</div>
@@ -762,6 +803,61 @@ function Overview({ stats, activities, whoopData, whoopOk, onConnectWhoop, bestE
           </>
         );
       })()}
+
+      {/* Weight trend */}
+      {userPrefs?.weightLog && userPrefs.weightLog.length > 1 && (() => {
+        const log = userPrefs.weightLog.slice(-14);
+        return (
+          <Card>
+            <SectionTitle>Weight Trend</SectionTitle>
+            <ResponsiveContainer width="100%" height={110}>
+              <LineChart data={log}>
+                <XAxis dataKey="date" tick={{fontSize:9,fill:C.sub,fontFamily:C.sans}} tickLine={false} axisLine={false} interval={2}/>
+                <YAxis tick={{fontSize:9,fill:C.muted}} tickLine={false} axisLine={false} width={30} domain={["auto","auto"]} unit="kg"/>
+                <Tooltip content={<CT/>}/>
+                <Line type="monotone" dataKey="weight" name="kg" stroke={C.orange} strokeWidth={2} dot={{fill:C.orange,r:3}} connectNulls/>
+              </LineChart>
+            </ResponsiveContainer>
+            <div style={{ display:"flex", justifyContent:"space-between", marginTop:8, fontSize:11, color:C.sub, fontFamily:C.sans }}>
+              <span>Current: {log[log.length-1]?.weight}kg</span>
+              <span>Target: 65kg</span>
+            </div>
+          </Card>
+        );
+      })()}
+
+      {/* Fundraising tracker */}
+      <Card>
+        <SectionTitle>Fundraising</SectionTitle>
+        <div style={{ display:"flex", flexDirection:"column", gap:10 }}>
+          {[
+            { race:"London 2024", charity:"DFSG", raised:2500, target:2500, done:true },
+            { race:"London 2026", charity:"DFSG", raised:2500, target:2500, done:true },
+            { race:"Berlin 2026", charity:"Get Kids Going", raised:0, target:2000, done:false },
+          ].map((f,i)=>(
+            <div key={i} style={{ background:C.bg, borderRadius:12, padding:"12px 16px" }}>
+              <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:6 }}>
+                <div>
+                  <div style={{ fontSize:13, fontWeight:600, color:C.text, fontFamily:C.sans }}>{f.race}</div>
+                  <div style={{ fontSize:11, color:C.sub, fontFamily:C.sans }}>{f.charity}</div>
+                </div>
+                <div style={{ fontFamily:C.mono, fontSize:14, fontWeight:700, color:f.done?C.green:C.orange }}>£{f.raised.toLocaleString()}</div>
+              </div>
+              <div style={{ height:5, background:C.divider, borderRadius:3 }}>
+                <div style={{ width:`${Math.min(100,Math.round(f.raised/f.target*100))}%`, height:"100%", background:f.done?C.green:C.orange, borderRadius:3 }}/>
+              </div>
+              <div style={{ display:"flex", justifyContent:"space-between", fontSize:10, color:C.muted, marginTop:4, fontFamily:C.sans }}>
+                <span>{Math.round(f.raised/f.target*100)}% of £{f.target.toLocaleString()} target</span>
+                {f.done&&<span style={{ color:C.green, fontWeight:600 }}>✓ Complete</span>}
+              </div>
+            </div>
+          ))}
+          <div style={{ background:C.orangeL, borderRadius:12, padding:"12px 16px", display:"flex", justifyContent:"space-between", alignItems:"center" }}>
+            <div style={{ fontSize:13, fontWeight:700, color:C.orange, fontFamily:C.sans }}>Total Raised</div>
+            <div style={{ fontFamily:C.mono, fontSize:18, fontWeight:800, color:C.orange }}>£5,000+</div>
+          </div>
+        </div>
+      </Card>
 
       <GoalsTracker activities={activities} userPrefs={userPrefs} onSavePrefs={onSavePrefs}/>
       <ConsistencyHeatmap activities={activities}/>
@@ -1115,32 +1211,35 @@ function Recovery({ whoopData, whoopOk, onConnectWhoop, onRefreshWhoop }) {
 }
 
 // ─── SESSION CARD ─────────────────────────────────────────────────────────────
-function SessionCard({ session: s, typeC }) {
+function SessionCard({ session: s, typeC, onToggleDone }) {
   const [expanded, setExpanded] = useState(false);
-  const col = typeC[s.type]||C.orange;
+  const col = s.done ? C.green : (typeC[s.type]||C.orange);
   const isRest = s.type==="Rest";
   return (
-    <Card style={{ opacity:isRest?0.5:1 }}>
-      <button onClick={()=>!isRest&&setExpanded(!expanded)} style={{ background:"transparent", border:"none", width:"100%", textAlign:"left", cursor:isRest?"default":"pointer", padding:0 }}>
-        <div style={{ display:"flex", gap:14, alignItems:"flex-start" }}>
-          <div style={{ textAlign:"center", minWidth:44, flexShrink:0 }}>
-            <div style={{ fontSize:10, color:C.muted, textTransform:"uppercase", letterSpacing:"0.04em", marginBottom:5, fontFamily:C.sans }}>{s.day}</div>
-            <div style={{ width:38, height:38, borderRadius:"50%", background:`${col}18`, border:`2px solid ${col}40`, display:"flex", alignItems:"center", justifyContent:"center" }}>
-              <div style={{ width:12, height:12, borderRadius:"50%", background:col }}/>
-            </div>
-          </div>
+    <Card style={{ opacity:isRest?0.5:1, background:s.done?C.greenL:C.card }}>
+      <div style={{ display:"flex", gap:14, alignItems:"flex-start" }}>
+        <div style={{ textAlign:"center", minWidth:44, flexShrink:0 }}>
+          <div style={{ fontSize:10, color:C.muted, textTransform:"uppercase", letterSpacing:"0.04em", marginBottom:5, fontFamily:C.sans }}>{s.day}</div>
+          <button onClick={()=>onToggleDone&&onToggleDone()} style={{ width:38, height:38, borderRadius:"50%", background:s.done?C.green:`${col}18`, border:`2px solid ${s.done?C.green:col+"40"}`, display:"flex", alignItems:"center", justifyContent:"center", cursor:"pointer", flexShrink:0 }}>
+            {s.done ? <span style={{ color:"#fff", fontSize:16, lineHeight:1 }}>✓</span> : <div style={{ width:12, height:12, borderRadius:"50%", background:col }}/>}
+          </button>
+        </div>
+      <div style={{ flex:1, minWidth:0 }}>
+        <button onClick={()=>!isRest&&setExpanded(!expanded)} style={{ background:"transparent", border:"none", width:"100%", textAlign:"left", cursor:isRest?"default":"pointer", padding:0 }}>
+        <div style={{ display:"flex", gap:0, alignItems:"flex-start" }}>
           <div style={{ flex:1, minWidth:0 }}>
             <div style={{ display:"flex", alignItems:"center", gap:8, marginBottom:6, flexWrap:"wrap" }}>
-              <span style={{ fontSize:14, fontWeight:700, color:C.text, fontFamily:C.sans }}>{s.type}</span>
+              <span style={{ fontSize:14, fontWeight:700, color:s.done?C.green:C.text, textDecoration:s.done?"line-through":"none", fontFamily:C.sans }}>{s.type}</span>
               {s.dist&&s.dist!=="0km"&&<Tag color={col}>{s.dist}</Tag>}
-              {s.pace&&s.pace!=="N/A"&&<Tag color={C.orange}>{s.pace}</Tag>}
+              {s.pace&&s.pace!=="N/A"&&<Tag color={s.done?C.green:C.orange}>{s.pace}</Tag>}
             </div>
             {s.shoe&&s.shoe!=="N/A"&&<div style={{ fontSize:12, color:C.purple, marginBottom:3, fontFamily:C.sans }}>👟 {s.shoe}</div>}
             {!expanded&&s.notes&&<div style={{ fontSize:12, color:C.sub, lineHeight:1.5, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap", fontFamily:C.sans }}>{s.notes}</div>}
           </div>
           {!isRest&&<div style={{ color:C.muted, fontSize:14, flexShrink:0 }}>{expanded?"▲":"▼"}</div>}
         </div>
-      </button>
+        </button>
+      </div>
       {expanded && (
         <div style={{ marginTop:14, paddingTop:14, borderTop:`1px solid ${C.divider}` }}>
           {s.notes&&<div style={{ fontSize:13, color:C.sub, lineHeight:1.7, marginBottom:14, fontFamily:C.sans }}>{s.notes}</div>}
@@ -1164,6 +1263,11 @@ function TrainingPlan({ onChat, externalPlan }) {
   const savePlan = p => { setPlan(p); saveTrainingPlan(p); };
   useEffect(()=>{if(externalPlan&&planLoaded)savePlan(externalPlan);},[externalPlan,planLoaded]);
   const typeC = { Rest:C.muted, Easy:C.green, Interval:C.red, Tempo:C.yellow, "Long Run":C.blue, Gym:C.orange };
+
+  const toggleDone = (i) => {
+    const updated = { ...plan, sessions: plan.sessions.map((s,j) => j===i ? {...s, done:!s.done} : s) };
+    savePlan(updated);
+  };
   return (
     <div style={{ display:"flex", flexDirection:"column", gap:14, paddingBottom:20 }}>
       {!plan ? (
@@ -1197,7 +1301,7 @@ function TrainingPlan({ onChat, externalPlan }) {
             </div>
           </Card>
           <div style={{ display:"flex", flexDirection:"column", gap:10 }}>
-            {plan.sessions.map((s,i)=><SessionCard key={i} session={s} typeC={typeC}/>)}
+            {plan.sessions.map((s,i)=><SessionCard key={i} session={s} typeC={typeC} onToggleDone={()=>toggleDone(i)}/>)}
           </div>
         </>
       )}
@@ -1282,8 +1386,7 @@ function Chat({ activities, stats, whoopData, whoopOk, onPlanSaved, onGymSaved, 
   const [chatLoaded, setChatLoaded] = useState(false);
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
-  const [image, setImage] = useState(null);
-  const [imagePreview, setImagePreview] = useState(null);
+  const [images, setImages] = useState([]);
   const bottomRef = useRef(null);
   const fileRef = useRef(null);
 
@@ -1297,16 +1400,20 @@ function Chat({ activities, stats, whoopData, whoopOk, onPlanSaved, onGymSaved, 
     }
   },[corosSession,chatLoaded]);
 
-  const handleImage = (e) => {
-    const file = e.target.files[0];
-    if (!file) return;
-    const reader = new FileReader();
-    reader.onload = (ev) => {
-      const base64 = ev.target.result.split(",")[1];
-      setImage({ base64, mediaType: file.type });
-      setImagePreview(ev.target.result);
-    };
-    reader.readAsDataURL(file);
+  const handleImages = (e) => {
+    const files = Array.from(e.target.files);
+    if (!files.length) return;
+    const newImages = [];
+    let loaded = 0;
+    files.forEach(file => {
+      const reader = new FileReader();
+      reader.onload = (ev) => {
+        newImages.push({ base64: ev.target.result.split(",")[1], mediaType: file.type, preview: ev.target.result });
+        loaded++;
+        if (loaded === files.length) setImages(prev => [...prev, ...newImages].slice(0, 5));
+      };
+      reader.readAsDataURL(file);
+    });
   };
 
   const extractGymWorkout = text => {
@@ -1466,18 +1573,15 @@ Types: Easy, Interval, Tempo, Long Run, Rest, Gym`;
   };
 
   const send = async () => {
-    if((!input.trim()&&!image)||loading)return;
-    const content = [];
-    if(image){
-      content.push({type:"image",source:{type:"base64",media_type:image.mediaType,data:image.base64}});
-    }
-    if(input.trim()) content.push({type:"text",text:input.trim()});
-    const userMsg = {role:"user", content:image?content:input.trim()};
-    const displayMsg = {role:"user", content:input.trim()||(image?"[Image sent]":""), hasImage:!!image};
+    if((!input.trim()&&!images.length)||loading)return;
+    const contentArr = [];
+    images.forEach(img => contentArr.push({type:"image",source:{type:"base64",media_type:img.mediaType,data:img.base64}}));
+    if(input.trim()) contentArr.push({type:"text",text:input.trim()});
+    const userMsg = {role:"user", content:images.length?contentArr:input.trim()};
+    const displayMsg = {role:"user", content:input.trim()||(images.length?`[${images.length} image${images.length>1?"s":""} attached]`:""), hasImage:images.length>0, imagePreviews:images.map(i=>i.preview)};
     setMessages(prev=>[...prev,displayMsg]);
     setInput("");
-    setImage(null);
-    setImagePreview(null);
+    setImages([]);
     setLoading(true);
     try {
       const apiMessages = [...messages.filter(m=>m.role!=="system"), userMsg].map(m=>({role:m.role,content:m.content}));
@@ -1499,14 +1603,29 @@ Types: Easy, Interval, Tempo, Long Run, Rest, Gym`;
 
   return (
     <div style={{ display:"flex", flexDirection:"column", height:"100%", gap:0 }}>
-      <div style={{ display:"flex", justifyContent:"flex-end", marginBottom:10 }}>
-        <button onClick={()=>{const f=[{role:"assistant",content:"Hi Caleb! How can I help today?"}];setMessages(f);saveChatHistory(f);}} style={{ background:"transparent", border:`1px solid ${C.border}`, color:C.sub, borderRadius:20, padding:"4px 12px", fontSize:11, cursor:"pointer", fontFamily:C.sans }}>Clear</button>
+      <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:10 }}>
+        {messages.length <= 1 && (
+          <div style={{ display:"flex", gap:6, flexWrap:"wrap", flex:1, marginRight:8 }}>
+            {["How am I recovering?","Make me a training plan","Gym session today","Am I on track for Berlin?","Analyse my recent runs"].map(p=>(
+              <button key={p} onClick={()=>setInput(p)} style={{ background:C.orangeL, border:`1px solid ${C.orangeB}`, color:C.orange, borderRadius:20, padding:"5px 12px", fontSize:11, fontWeight:600, cursor:"pointer", fontFamily:C.sans, whiteSpace:"nowrap" }}>{p}</button>
+            ))}
+          </div>
+        )}
+        <button onClick={()=>{const f=[{role:"assistant",content:"Hi Caleb! How can I help today?"}];setMessages(f);saveChatHistory(f);}} style={{ background:"transparent", border:`1px solid ${C.border}`, color:C.sub, borderRadius:20, padding:"4px 12px", fontSize:11, cursor:"pointer", fontFamily:C.sans, flexShrink:0 }}>Clear</button>
       </div>
       <div style={{ flex:1, overflowY:"auto", display:"flex", flexDirection:"column", gap:10, paddingBottom:12 }}>
         {messages.map((m,i)=>(
           <div key={i} style={{ display:"flex", justifyContent:m.role==="user"?"flex-end":"flex-start" }}>
             <div style={{ maxWidth:"82%", padding:"11px 15px", borderRadius:18, background:m.role==="user"?C.orange:C.surface, color:m.role==="user"?"#fff":C.text, border:m.role==="assistant"?`1px solid ${C.border}`:"none", fontSize:13, lineHeight:1.6, fontFamily:C.sans, whiteSpace:"pre-wrap" }}>
-              {m.hasImage&&<div style={{ fontSize:11, opacity:0.7, marginBottom:4 }}>📷 Image attached</div>}
+              {m.hasImage&&(
+                <div style={{ marginBottom:6 }}>
+                  {m.imagePreviews?.length>0 ? (
+                    <div style={{ display:"flex", gap:4, flexWrap:"wrap", marginBottom:4 }}>
+                      {m.imagePreviews.map((p,i)=><img key={i} src={p} alt="" style={{ height:48, width:48, objectFit:"cover", borderRadius:6 }}/>)}
+                    </div>
+                  ) : <div style={{ fontSize:11, opacity:0.7, marginBottom:4 }}>📷 Image attached</div>}
+                </div>
+              )}
               {m.content}
             </div>
           </div>
@@ -1520,17 +1639,22 @@ Types: Easy, Interval, Tempo, Long Run, Rest, Gym`;
         )}
         <div ref={bottomRef}/>
       </div>
-      {imagePreview && (
-        <div style={{ marginBottom:8, position:"relative", display:"inline-block" }}>
-          <img src={imagePreview} alt="preview" style={{ height:60, borderRadius:8, border:`1px solid ${C.border}` }}/>
-          <button onClick={()=>{setImage(null);setImagePreview(null);}} style={{ position:"absolute", top:-6, right:-6, background:C.red, color:"#fff", border:"none", borderRadius:"50%", width:18, height:18, fontSize:11, cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center" }}>×</button>
+      {images.length>0 && (
+        <div style={{ display:"flex", gap:8, marginBottom:8, flexWrap:"wrap" }}>
+          {images.map((img,i)=>(
+            <div key={i} style={{ position:"relative", display:"inline-block" }}>
+              <img src={img.preview} alt="preview" style={{ height:56, width:56, objectFit:"cover", borderRadius:8, border:`1px solid ${C.border}` }}/>
+              <button onClick={()=>setImages(prev=>prev.filter((_,j)=>j!==i))} style={{ position:"absolute", top:-5, right:-5, background:C.red, color:"#fff", border:"none", borderRadius:"50%", width:16, height:16, fontSize:10, cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center", lineHeight:1 }}>×</button>
+            </div>
+          ))}
+          <button onClick={()=>setImages([])} style={{ height:56, padding:"0 10px", background:"transparent", border:`1px dashed ${C.border}`, borderRadius:8, color:C.muted, fontSize:11, cursor:"pointer", fontFamily:C.sans }}>Clear all</button>
         </div>
       )}
       <div style={{ display:"flex", gap:8, paddingTop:10, borderTop:`1px solid ${C.divider}`, alignItems:"flex-end" }}>
         <button onClick={()=>fileRef.current?.click()} style={{ background:C.bg, border:`1px solid ${C.border}`, color:C.sub, borderRadius:20, padding:"10px 12px", fontSize:16, cursor:"pointer", flexShrink:0 }}>📷</button>
-        <input ref={fileRef} type="file" accept="image/*" style={{ display:"none" }} onChange={handleImage}/>
+        <input ref={fileRef} type="file" accept="image/*" multiple style={{ display:"none" }} onChange={handleImages}/>
         <input value={input} onChange={e=>setInput(e.target.value)} onKeyDown={e=>e.key==="Enter"&&!e.shiftKey&&send()} placeholder="Ask me anything..." style={{ flex:1, background:C.bg, border:`1px solid ${C.border}`, borderRadius:20, padding:"10px 16px", color:C.text, fontSize:13, outline:"none", fontFamily:C.sans }}/>
-        <button onClick={send} disabled={loading||(!input.trim()&&!image)} style={{ background:C.orange, color:"#fff", border:"none", borderRadius:20, padding:"10px 18px", fontSize:13, fontWeight:700, cursor:"pointer", opacity:loading||(!input.trim()&&!image)?0.4:1, fontFamily:C.sans, flexShrink:0 }}>Send</button>
+        <button onClick={send} disabled={loading||(!input.trim()&&!images.length)} style={{ background:C.orange, color:"#fff", border:"none", borderRadius:20, padding:"10px 18px", fontSize:13, fontWeight:700, cursor:"pointer", opacity:loading||(!input.trim()&&!image)?0.4:1, fontFamily:C.sans, flexShrink:0 }}>Send</button>
       </div>
       <style>{`@keyframes bounce{0%,100%{transform:translateY(0)}50%{transform:translateY(-5px)}}`}</style>
     </div>
@@ -1568,6 +1692,7 @@ export default function App() {
   const [savedWorkout, setSavedWorkout] = useState(null);
   const [corosSession, setCorosSession] = useState(null);
   const [userPrefs, setUserPrefs] = useState(null);
+  const [darkMode, setDarkMode] = useState(false);
 
   useEffect(()=>{
     const params=new URLSearchParams(window.location.search);
@@ -1600,6 +1725,7 @@ export default function App() {
 
   if(!connected||whoopPending)return <ConnectScreen whoopPending={whoopPending}/>;
 
+  const C = buildC(darkMode);
   const sharedProps={activities,stats,whoopData,whoopOk,onConnectWhoop:handleConnectWhoop,onRefreshWhoop:loadWhoop};
 
   const views={
@@ -1653,6 +1779,7 @@ export default function App() {
           <div style={{ fontSize:13, fontWeight:700, color:C.orange, letterSpacing:"0.04em" }}>Fitness Dashboard</div>
           <div style={{ flex:1 }}/>
           <div style={{ fontSize:13, color:C.sub, fontWeight:500 }}>{NAV.find(n=>n.id===page)?.label}</div>
+          <button onClick={()=>setDarkMode(!darkMode)} style={{ background:"transparent", border:"none", fontSize:16, cursor:"pointer", opacity:0.7 }}>{darkMode?"☀️":"🌙"}</button>
         </div>
 
         {/* Content */}
