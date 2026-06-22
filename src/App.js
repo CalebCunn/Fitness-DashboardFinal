@@ -63,14 +63,6 @@ function predictRaces(activities, vo2max=67) {
 }
 
 // Apple-inspired light design system
-// Inject Inter font
-if (!document.getElementById("inter-font")) {
-  const link = document.createElement("link");
-  link.id = "inter-font";
-  link.rel = "stylesheet";
-  link.href = "https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap";
-  document.head.appendChild(link);
-}
 
 const C = {
   bg:       "#f5f5f7",
@@ -91,7 +83,7 @@ const C = {
   text:     "#1d1d1f",
   sub:      "#6e6e73",
   muted:    "#aeaeb2",
-  mono:     "'SF Mono','JetBrains Mono',monospace",
+  mono:     "'Inter',-apple-system,BlinkMacSystemFont,sans-serif",
   sans:     "'Inter',-apple-system,BlinkMacSystemFont,sans-serif",
 };
 
@@ -1390,7 +1382,7 @@ function Chat({ activities, stats, whoopData, whoopOk, onPlanSaved, onGymSaved, 
   const bottomRef = useRef(null);
   const fileRef = useRef(null);
 
-  useEffect(() => { loadChatHistory().then(msgs => { if(msgs&&msgs.length>0) setMessages(msgs); setChatLoaded(true); }); }, []);
+  useEffect(() => { loadChatHistory().then(msgs => { if(msgs&&msgs.length>0) setMessages(msgs); setChatLoaded(true); }).catch(() => { setChatLoaded(true); }); }, []);
   useEffect(() => { bottomRef.current?.scrollIntoView({behavior:"smooth"}); }, [messages]);
   useEffect(() => { if(chatLoaded) saveChatHistory(messages); }, [messages, chatLoaded]);
   useEffect(() => {
