@@ -1217,40 +1217,41 @@ function SessionCard({ session: s, typeC, onToggleDone }) {
   const isRest = s.type==="Rest";
   return (
     <Card style={{ opacity:isRest?0.5:1, background:s.done?C.greenL:C.card }}>
-      <div style={{ display:"flex", gap:14, alignItems:"flex-start" }}>
+      <div style={{ display:"flex", gap:12, alignItems:"flex-start" }}>
         <div style={{ textAlign:"center", minWidth:44, flexShrink:0 }}>
           <div style={{ fontSize:10, color:C.muted, textTransform:"uppercase", letterSpacing:"0.04em", marginBottom:5, fontFamily:C.sans }}>{s.day}</div>
           <button onClick={()=>onToggleDone&&onToggleDone()} style={{ width:38, height:38, borderRadius:"50%", background:s.done?C.green:`${col}18`, border:`2px solid ${s.done?C.green:col+"40"}`, display:"flex", alignItems:"center", justifyContent:"center", cursor:"pointer", flexShrink:0 }}>
             {s.done ? <span style={{ color:"#fff", fontSize:16, lineHeight:1 }}>✓</span> : <div style={{ width:12, height:12, borderRadius:"50%", background:col }}/>}
           </button>
         </div>
-      <div style={{ flex:1, minWidth:0 }}>
-        <button onClick={()=>!isRest&&setExpanded(!expanded)} style={{ background:"transparent", border:"none", width:"100%", textAlign:"left", cursor:isRest?"default":"pointer", padding:0 }}>
-        <div style={{ display:"flex", gap:0, alignItems:"flex-start" }}>
-          <div style={{ flex:1, minWidth:0 }}>
-            <div style={{ display:"flex", alignItems:"center", gap:8, marginBottom:6, flexWrap:"wrap" }}>
-              <span style={{ fontSize:14, fontWeight:700, color:s.done?C.green:C.text, textDecoration:s.done?"line-through":"none", fontFamily:C.sans }}>{s.type}</span>
-              {s.dist&&s.dist!=="0km"&&<Tag color={col}>{s.dist}</Tag>}
-              {s.pace&&s.pace!=="N/A"&&<Tag color={s.done?C.green:C.orange}>{s.pace}</Tag>}
+        <div style={{ flex:1, minWidth:0 }}>
+          <button onClick={()=>!isRest&&setExpanded(!expanded)} style={{ background:"transparent", border:"none", width:"100%", textAlign:"left", cursor:isRest?"default":"pointer", padding:0 }}>
+            <div style={{ display:"flex", alignItems:"flex-start", gap:8 }}>
+              <div style={{ flex:1, minWidth:0 }}>
+                <div style={{ display:"flex", alignItems:"center", gap:8, marginBottom:6, flexWrap:"wrap" }}>
+                  <span style={{ fontSize:14, fontWeight:700, color:s.done?C.green:C.text, textDecoration:s.done?"line-through":"none", fontFamily:C.sans }}>{s.type}</span>
+                  {s.dist&&s.dist!=="0km"&&<Tag color={col}>{s.dist}</Tag>}
+                  {s.pace&&s.pace!=="N/A"&&<Tag color={s.done?C.green:C.orange}>{s.pace}</Tag>}
+                </div>
+                {s.shoe&&s.shoe!=="N/A"&&<div style={{ fontSize:12, color:C.purple, marginBottom:3, fontFamily:C.sans }}>👟 {s.shoe}</div>}
+                {!expanded&&s.notes&&<div style={{ fontSize:12, color:C.sub, lineHeight:1.5, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap", fontFamily:C.sans }}>{s.notes}</div>}
+              </div>
+              {!isRest&&<div style={{ color:C.muted, fontSize:14, flexShrink:0 }}>{expanded?"▲":"▼"}</div>}
             </div>
-            {s.shoe&&s.shoe!=="N/A"&&<div style={{ fontSize:12, color:C.purple, marginBottom:3, fontFamily:C.sans }}>👟 {s.shoe}</div>}
-            {!expanded&&s.notes&&<div style={{ fontSize:12, color:C.sub, lineHeight:1.5, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap", fontFamily:C.sans }}>{s.notes}</div>}
-          </div>
-          {!isRest&&<div style={{ color:C.muted, fontSize:14, flexShrink:0 }}>{expanded?"▲":"▼"}</div>}
+          </button>
+          {expanded && (
+            <div style={{ marginTop:14, paddingTop:14, borderTop:`1px solid ${C.divider}` }}>
+              {s.notes&&<div style={{ fontSize:13, color:C.sub, lineHeight:1.7, marginBottom:14, fontFamily:C.sans }}>{s.notes}</div>}
+              <div style={{ display:"grid", gridTemplateColumns:"repeat(2,1fr)", gap:10 }}>
+                {s.dist&&s.dist!=="0km"&&<StatTile label="Distance" value={s.dist} size="sm" bg={C.bg} color={C.text}/>}
+                {s.pace&&s.pace!=="N/A"&&<StatTile label="Target Pace" value={s.pace} color={C.orange} size="sm" bg={C.orangeL}/>}
+                {s.shoe&&s.shoe!=="N/A"&&<StatTile label="Shoe" value={s.shoe} color={C.purple} size="sm" bg={C.bg}/>}
+              </div>
+              {!isRest&&<div style={{ fontSize:11, color:C.muted, textAlign:"center", marginTop:12, fontFamily:C.sans }}>Coros API integration coming soon</div>}
+            </div>
+          )}
         </div>
-        </button>
       </div>
-      {expanded && (
-        <div style={{ marginTop:14, paddingTop:14, borderTop:`1px solid ${C.divider}` }}>
-          {s.notes&&<div style={{ fontSize:13, color:C.sub, lineHeight:1.7, marginBottom:14, fontFamily:C.sans }}>{s.notes}</div>}
-          <div style={{ display:"grid", gridTemplateColumns:"repeat(2,1fr)", gap:10 }}>
-            {s.dist&&s.dist!=="0km"&&<StatTile label="Distance" value={s.dist} size="sm" bg={C.bg} color={C.text}/>}
-            {s.pace&&s.pace!=="N/A"&&<StatTile label="Target Pace" value={s.pace} color={C.orange} size="sm" bg={C.orangeL}/>}
-            {s.shoe&&s.shoe!=="N/A"&&<StatTile label="Shoe" value={s.shoe} color={C.purple} size="sm" bg={C.bg}/>}
-          </div>
-          {!isRest&&<div style={{ fontSize:11, color:C.muted, textAlign:"center", marginTop:12, fontFamily:C.sans }}>Coros API integration coming soon</div>}
-        </div>
-      )}
     </Card>
   );
 }
