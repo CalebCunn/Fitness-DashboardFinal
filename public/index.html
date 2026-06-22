@@ -14,7 +14,7 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
     <style>
-      *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+      *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; font-variant-numeric: normal; }
       html { height: 100%; }
       body {
         height: 100%;
@@ -24,13 +24,14 @@
         -moz-osx-font-smoothing: grayscale;
         overflow: hidden;
         color: #1d1d1f;
+        font-variant-numeric: normal;
       }
       #root { height: 100%; }
       ::-webkit-scrollbar { width: 4px; }
       ::-webkit-scrollbar-track { background: transparent; }
       ::-webkit-scrollbar-thumb { background: #d1d1d6; border-radius: 4px; }
-      button { font-family: inherit; cursor: pointer; }
-      input, textarea, select { font-family: inherit; }
+      button { font-family: inherit; cursor: pointer; font-variant-numeric: normal; }
+      input, textarea, select { font-family: inherit; font-variant-numeric: normal; }
       a { text-decoration: none; }
       * { -webkit-tap-highlight-color: transparent; }
     </style>
