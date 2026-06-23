@@ -693,7 +693,6 @@ export default function App(){
   const T=THEMES[darkMode?"dark":"light"];
 
   // Active tab — "more" is a pseudo-tab that shows the MoreMenu view
-  const activeTab = TABS.find(t=>t.id===page) ? page : (MORE_PAGES.find(p=>p.id===page) ? "more" : "overview");
 
   useEffect(()=>{localStorage.setItem("theme",darkMode?"dark":"light");},[darkMode]);
 
