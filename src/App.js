@@ -230,26 +230,27 @@ function ArcRing({pct=0,color,size,stroke}) {
 }
 
 function ThreeRings({weekKm,weekTarget,longRunPct,recoveryPct}) {
-  // FitSync style: 3 separate rings side by side with label+number below each
   const rings=[
-    {pct:Math.min(100,weekKm/weekTarget*100),color:"rgba(255,255,255,0.9)",bg:"rgba(255,255,255,0.2)",val:weekKm.toFixed(0),label:"km"},
-    {pct:longRunPct,color:"rgba(255,255,255,0.9)",bg:"rgba(255,255,255,0.2)",val:`${longRunPct}%`,label:"long"},
-    {pct:recoveryPct,color:"rgba(255,255,255,0.9)",bg:"rgba(255,255,255,0.2)",val:`${recoveryPct}%`,label:"recov"},
+    {pct:Math.min(100,weekKm/weekTarget*100),val:weekKm.toFixed(0),label:"km"},
+    {pct:longRunPct,val:`${longRunPct}%`,label:"long run"},
+    {pct:recoveryPct,val:`${recoveryPct}%`,label:"recovery"},
   ];
-  return <div style={{display:"flex",gap:10,flexShrink:0}}>
+  const size=68,stroke=6,radius=(size-stroke)/2,circ=2*Math.PI*radius;
+  return <div style={{display:"flex",gap:12,flexShrink:0}}>
     {rings.map((r,i)=>{
-      const size=54,stroke=5,radius=(size-stroke)/2,circ=2*Math.PI*radius,dash=Math.min(1,r.pct/100)*circ;
-      return <div key={i} style={{display:"flex",flexDirection:"column",alignItems:"center",gap:4}}>
+      const dash=Math.min(1,r.pct/100)*circ;
+      return <div key={i} style={{display:"flex",flexDirection:"column",alignItems:"center",gap:5}}>
         <div style={{position:"relative",width:size,height:size}}>
           <svg width={size} height={size} style={{transform:"rotate(-90deg)"}}>
-            <circle cx={size/2} cy={size/2} r={radius} fill="none" stroke={r.bg} strokeWidth={stroke}/>
-            <circle cx={size/2} cy={size/2} r={radius} fill="none" stroke={r.color} strokeWidth={stroke} strokeDasharray={`${dash} ${circ}`} strokeLinecap="round" style={{transition:"stroke-dasharray .8s ease"}}/>
+            <circle cx={size/2} cy={size/2} r={radius} fill="none" stroke="rgba(255,255,255,0.18)" strokeWidth={stroke}/>
+            <circle cx={size/2} cy={size/2} r={radius} fill="none" stroke="rgba(255,255,255,0.92)" strokeWidth={stroke}
+              strokeDasharray={`${dash} ${circ}`} strokeLinecap="round" style={{transition:"stroke-dasharray .8s ease"}}/>
           </svg>
           <div style={{position:"absolute",inset:0,display:"flex",alignItems:"center",justifyContent:"center"}}>
-            <div style={{fontSize:10,fontWeight:700,color:"#fff",fontFamily:sans,lineHeight:1}}>{r.val}</div>
+            <div style={{fontSize:11,fontWeight:700,color:"#fff",fontFamily:sans,lineHeight:1,textAlign:"center"}}>{r.val}</div>
           </div>
         </div>
-        <div style={{fontSize:9,color:"rgba(255,255,255,0.6)",fontFamily:sans,letterSpacing:"0.02em"}}>{r.label}</div>
+        <div style={{fontSize:9,color:"rgba(255,255,255,0.55)",fontFamily:sans,textAlign:"center",lineHeight:1.2}}>{r.label}</div>
       </div>;
     })}
   </div>;
@@ -389,16 +390,9 @@ function Home({stats,activities,whoopData,whoopOk,onConnectWhoop,bestEfforts,use
     <div style={{display:"flex",flexDirection:"column",gap:0,paddingBottom:28}} className="page">
 
       {/* ── HEADER greeting (FitSync style) ── */}
-      <div style={{padding:"4px 0 16px",display:"flex",alignItems:"flex-start",justifyContent:"space-between"}}>
-        <div>
-          <div style={{fontSize:13,color:T.sub,fontFamily:sans,marginBottom:2}}>{today.toLocaleDateString("en-GB",{weekday:"long",day:"numeric",month:"long"})}</div>
-          <div style={{fontSize:24,fontWeight:700,color:T.text,fontFamily:sans,letterSpacing:"-0.02em",lineHeight:1.15}}>{greeting}, {athlete?.firstname||"Caleb"}</div>
-        </div>
-        {/* Recovery badge */}
-        {rec&&<div style={{background:T.card,borderRadius:99,padding:"6px 12px 6px 8px",display:"flex",alignItems:"center",gap:7,boxShadow:T.shadow,border:`1px solid ${T.border}`,flexShrink:0}}>
-          <div style={{width:8,height:8,borderRadius:"50%",background:recScore>=67?C.green:recScore>=34?C.yellow:C.red,boxShadow:`0 0 6px ${recScore>=67?C.green:recScore>=34?C.yellow:C.red}`}}/>
-          <div style={{fontSize:13,fontWeight:600,color:T.text,fontFamily:sans}}>{recScore}%</div>
-        </div>}
+      <div style={{padding:"4px 0 16px"}}>
+        <div style={{fontSize:13,color:T.sub,fontFamily:sans,marginBottom:2}}>{today.toLocaleDateString("en-GB",{weekday:"long",day:"numeric",month:"long"})}</div>
+        <div style={{fontSize:26,fontWeight:700,color:T.text,fontFamily:sans,letterSpacing:"-0.02em",lineHeight:1.15}}>{greeting}, {athlete?.firstname||"Caleb"}</div>
       </div>
 
       {/* ── RECOVERY card (FitSync structure exactly) ── */}
@@ -468,17 +462,17 @@ function Home({stats,activities,whoopData,whoopOk,onConnectWhoop,bestEfforts,use
         ):(
           <div style={{background:"rgba(255,255,255,0.06)",borderRadius:12,padding:"11px 14px",display:"flex",alignItems:"center",justifyContent:"space-between"}}>
             <div style={{fontSize:13,color:"rgba(255,255,255,0.4)",fontFamily:sans}}>No sessions planned yet</div>
-            <Chip color={C.indigo} style={{cursor:"pointer"}} onClick={()=>onNav("chat")}>Ask Claude</Chip>
+            <button onClick={()=>onNav("coach")} style={{background:"rgba(255,255,255,0.15)",border:"1px solid rgba(255,255,255,0.3)",borderRadius:99,padding:"5px 14px",fontSize:12,fontWeight:600,color:"#fff",cursor:"pointer",fontFamily:sans,backdropFilter:"blur(4px)"}}>Ask Claude</button>
           </div>
         )}
         {/* Berlin block */}
         <div style={{marginTop:14,paddingTop:12,borderTop:"1px solid rgba(255,255,255,0.08)"}}>
           <Row style={{marginBottom:5}}>
             <div style={{fontSize:11,color:"rgba(255,255,255,0.4)",fontFamily:sans}}>Berlin block · {daysLeft} days left</div>
-            <div style={{fontSize:11,color:C.indigo,fontFamily:sans,fontWeight:600}}>{blockPct}%</div>
+            <div style={{fontSize:11,color:"rgba(255,255,255,0.7)",fontFamily:sans,fontWeight:600}}>{blockPct}%</div>
           </Row>
           <div style={{height:4,background:"rgba(255,255,255,0.08)",borderRadius:2}}>
-            <div style={{width:`${blockPct}%`,height:"100%",background:C.indigo,borderRadius:2,transition:"width 1s"}}/>
+            <div style={{width:`${blockPct}%`,height:"100%",background:"rgba(255,255,255,0.6)",borderRadius:2,transition:"width 1s"}}/>
           </div>
         </div>
         {/* Ring legend */}
@@ -1460,29 +1454,44 @@ export default function App() {
         </div>
 
         {/* Content */}
-        <div style={{flex:1,overflowY:page==="chat"?"hidden":"auto",padding:"0 16px",WebkitOverflowScrolling:"touch",display:"flex",flexDirection:"column"}}>
+        <div style={{flex:1,overflowY:page==="coach"||page==="chat"?"hidden":"auto",padding:"0 16px",WebkitOverflowScrolling:"touch",display:"flex",flexDirection:"column"}}>
           {loading?<Loader T={T} text="Loading your data..."/>:currentView}
         </div>
 
-        {/* ── BOTTOM TABS (FotMob pill style, bigger tap targets) ── */}
-        <div className="mobile-tab" style={{flexShrink:0,flexDirection:"column",background:T.nav,borderTop:`1px solid ${T.navB}`,paddingBottom:"env(safe-area-inset-bottom,6px)"}}>
-          <div style={{display:"flex",alignItems:"center",height:64,padding:"0 6px",gap:2}}>
+        {/* ── BOTTOM TABS: floating pill bar like FotMob ── */}
+        <div className="mobile-tab" style={{
+          flexShrink:0, position:"relative",
+          paddingBottom:"calc(env(safe-area-inset-bottom, 0px) + 10px)",
+          paddingTop:10, paddingLeft:16, paddingRight:16,
+          background:"transparent"
+        }}>
+          <div style={{
+            display:"flex", alignItems:"center",
+            background:T.nav,
+            borderRadius:36,
+            boxShadow:"0 4px 24px rgba(0,0,0,0.12), 0 1px 4px rgba(0,0,0,0.08)",
+            padding:"8px 6px",
+            gap:2
+          }}>
             {TABS.map(tab=>{
               const isActive=activeTab===tab.id;
               return (
                 <button key={tab.id} onClick={()=>setPage(tab.id)}
-                  style={{flex:isActive?0:1,display:"flex",alignItems:"center",justifyContent:"center",
-                    background:"transparent",border:"none",cursor:"pointer",padding:"4px 6px",transition:"all .18s ease",minWidth:isActive?0:44,height:48}}>
-                  {isActive
-                    ? <div style={{display:"flex",alignItems:"center",gap:8,background:C.indigo,borderRadius:28,padding:"10px 20px",boxShadow:`0 2px 14px ${C.indigo}45`}}>
-                        <span style={{display:"flex",color:"#fff"}}>{tab.icon(true,"#fff")}</span>
-                        <span style={{fontSize:14,fontWeight:700,color:"#fff",fontFamily:sans,whiteSpace:"nowrap"}}>{tab.label}</span>
-                      </div>
-                    : <div style={{display:"flex",flexDirection:"column",alignItems:"center",gap:3,color:T.muted}}>
-                        {tab.icon(false,T.muted)}
-                        <span style={{fontSize:10,fontWeight:400,fontFamily:sans,color:T.muted}}>{tab.label}</span>
-                      </div>
-                  }
+                  style={{
+                    flex:1, display:"flex", flexDirection:"column",
+                    alignItems:"center", justifyContent:"center",
+                    gap:3, background:"transparent", border:"none",
+                    cursor:"pointer", padding:"6px 4px", borderRadius:28,
+                    transition:"all .15s ease", minHeight:50
+                  }}>
+                  <span style={{color:isActive?C.indigo:T.muted,display:"flex",transition:"color .15s"}}>
+                    {tab.icon(isActive,C.indigo)}
+                  </span>
+                  <span style={{
+                    fontSize:10, fontWeight:isActive?700:400,
+                    fontFamily:sans, color:isActive?C.indigo:T.muted,
+                    transition:"all .15s"
+                  }}>{tab.label}</span>
                 </button>
               );
             })}
