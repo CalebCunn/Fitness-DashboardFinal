@@ -84,10 +84,28 @@ function Tile({label,value,sub,color=A.blue,bg,size=26,T}){
   const bgColor=bg||T.surface2;
   return <div style={{background:bgColor,borderRadius:16,padding:"15px 16px"}}><Label color={T.muted} style={{marginBottom:8}} T={T}>{label}</Label><div style={{fontSize:size,fontWeight:800,color,lineHeight:1,letterSpacing:"-0.02em",fontFamily:sans}}>{value}</div>{sub&&<Sub color={T.sub} style={{marginTop:5,fontSize:11}} T={T}>{sub}</Sub>}</div>;
 }
-function TapTile({label,value,sub,color=A.blue,bg,size=26,T,onClick}){
+function TapTile({label,value,sub,color=A.blue,bg,size=26,T,onClick,bars}){
   const [pressed,setPressed]=useState(false);
   const bgColor=bg||T.surface2;
-  return <div onClick={onClick} onMouseDown={()=>setPressed(true)} onMouseUp={()=>setPressed(false)} onMouseLeave={()=>setPressed(false)} onTouchStart={()=>setPressed(true)} onTouchEnd={()=>setPressed(false)} style={{background:bgColor,borderRadius:16,padding:"15px 16px",cursor:"pointer",transform:pressed?"scale(0.97)":"scale(1)",transition:"transform 0.12s ease",WebkitTapHighlightColor:"transparent"}}><Label color={T.muted} style={{marginBottom:8}} T={T}>{label}</Label><div style={{fontSize:size,fontWeight:800,color,lineHeight:1,letterSpacing:"-0.02em",fontFamily:sans}}>{value}</div>{sub&&<Sub color={T.sub} style={{marginTop:5,fontSize:11}} T={T}>{sub}</Sub>}</div>;
+  // mini sparkline bars
+  const maxBar=bars?Math.max(...bars,1):1;
+  return (
+    <div onClick={onClick} onMouseDown={()=>setPressed(true)} onMouseUp={()=>setPressed(false)} onMouseLeave={()=>setPressed(false)} onTouchStart={()=>setPressed(true)} onTouchEnd={()=>setPressed(false)}
+      style={{background:bgColor,borderRadius:20,padding:"16px 16px 12px",cursor:"pointer",transform:pressed?"scale(0.96)":"scale(1)",transition:"transform 0.12s ease",WebkitTapHighlightColor:"transparent",display:"flex",flexDirection:"column",gap:0,overflow:"hidden",position:"relative",minHeight:100}}>
+      {/* Subtle glow on active color */}
+      <div style={{position:"absolute",top:-20,right:-20,width:80,height:80,borderRadius:"50%",background:`${color}18`,pointerEvents:"none"}}/>
+      <Label color={T.muted} style={{marginBottom:6,fontSize:10}} T={T}>{label}</Label>
+      <div style={{fontSize:size,fontWeight:800,color,lineHeight:1,letterSpacing:"-0.03em",fontFamily:sans}}>{value}</div>
+      {sub&&<div style={{fontSize:11,color:T.sub,fontFamily:sans,marginTop:4,letterSpacing:"-0.01em"}}>{sub}</div>}
+      {bars&&bars.length>0&&(
+        <div style={{display:"flex",alignItems:"flex-end",gap:3,marginTop:"auto",paddingTop:10,height:28}}>
+          {bars.map((b,i)=>(
+            <div key={i} style={{flex:1,height:`${Math.round((b/maxBar)*100)}%`,minHeight:2,background:`${color}${i===bars.length-1?"ff":"50"}`,borderRadius:2,transition:"height .4s ease"}}/>
+          ))}
+        </div>
+      )}
+    </div>
+  );
 }
 const CT=({active,payload,label,T})=>{
   if(!active||!payload?.length) return null;
@@ -286,10 +304,16 @@ function Overview({stats,activities,whoopData,whoopOk,onConnectWhoop,bestEfforts
     {whoopOk&&rec&&recoveryScore<34&&<div style={{background:A.coralL,border:`1.5px solid ${A.coral}30`,borderRadius:18,padding:"13px 16px",display:"flex",alignItems:"center",gap:12}}><span style={{fontSize:20}}>⚠️</span><div style={{flex:1}}><div style={{fontSize:13,fontWeight:700,color:A.coral,fontFamily:sans}}>Low recovery today ({recoveryScore}%)</div><div style={{fontSize:12,color:T.sub,fontFamily:sans,marginTop:2}}>Consider easy or rest. Ask Claude to adjust your plan.</div></div><Btn onClick={onGoToChat} color={A.coral} sm>Ask Claude</Btn></div>}
     <HeroCard athlete={athlete} activities={activities} stats={stats} whoopData={whoopData} whoopOk={whoopOk} userPrefs={userPrefs} T={T}/>
     <div style={{display:"grid",gridTemplateColumns:"repeat(2,1fr)",gap:10}}>
-      <TapTile T={T} label="YTD Distance" value={ytd.distance?`${(ytd.distance/1000).toFixed(1)}km`:"449.6km"} sub={`${ytd.count||58} runs`} color={A.blue} onClick={()=>onNav("running")}/>
-      <TapTile T={T} label="YTD Time" value={ytd.moving_time?`${(ytd.moving_time/3600).toFixed(1)}h`:"36.9h"} color={T.text} onClick={()=>onNav("running")}/>
-      <TapTile T={T} label="Streak" value={`${streaks.current}d`} sub={streaks.current>2?`🔥 ${streaks.current} days`:""} color={streaks.current>6?A.green:streaks.current>2?"#FF9500":T.sub} onClick={()=>onNav("running")}/>
-      <TapTile T={T} label="All-Time" value={all.distance?`${(all.distance/1000).toFixed(0)}km`:"1093km"} sub={`${all.count||161} runs`} color={T.text} onClick={()=>onNav("running")}/>
+      {(()=>{
+        const recentVol=vol.slice(-8).map(w=>w.km||0);
+        const recentCounts=vol.slice(-8).map(w=>w.count||0);
+        return <>
+          <TapTile T={T} label="YTD Distance" value={ytd.distance?`${(ytd.distance/1000).toFixed(1)}km`:"449.6km"} sub={`${ytd.count||58} runs`} color={A.blue} onClick={()=>onNav("running")} bars={recentVol}/>
+          <TapTile T={T} label="YTD Time" value={ytd.moving_time?`${(ytd.moving_time/3600).toFixed(1)}h`:"36.9h"} color={T.text} onClick={()=>onNav("running")} bars={recentCounts}/>
+          <TapTile T={T} label="Streak" value={`${streaks.current}d`} sub={streaks.current>2?`🔥 ${streaks.current} days`:""} color={streaks.current>6?A.green:streaks.current>2?"#FF9500":T.sub} onClick={()=>onNav("running")} bars={recentCounts}/>
+          <TapTile T={T} label="All-Time" value={all.distance?`${(all.distance/1000).toFixed(0)}km`:"1093km"} sub={`${all.count||161} runs`} color={T.text} onClick={()=>onNav("running")} bars={recentCounts}/>
+        </>;
+      })()}
     </div>
     {whoopOk&&sleep&&<div style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:10}}>
       <Tile T={T} label="Sleep Score" value={`${Math.round(sleep.score?.sleep_performance_percentage||0)}%`} color={A.blue}/>
@@ -818,18 +842,22 @@ export default function App(){
         </div>
 
         {/* ── BOTTOM TAB BAR (mobile only) ── */}
-        <div className="desktop-side" style={{display:"flex"}}><div style={{display:"none"}}/></div>
-        <div style={{flexShrink:0,background:T.navBg,borderTop:`1px solid ${T.navBorder}`,paddingBottom:"env(safe-area-inset-bottom,6px)",backdropFilter:"blur(24px)",WebkitBackdropFilter:"blur(24px)"}}>
+        <div style={{flexShrink:0,background:T.navBg,borderTop:`1px solid ${T.navBorder}`,paddingBottom:"env(safe-area-inset-bottom,4px)",backdropFilter:"blur(24px)",WebkitBackdropFilter:"blur(24px)"}}>
           <style>{`@media(min-width:800px){.mobile-tabs{display:none!important}}`}</style>
-          <div className="mobile-tabs" style={{display:"flex",alignItems:"center",padding:"8px 4px 4px"}}>
+          <div className="mobile-tabs" style={{display:"flex",alignItems:"center",height:56,padding:"0 8px"}}>
             {TABS.map(tab=>{
               const isActive=activeTab===tab.id;
               return (
-                <button key={tab.id} onClick={()=>setPage(tab.id)} style={{flex:1,display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",gap:3,padding:"6px 4px 8px",background:"transparent",border:"none",cursor:"pointer",color:isActive?A.blue:T.muted,transition:"color .1s",position:"relative"}}>
-                  <div style={{padding:"5px 14px",borderRadius:20,background:isActive?`${A.blue}15`:"transparent",display:"flex",alignItems:"center",justifyContent:"center",transition:"background .15s"}}>
-                    {tab.icon(isActive,A.blue)}
-                  </div>
-                  <span style={{fontSize:10,fontWeight:isActive?700:500,fontFamily:sans}}>{tab.label}</span>
+                <button key={tab.id} onClick={()=>setPage(tab.id)} style={{flex:isActive?0:1,display:"flex",alignItems:"center",justifyContent:"center",background:"transparent",border:"none",cursor:"pointer",padding:0,transition:"all .2s ease"}}>
+                  {isActive
+                    ? <div style={{display:"flex",alignItems:"center",gap:7,background:A.blue,borderRadius:24,padding:"8px 16px",boxShadow:`0 2px 12px ${A.blue}40`,transition:"all .2s ease"}}>
+                        {tab.icon(true,"#fff")}
+                        <span style={{fontSize:13,fontWeight:700,color:"#fff",fontFamily:sans,whiteSpace:"nowrap"}}>{tab.label}</span>
+                      </div>
+                    : <div style={{display:"flex",alignItems:"center",justifyContent:"center",width:44,height:44,color:T.muted}}>
+                        {tab.icon(false,T.muted)}
+                      </div>
+                  }
                 </button>
               );
             })}
