@@ -84,6 +84,11 @@ function Tile({label,value,sub,color=A.blue,bg,size=26,T}){
   const bgColor=bg||T.surface2;
   return <div style={{background:bgColor,borderRadius:16,padding:"15px 16px"}}><Label color={T.muted} style={{marginBottom:8}} T={T}>{label}</Label><div style={{fontSize:size,fontWeight:800,color,lineHeight:1,letterSpacing:"-0.02em",fontFamily:sans}}>{value}</div>{sub&&<Sub color={T.sub} style={{marginTop:5,fontSize:11}} T={T}>{sub}</Sub>}</div>;
 }
+function TapTile({label,value,sub,color=A.blue,bg,size=26,T,onClick}){
+  const [pressed,setPressed]=useState(false);
+  const bgColor=bg||T.surface2;
+  return <div onClick={onClick} onMouseDown={()=>setPressed(true)} onMouseUp={()=>setPressed(false)} onMouseLeave={()=>setPressed(false)} onTouchStart={()=>setPressed(true)} onTouchEnd={()=>setPressed(false)} style={{background:bgColor,borderRadius:16,padding:"15px 16px",cursor:"pointer",transform:pressed?"scale(0.97)":"scale(1)",transition:"transform 0.12s ease",WebkitTapHighlightColor:"transparent"}}><Label color={T.muted} style={{marginBottom:8}} T={T}>{label}</Label><div style={{fontSize:size,fontWeight:800,color,lineHeight:1,letterSpacing:"-0.02em",fontFamily:sans}}>{value}</div>{sub&&<Sub color={T.sub} style={{marginTop:5,fontSize:11}} T={T}>{sub}</Sub>}</div>;
+}
 const CT=({active,payload,label,T})=>{
   if(!active||!payload?.length) return null;
   return <div style={{background:T?.surface||"#fff",border:`1px solid ${T?.border||"#eee"}`,borderRadius:12,padding:"8px 12px",fontSize:12,boxShadow:"0 8px 32px rgba(0,0,0,0.12)",fontFamily:sans}}><div style={{color:T?.sub||"#666",marginBottom:4,fontSize:11}}>{label}</div>{payload.map((p,i)=><div key={i} style={{color:p.color||A.blue,fontWeight:700}}>{p.name}: {p.value}</div>)}</div>;
@@ -93,11 +98,11 @@ function ActivityRing({pct=0,color=A.blue,size=60,stroke=7}){
   const r=(size-stroke)/2,circ=2*Math.PI*r,dash=Math.min(1,pct/100)*circ;
   return <svg width={size} height={size} style={{transform:"rotate(-90deg)"}}><circle cx={size/2} cy={size/2} r={r} fill="none" stroke={`${color}22`} strokeWidth={stroke}/><circle cx={size/2} cy={size/2} r={r} fill="none" stroke={color} strokeWidth={stroke} strokeDasharray={`${dash} ${circ}`} strokeLinecap="round" style={{transition:"stroke-dasharray 1s ease"}}/></svg>;
 }
-function ThreeRings({weekKm=0,weekTarget=50,proteinPct=0,sleepPct=0}){
+function ThreeRings({weekKm=0,weekTarget=50,longRunDonePct=0,recoveryPct=0}){
   return <div style={{position:"relative",width:130,height:130,flexShrink:0}}>
     <div style={{position:"absolute",inset:0,display:"flex",alignItems:"center",justifyContent:"center"}}><ActivityRing pct={Math.min(100,weekKm/weekTarget*100)} color={A.coral} size={130} stroke={10}/></div>
-    <div style={{position:"absolute",inset:12,display:"flex",alignItems:"center",justifyContent:"center"}}><ActivityRing pct={proteinPct} color={A.green} size={106} stroke={9}/></div>
-    <div style={{position:"absolute",inset:24,display:"flex",alignItems:"center",justifyContent:"center"}}><ActivityRing pct={sleepPct} color={A.blue} size={82} stroke={8}/></div>
+    <div style={{position:"absolute",inset:12,display:"flex",alignItems:"center",justifyContent:"center"}}><ActivityRing pct={longRunDonePct} color={A.green} size={106} stroke={9}/></div>
+    <div style={{position:"absolute",inset:24,display:"flex",alignItems:"center",justifyContent:"center"}}><ActivityRing pct={recoveryPct} color={A.blue} size={82} stroke={8}/></div>
     <div style={{position:"absolute",inset:0,display:"flex",alignItems:"center",justifyContent:"center"}}><div style={{textAlign:"center"}}><div style={{fontSize:13,fontWeight:800,color:"#fff",fontFamily:sans,lineHeight:1}}>{weekKm.toFixed(0)}</div><div style={{fontSize:9,color:"rgba(255,255,255,0.5)",fontFamily:sans}}>km</div></div></div>
   </div>;
 }
@@ -127,8 +132,11 @@ function HeroCard({athlete,activities,stats,whoopData,whoopOk,userPrefs,T}){
   const weekKm=activities.filter(a=>(a.type==="Run"||a.sport_type==="Run")&&new Date(a.start_date_local)>=weekStart).reduce((s,r)=>s+(r.distance||0)/1000,0);
   const todayKey=today.toISOString().split("T")[0];
   const todayNutrition=userPrefs?.nutrition?.[todayKey]||{};
-  const proteinPct=Math.min(100,((parseFloat(todayNutrition.protein)||0)/140)*100);
   const sleepScore=Math.round(sleep?.score?.sleep_performance_percentage||0);
+  // Long run ring: did you do a run >=18km this week?
+  const weekStart2=new Date();weekStart2.setDate(weekStart2.getDate()-((weekStart2.getDay()+6)%7));weekStart2.setHours(0,0,0,0);
+  const longestThisWeek=Math.max(0,...activities.filter(a=>(a.type==="Run"||a.sport_type==="Run")&&new Date(a.start_date_local)>=weekStart2).map(r=>r.distance/1000));
+  const longRunDonePct=Math.min(100,Math.round(longestThisWeek/25*100));
   const greeting=today.getHours()<12?"Good morning":today.getHours()<18?"Good afternoon":"Good evening";
   useEffect(()=>{
     if(!whoopOk||briefLoading||todayBrief) return;
@@ -157,9 +165,9 @@ function HeroCard({athlete,activities,stats,whoopData,whoopOk,userPrefs,T}){
         </div>
       </div>
       <div style={{display:"flex",flexDirection:"column",alignItems:"center",gap:8}}>
-        <ThreeRings weekKm={weekKm} weekTarget={50} proteinPct={proteinPct} sleepPct={sleepScore}/>
+        <ThreeRings weekKm={weekKm} weekTarget={50} longRunDonePct={longRunDonePct} recoveryPct={recoveryScore}/>
         <div style={{display:"flex",flexDirection:"column",gap:3}}>
-          {[{color:A.coral,label:"Weekly km"},{color:A.green,label:"Protein"},{color:A.blue,label:"Sleep"}].map((r,i)=>(
+          {[{color:A.coral,label:"Weekly km"},{color:A.green,label:"Long run"},{color:A.blue,label:"Recovery"}].map((r,i)=>(
             <div key={i} style={{display:"flex",alignItems:"center",gap:5}}><div style={{width:6,height:6,borderRadius:"50%",background:r.color,flexShrink:0}}/><div style={{fontSize:9,color:"rgba(255,255,255,0.4)",fontFamily:sans}}>{r.label}</div></div>
           ))}
         </div>
@@ -267,7 +275,7 @@ function BerlinTargets({T}){
   </div></Card>;
 }
 // ─── OVERVIEW ─────────────────────────────────────────────────────────────────
-function Overview({stats,activities,whoopData,whoopOk,onConnectWhoop,bestEfforts,gear,userPrefs,onSavePrefs,onGoToChat,athlete,T}){
+function Overview({stats,activities,whoopData,whoopOk,onConnectWhoop,bestEfforts,gear,userPrefs,onSavePrefs,onGoToChat,onNav,athlete,T}){
   const ytd=stats?.ytd_run_totals||{},all=stats?.all_run_totals||{};
   const rec=whoopData?.recoveries?.records?.[0],sleep=whoopData?.sleeps?.records?.[0],cyc=whoopData?.cycles?.records?.[0];
   const streaks=calcStreaks(activities),recoveryScore=Math.round(rec?.score?.recovery_score||0);
@@ -278,10 +286,10 @@ function Overview({stats,activities,whoopData,whoopOk,onConnectWhoop,bestEfforts
     {whoopOk&&rec&&recoveryScore<34&&<div style={{background:A.coralL,border:`1.5px solid ${A.coral}30`,borderRadius:18,padding:"13px 16px",display:"flex",alignItems:"center",gap:12}}><span style={{fontSize:20}}>⚠️</span><div style={{flex:1}}><div style={{fontSize:13,fontWeight:700,color:A.coral,fontFamily:sans}}>Low recovery today ({recoveryScore}%)</div><div style={{fontSize:12,color:T.sub,fontFamily:sans,marginTop:2}}>Consider easy or rest. Ask Claude to adjust your plan.</div></div><Btn onClick={onGoToChat} color={A.coral} sm>Ask Claude</Btn></div>}
     <HeroCard athlete={athlete} activities={activities} stats={stats} whoopData={whoopData} whoopOk={whoopOk} userPrefs={userPrefs} T={T}/>
     <div style={{display:"grid",gridTemplateColumns:"repeat(2,1fr)",gap:10}}>
-      <Tile T={T} label="YTD Distance" value={ytd.distance?`${(ytd.distance/1000).toFixed(1)}km`:"449.6km"} sub={`${ytd.count||58} runs`} color={A.blue}/>
-      <Tile T={T} label="YTD Time" value={ytd.moving_time?`${(ytd.moving_time/3600).toFixed(1)}h`:"36.9h"} color={T.text}/>
-      <Tile T={T} label="Streak" value={`${streaks.current}d`} sub={streaks.current>2?`🔥 ${streaks.current} days`:""} color={streaks.current>6?A.green:streaks.current>2?"#FF9500":T.sub}/>
-      <Tile T={T} label="All-Time" value={all.distance?`${(all.distance/1000).toFixed(0)}km`:"1093km"} sub={`${all.count||161} runs`} color={T.text}/>
+      <TapTile T={T} label="YTD Distance" value={ytd.distance?`${(ytd.distance/1000).toFixed(1)}km`:"449.6km"} sub={`${ytd.count||58} runs`} color={A.blue} onClick={()=>onNav("running")}/>
+      <TapTile T={T} label="YTD Time" value={ytd.moving_time?`${(ytd.moving_time/3600).toFixed(1)}h`:"36.9h"} color={T.text} onClick={()=>onNav("running")}/>
+      <TapTile T={T} label="Streak" value={`${streaks.current}d`} sub={streaks.current>2?`🔥 ${streaks.current} days`:""} color={streaks.current>6?A.green:streaks.current>2?"#FF9500":T.sub} onClick={()=>onNav("running")}/>
+      <TapTile T={T} label="All-Time" value={all.distance?`${(all.distance/1000).toFixed(0)}km`:"1093km"} sub={`${all.count||161} runs`} color={T.text} onClick={()=>onNav("running")}/>
     </div>
     {whoopOk&&sleep&&<div style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:10}}>
       <Tile T={T} label="Sleep Score" value={`${Math.round(sleep.score?.sleep_performance_percentage||0)}%`} color={A.blue}/>
@@ -293,7 +301,7 @@ function Overview({stats,activities,whoopData,whoopOk,onConnectWhoop,bestEfforts
     <BerlinTargets T={T}/>
     <RacePredictor activities={activities} T={T}/>
     {userPrefs?.weightLog?.length>1&&(()=>{const log=userPrefs.weightLog.slice(-14),curr=log[log.length-1]?.weight;return <Card T={T}><SectionHeader T={T} title="Weight" accent={A.purple} right={<span style={{fontSize:12,color:T.sub,fontFamily:sans}}>{curr}kg of 65kg</span>}/><ResponsiveContainer width="100%" height={90}><LineChart data={log}><XAxis dataKey="date" tick={{fontSize:9,fill:T.muted,fontFamily:sans}} tickLine={false} axisLine={false} interval={2}/><YAxis tick={{fontSize:9,fill:T.muted}} tickLine={false} axisLine={false} width={30} domain={["auto","auto"]} unit="kg"/><Tooltip content={<CT T={T}/>}/><Line type="monotone" dataKey="weight" name="kg" stroke={A.purple} strokeWidth={2} dot={{fill:A.purple,r:3}} connectNulls/></LineChart></ResponsiveContainer></Card>})()}
-    <Card T={T}><SectionHeader T={T} title="Fundraising" accent={A.coral}/><div style={{display:"flex",flexDirection:"column",gap:8}}>{[{race:"London 2024",charity:"DFSG",raised:2500,target:2500,done:true},{race:"London 2026",charity:"DFSG",raised:2500,target:2500,done:true},{race:"Berlin 2026",charity:"Get Kids Going",raised:0,target:2000,done:false}].map((f,i)=><div key={i} style={{background:T.surface2,borderRadius:14,padding:"13px 16px"}}><Row style={{marginBottom:8}}><div><div style={{fontSize:13,fontWeight:600,color:T.text,fontFamily:sans}}>{f.race}</div><Sub T={T}>{f.charity}</Sub></div><div style={{fontSize:15,fontWeight:800,color:f.done?A.green:A.blue,fontFamily:sans}}>£{f.raised.toLocaleString()}</div></Row><div style={{height:5,background:T.divider,borderRadius:3}}><div style={{width:`${Math.min(100,Math.round(f.raised/f.target*100))}%`,height:"100%",background:f.done?A.green:A.blue,borderRadius:3}}/></div><Row style={{marginTop:5,fontSize:10,color:T.muted,fontFamily:sans}}><span>{Math.round(f.raised/f.target*100)}%</span>{f.done&&<span style={{color:A.green,fontWeight:600}}>Complete</span>}</Row></div>)}<div style={{background:`${A.blue}12`,borderRadius:14,padding:"13px 16px",display:"flex",justifyContent:"space-between",alignItems:"center"}}><div style={{fontSize:13,fontWeight:700,color:A.blue,fontFamily:sans}}>Total Raised</div><div style={{fontSize:22,fontWeight:800,color:A.blue,fontFamily:sans}}>£5,000+</div></div></div></Card>
+
   </div>;
 }
 
@@ -630,35 +638,37 @@ function MoreMenu({page, setPage, T, whoopOk, onConnectWhoop, darkMode, setDarkM
 
 // ─── BOTTOM TAB BAR ──────────────────────────────────────────────────────────
 const TABS = [
-  {id:"overview",  label:"Home",     icon:(active,color)=>(
-    <svg width={22} height={22} viewBox="0 0 24 24" fill="none">
-      <path d="M3 12L12 3l9 9" stroke={active?color:"currentColor"} strokeWidth={active?2.5:1.8} strokeLinecap="round" strokeLinejoin="round"/>
-      <path d="M5 10v9a1 1 0 001 1h4v-4h4v4h4a1 1 0 001-1v-9" stroke={active?color:"currentColor"} strokeWidth={active?2.5:1.8} strokeLinecap="round" strokeLinejoin="round"/>
+  {id:"overview", label:"Home",     icon:(active,color)=>(
+    <svg width={23} height={23} viewBox="0 0 24 24" fill="none">
+      <path d="M3 12L12 3l9 9" stroke={active?color:"currentColor"} strokeWidth={2} strokeLinecap="round" strokeLinejoin="round"/>
+      <path d="M5 10v9a1 1 0 001 1h4v-4h4v4h4a1 1 0 001-1v-9" stroke={active?color:"currentColor"} strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" fill={active?`${color}18`:"none"}/>
     </svg>
   )},
-  {id:"running",   label:"Running",  icon:(active,color)=>(
-    <svg width={22} height={22} viewBox="0 0 24 24" fill="none">
-      <circle cx="13" cy="4" r="1.5" fill={active?color:"currentColor"}/>
-      <path d="M7 20l2-5 3 2 2-7" stroke={active?color:"currentColor"} strokeWidth={active?2.5:1.8} strokeLinecap="round" strokeLinejoin="round"/>
-      <path d="M9 15l-2 5" stroke={active?color:"currentColor"} strokeWidth={active?2.5:1.8} strokeLinecap="round"/>
-      <path d="M12 10l3-1 2 3-3 1" stroke={active?color:"currentColor"} strokeWidth={active?2.5:1.8} strokeLinecap="round" strokeLinejoin="round"/>
+  {id:"running",  label:"Running",  icon:(active,color)=>(
+    <svg width={23} height={23} viewBox="0 0 24 24" fill="none">
+      <circle cx="14" cy="4.5" r="1.8" fill={active?color:"currentColor"}/>
+      <path d="M6 21l2.5-6L12 17l2.5-8" stroke={active?color:"currentColor"} strokeWidth={2} strokeLinecap="round" strokeLinejoin="round"/>
+      <path d="M8.5 15L6 21" stroke={active?color:"currentColor"} strokeWidth={2} strokeLinecap="round"/>
+      <path d="M12.5 9l3.5-1.5 2.5 3.5-3.5 1" stroke={active?color:"currentColor"} strokeWidth={2} strokeLinecap="round" strokeLinejoin="round"/>
     </svg>
   )},
-  {id:"recovery",  label:"Recovery", icon:(active,color)=>(
-    <svg width={22} height={22} viewBox="0 0 24 24" fill="none">
-      <path d="M22 12h-4l-3 9L9 3l-3 9H2" stroke={active?color:"currentColor"} strokeWidth={active?2.5:1.8} strokeLinecap="round" strokeLinejoin="round"/>
+  {id:"plan",     label:"Plan",     icon:(active,color)=>(
+    <svg width={23} height={23} viewBox="0 0 24 24" fill="none">
+      <rect x="3" y="4" width="18" height="18" rx="3" stroke={active?color:"currentColor"} strokeWidth={2} fill={active?`${color}15`:"none"}/>
+      <path d="M16 2v4M8 2v4M3 10h18" stroke={active?color:"currentColor"} strokeWidth={2} strokeLinecap="round"/>
+      <path d="M8 14h4M8 17h6" stroke={active?color:"currentColor"} strokeWidth={2} strokeLinecap="round"/>
     </svg>
   )},
-  {id:"chat",      label:"Coach",    icon:(active,color)=>(
-    <svg width={22} height={22} viewBox="0 0 24 24" fill="none">
-      <path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z" stroke={active?color:"currentColor"} strokeWidth={active?2.5:1.8} strokeLinecap="round" strokeLinejoin="round" fill={active?`${color}15`:"none"}/>
+  {id:"recovery", label:"Recovery", icon:(active,color)=>(
+    <svg width={23} height={23} viewBox="0 0 24 24" fill="none">
+      <path d="M22 12h-4l-3 9L9 3l-3 9H2" stroke={active?color:"currentColor"} strokeWidth={2} strokeLinecap="round" strokeLinejoin="round"/>
     </svg>
   )},
-  {id:"more",      label:"More",     icon:(active,color)=>(
-    <svg width={22} height={22} viewBox="0 0 24 24" fill="none">
-      <circle cx="5" cy="12" r={active?2:1.5} fill={active?color:"currentColor"}/>
-      <circle cx="12" cy="12" r={active?2:1.5} fill={active?color:"currentColor"}/>
-      <circle cx="19" cy="12" r={active?2:1.5} fill={active?color:"currentColor"}/>
+  {id:"more",     label:"More",     icon:(active,color)=>(
+    <svg width={23} height={23} viewBox="0 0 24 24" fill="none">
+      <circle cx="12" cy="5" r="1.5" fill={active?color:"currentColor"}/>
+      <circle cx="12" cy="12" r="1.5" fill={active?color:"currentColor"}/>
+      <circle cx="12" cy="19" r="1.5" fill={active?color:"currentColor"}/>
     </svg>
   )},
 ];
@@ -708,14 +718,12 @@ export default function App(){
 
   const handleSavePrefs=useCallback(prefs=>{setUserPrefs(prefs);saveUserPrefs(prefs);},[]);
   const handleConnectWhoop=()=>window.location.assign(getWhoopAuthUrl());
-  const goToChat=()=>setPage("chat");
-
   if(!connected||whoopPending)return <ConnectScreen whoopPending={whoopPending} T={T}/>;
 
   const sharedProps={activities,stats,whoopData,whoopOk,onConnectWhoop:handleConnectWhoop,onRefreshWhoop:loadWhoop,T};
 
   const views={
-    overview:<Overview {...sharedProps} bestEfforts={bestEfforts} gear={gear} userPrefs={userPrefs} onSavePrefs={handleSavePrefs} onGoToChat={goToChat} athlete={athlete}/>,
+    overview:<Overview {...sharedProps} bestEfforts={bestEfforts} gear={gear} userPrefs={userPrefs} onSavePrefs={handleSavePrefs} onGoToChat={goToChat} onNav={setPage} athlete={athlete}/>,
     running:<Running activities={activities} stats={stats} gear={gear} T={T}/>,
     gym:<Gym activities={activities} userPrefs={userPrefs} onSavePrefs={handleSavePrefs} savedWorkout={savedWorkout} T={T}/>,
     recovery:<Recovery {...sharedProps}/>,
@@ -729,50 +737,100 @@ export default function App(){
   const currentView = views[page] || views.more;
   const recScore = whoopData?.recoveries?.records?.[0] ? Math.round(whoopData.recoveries.records[0].score?.recovery_score||0) : null;
   const recColor = recScore!=null?(recScore>=67?A.green:recScore>=34?A.yellow:A.coral):T.muted;
-  const pageTitle = [...TABS,...MORE_PAGES].find(n=>n.id===page)?.label || "More";
-
-  // On desktop (>768px), show a centered max-width column. On mobile, fill screen.
-  const isDesktop = typeof window !== "undefined" && window.innerWidth > 768;
+  const activeTab = TABS.find(t=>t.id===page) ? page : (MORE_PAGES.find(p=>p.id===page) ? "more" : "overview");
+  const pageTitleMap = {overview:"Home",running:"Running",plan:"Plan",recovery:"Recovery",more:"More",gym:"Gym",nutrition:"Nutrition",races:"Races",chat:"Coach"};
+  const pageTitle = pageTitleMap[page] || "More";
+  const goToChat = () => setPage("chat");
 
   return (
-    <div style={{height:"100vh",background:T.bg,color:T.text,fontFamily:sans,overflow:"hidden",display:"flex",justifyContent:"center"}}>
+    <div style={{height:"100vh",background:T.bg,color:T.text,fontFamily:sans,overflow:"hidden",display:"flex"}}>
       <style>{GLOBAL_CSS}</style>
+      <style>{`
+        @media(min-width:800px){.desktop-side{display:flex!important}}
+        @media(max-width:799px){.desktop-side{display:none!important}}
+      `}</style>
 
-      {/* App column — max 430px centred, full width on mobile */}
-      <div style={{width:"100%",maxWidth:430,display:"flex",flexDirection:"column",height:"100vh",position:"relative",background:T.bg}}>
-
-        {/* Status bar area / top header */}
-        <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",padding:"14px 20px 10px",flexShrink:0}}>
+      {/* ── DESKTOP LEFT SIDEBAR ── */}
+      <div className="desktop-side" style={{display:"none",flexDirection:"column",width:220,borderRight:`1px solid ${T.navBorder}`,background:T.navBg,flexShrink:0,height:"100vh",overflowY:"auto"}}>
+        {/* Logo */}
+        <div style={{padding:"28px 20px 20px",display:"flex",alignItems:"center",gap:10}}>
+          <div style={{width:34,height:34,background:`linear-gradient(135deg,${A.blue},${A.teal})`,borderRadius:10,display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0,boxShadow:`0 4px 12px ${A.blue}30`}}>
+            <svg viewBox="0 0 24 24" width={18} height={18}><circle cx="12" cy="12" r="9" fill="none" stroke="rgba(255,255,255,0.3)" strokeWidth="2"/><path d="M12 3 a9 9 0 0 1 9 9" fill="none" stroke="white" strokeWidth="2.5" strokeLinecap="round"/><rect x="7" y="10" width="10" height="1.8" rx="0.9" fill="white"/><rect x="7" y="13" width="8" height="1.8" rx="0.9" fill="white"/><rect x="7" y="16" width="6" height="1.8" rx="0.9" fill="white"/></svg>
+          </div>
           <div>
-            <div style={{fontSize:11,fontWeight:600,color:T.muted,fontFamily:sans,letterSpacing:"0.04em",textTransform:"uppercase"}}>Fitness Dashboard</div>
-            <div style={{fontSize:20,fontWeight:800,color:T.text,fontFamily:sans,letterSpacing:"-0.03em",lineHeight:1.1,marginTop:2}}>{pageTitle}</div>
-          </div>
-          <div style={{display:"flex",alignItems:"center",gap:10}}>
-            {recScore!=null&&(
-              <div style={{display:"flex",alignItems:"center",gap:6,background:T.surface,border:`1px solid ${T.border}`,borderRadius:20,padding:"5px 10px"}}>
-                <div style={{width:7,height:7,borderRadius:"50%",background:recColor,boxShadow:`0 0 6px ${recColor}`}}/>
-                <span style={{fontSize:12,color:T.sub,fontFamily:sans,fontWeight:600}}>{recScore}%</span>
-              </div>
-            )}
+            <div style={{fontSize:13,fontWeight:800,color:T.text,fontFamily:sans,letterSpacing:"-0.02em",lineHeight:1.1}}>Fitness</div>
+            <div style={{fontSize:11,color:T.sub,fontFamily:sans}}>Dashboard</div>
           </div>
         </div>
+        {/* Nav items */}
+        <nav style={{padding:"0 10px",flex:1}}>
+          {[...TABS.filter(t=>t.id!=="more"),...MORE_PAGES].map(n=>{
+            const isActive=page===n.id;
+            return (
+              <button key={n.id} onClick={()=>setPage(n.id)} style={{display:"flex",alignItems:"center",gap:10,width:"100%",padding:"10px 12px",background:isActive?`${A.blue}12`:"transparent",borderRadius:12,border:"none",cursor:"pointer",color:isActive?A.blue:T.sub,fontSize:13,fontWeight:isActive?700:400,fontFamily:sans,textAlign:"left",marginBottom:1,transition:"all .15s",position:"relative"}}>
+                {isActive&&<div style={{position:"absolute",left:0,top:"50%",transform:"translateY(-50%)",width:3,height:18,background:A.blue,borderRadius:"0 3px 3px 0"}}/>}
+                <span style={{marginLeft:4}}>{"icon" in n&&typeof n.icon==="function"?n.icon(isActive,A.blue):<span style={{fontSize:15}}>{n.icon}</span>}</span>
+                <span>{"label" in n?n.label:n.id}</span>
+              </button>
+            );
+          })}
+          {/* Coach button */}
+          <button onClick={goToChat} style={{display:"flex",alignItems:"center",gap:10,width:"100%",padding:"10px 12px",background:page==="chat"?`${A.blue}12`:"transparent",borderRadius:12,border:"none",cursor:"pointer",color:page==="chat"?A.blue:T.sub,fontSize:13,fontWeight:page==="chat"?700:400,fontFamily:sans,textAlign:"left",marginBottom:1,transition:"all .15s",position:"relative"}}>
+            {page==="chat"&&<div style={{position:"absolute",left:0,top:"50%",transform:"translateY(-50%)",width:3,height:18,background:A.blue,borderRadius:"0 3px 3px 0"}}/>}
+            <span style={{marginLeft:4}}>
+              <svg width={23} height={23} viewBox="0 0 24 24" fill="none"><path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z" stroke={page==="chat"?A.blue:T.sub} strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" fill={page==="chat"?`${A.blue}15`:"none"}/></svg>
+            </span>
+            <span>Coach</span>
+          </button>
+        </nav>
+        {/* Bottom settings */}
+        <div style={{padding:"12px 18px 24px",borderTop:`1px solid ${T.divider}`}}>
+          {recScore!=null&&<div style={{display:"flex",alignItems:"center",gap:8,marginBottom:12,padding:"8px 10px",background:T.surface2,borderRadius:12}}>
+            <div style={{width:8,height:8,borderRadius:"50%",background:recColor,boxShadow:`0 0 8px ${recColor}`}}/>
+            <div style={{fontSize:12,color:T.sub,fontFamily:sans}}><span style={{color:recColor,fontWeight:700}}>{recScore}%</span> recovery</div>
+          </div>}
+          <button onClick={()=>setDarkMode(d=>!d)} style={{display:"flex",alignItems:"center",gap:8,background:T.surface2,border:`1px solid ${T.border}`,borderRadius:10,padding:"7px 10px",cursor:"pointer",fontSize:11,color:T.sub,fontFamily:sans,width:"100%",marginBottom:8}}>
+            <span>{darkMode?"☀️":"🌙"}</span><span>{darkMode?"Light mode":"Dark mode"}</span>
+          </button>
+          {whoopOk?<div style={{fontSize:11,color:A.green,fontWeight:600,fontFamily:sans}}>✓ Whoop connected</div>:<button onClick={handleConnectWhoop} style={{background:"transparent",border:`1px solid ${A.coral}`,borderRadius:10,padding:"6px 10px",color:A.coral,fontSize:11,fontWeight:600,cursor:"pointer",fontFamily:sans,width:"100%"}}>Connect Whoop</button>}
+        </div>
+      </div>
 
-        {/* Scrollable content */}
-        <div style={{flex:1,overflowY:page==="chat"?"hidden":"auto",padding:"4px 16px 0",display:"flex",flexDirection:"column",WebkitOverflowScrolling:"touch"}}>
-          {loading ? <Loader T={T} text="Loading your data..."/> : currentView}
+      {/* ── MAIN COLUMN ── */}
+      <div style={{flex:1,display:"flex",flexDirection:"column",height:"100vh",overflow:"hidden",minWidth:0}}>
+
+        {/* Top bar */}
+        <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",padding:"16px 18px 12px",flexShrink:0}}>
+          <div>
+            <div style={{fontSize:11,fontWeight:600,color:T.muted,fontFamily:sans,letterSpacing:"0.05em",textTransform:"uppercase"}}>Fitness Dashboard</div>
+            <div style={{fontSize:22,fontWeight:800,color:T.text,fontFamily:sans,letterSpacing:"-0.03em",lineHeight:1.15,marginTop:1}}>{pageTitle}</div>
+          </div>
+          {recScore!=null&&(
+            <div style={{display:"flex",alignItems:"center",gap:6,background:T.surface,border:`1px solid ${T.border}`,borderRadius:20,padding:"6px 12px"}}>
+              <div style={{width:7,height:7,borderRadius:"50%",background:recColor,boxShadow:`0 0 6px ${recColor}`}}/>
+              <span style={{fontSize:12,color:T.sub,fontFamily:sans,fontWeight:600}}>{recScore}%</span>
+            </div>
+          )}
         </div>
 
-        {/* Bottom tab bar */}
-        <div style={{flexShrink:0,background:T.navBg,borderTop:`1px solid ${T.navBorder}`,paddingBottom:"env(safe-area-inset-bottom, 8px)",backdropFilter:"blur(20px)",WebkitBackdropFilter:"blur(20px)"}}>
-          <div style={{display:"flex",alignItems:"stretch"}}>
+        {/* Content */}
+        <div style={{flex:1,overflowY:page==="chat"?"hidden":"auto",padding:"0 16px",WebkitOverflowScrolling:"touch",display:"flex",flexDirection:"column"}}>
+          {loading?<Loader T={T} text="Loading your data..."/>:currentView}
+        </div>
+
+        {/* ── BOTTOM TAB BAR (mobile only) ── */}
+        <div className="desktop-side" style={{display:"flex"}}><div style={{display:"none"}}/></div>
+        <div style={{flexShrink:0,background:T.navBg,borderTop:`1px solid ${T.navBorder}`,paddingBottom:"env(safe-area-inset-bottom,6px)",backdropFilter:"blur(24px)",WebkitBackdropFilter:"blur(24px)"}}>
+          <style>{`@media(min-width:800px){.mobile-tabs{display:none!important}}`}</style>
+          <div className="mobile-tabs" style={{display:"flex",alignItems:"center",padding:"8px 4px 4px"}}>
             {TABS.map(tab=>{
               const isActive=activeTab===tab.id;
               return (
-                <button key={tab.id} onClick={()=>setPage(tab.id)} style={{flex:1,display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",gap:4,padding:"10px 4px 10px",background:"transparent",border:"none",cursor:"pointer",color:isActive?A.blue:T.muted,transition:"color .15s",position:"relative"}}>
-                  {/* Dot indicator above active icon */}
-                  {isActive&&<div style={{position:"absolute",top:6,width:4,height:4,borderRadius:"50%",background:A.blue}}/>}
-                  {tab.icon(isActive,A.blue)}
-                  <span style={{fontSize:10,fontWeight:isActive?700:500,fontFamily:sans,letterSpacing:"0.01em"}}>{tab.label}</span>
+                <button key={tab.id} onClick={()=>setPage(tab.id)} style={{flex:1,display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",gap:3,padding:"6px 4px 8px",background:"transparent",border:"none",cursor:"pointer",color:isActive?A.blue:T.muted,transition:"color .1s",position:"relative"}}>
+                  <div style={{padding:"5px 14px",borderRadius:20,background:isActive?`${A.blue}15`:"transparent",display:"flex",alignItems:"center",justifyContent:"center",transition:"background .15s"}}>
+                    {tab.icon(isActive,A.blue)}
+                  </div>
+                  <span style={{fontSize:10,fontWeight:isActive?700:500,fontFamily:sans}}>{tab.label}</span>
                 </button>
               );
             })}
@@ -780,28 +838,13 @@ export default function App(){
         </div>
       </div>
 
-      {/* Desktop sidebar for the extra width — only shows on wide screens */}
-      <style>{`
-        @media (min-width: 769px) {
-          .desktop-panel { display: flex !important; }
-        }
-      `}</style>
-      <div className="desktop-panel" style={{display:"none",flexDirection:"column",width:260,borderLeft:`1px solid ${T.navBorder}`,background:T.surface,padding:"32px 24px",gap:14,overflowY:"auto"}}>
-        <div style={{fontSize:11,fontWeight:700,color:T.muted,letterSpacing:"0.06em",textTransform:"uppercase",fontFamily:sans,marginBottom:4}}>Quick Nav</div>
-        {[...TABS.filter(t=>t.id!=="more"),...MORE_PAGES].map(n=>(
-          <button key={n.id} onClick={()=>setPage(n.id)} style={{display:"flex",alignItems:"center",gap:10,width:"100%",padding:"10px 14px",background:page===n.id?`${A.blue}12`:"transparent",borderRadius:14,border:"none",cursor:"pointer",fontFamily:sans,fontSize:13,fontWeight:page===n.id?700:400,color:page===n.id?A.blue:T.sub,textAlign:"left",transition:"all .15s"}}>
-            {"icon" in n && typeof n.icon==="function" ? n.icon(page===n.id,A.blue) : <span style={{fontSize:16}}>{n.icon}</span>}
-            <span>{"label" in n ? n.label : n.id}</span>
-          </button>
-        ))}
-        <div style={{marginTop:"auto",display:"flex",flexDirection:"column",gap:8}}>
-          <button onClick={()=>setDarkMode(d=>!d)} style={{display:"flex",alignItems:"center",gap:8,background:T.surface2,border:`1px solid ${T.border}`,borderRadius:12,padding:"9px 12px",cursor:"pointer",fontSize:12,color:T.sub,fontFamily:sans}}>
-            <span>{darkMode?"☀️":"🌙"}</span><span>{darkMode?"Light":"Dark"} mode</span>
-          </button>
-          {!whoopOk&&<Btn onClick={handleConnectWhoop} color={A.coral} full sm>Connect Whoop</Btn>}
-          {whoopOk&&<div style={{fontSize:11,color:A.green,fontWeight:600,fontFamily:sans}}>✓ Whoop connected</div>}
-        </div>
-      </div>
+      {/* ── FLOATING CHAT BUTTON (mobile only) ── */}
+      <style>{`@media(min-width:800px){.chat-fab{display:none!important}}.chat-fab{position:fixed;bottom:calc(env(safe-area-inset-bottom,0px) + 76px);right:16px;z-index:100}`}</style>
+      {page!=="chat"&&(
+        <button className="chat-fab" onClick={goToChat} style={{width:52,height:52,borderRadius:"50%",background:`linear-gradient(135deg,${A.blue},${A.teal})`,border:"none",cursor:"pointer",boxShadow:`0 4px 20px ${A.blue}50`,display:"flex",alignItems:"center",justifyContent:"center"}}>
+          <svg width={22} height={22} viewBox="0 0 24 24" fill="none"><path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z" stroke="white" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" fill="rgba(255,255,255,0.15)"/></svg>
+        </button>
+      )}
     </div>
   );
 }
