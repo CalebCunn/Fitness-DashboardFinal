@@ -1466,6 +1466,7 @@ export default function App() {
           padding:"8px 16px",
           paddingBottom:"calc(env(safe-area-inset-bottom, 20px) + 8px)",
           background:"transparent",
+          display:"flex",
         }}>
           <div style={{
             display:"flex", alignItems:"center",
@@ -1473,6 +1474,7 @@ export default function App() {
             borderRadius:40,
             boxShadow:"0 2px 20px rgba(0,0,0,0.10), 0 1px 3px rgba(0,0,0,0.06)",
             padding:"5px 2px",
+            width:"100%",
           }}>
             {TABS.map(tab=>{
               const isActive=activeTab===tab.id;
