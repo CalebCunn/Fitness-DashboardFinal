@@ -720,6 +720,7 @@ export default function App(){
   if(!connected||whoopPending)return <ConnectScreen whoopPending={whoopPending} T={T}/>;
 
   const sharedProps={activities,stats,whoopData,whoopOk,onConnectWhoop:handleConnectWhoop,onRefreshWhoop:loadWhoop,T};
+  const goToChat=()=>setPage("chat");
 
   const views={
     overview:<Overview {...sharedProps} bestEfforts={bestEfforts} gear={gear} userPrefs={userPrefs} onSavePrefs={handleSavePrefs} onGoToChat={goToChat} onNav={setPage} athlete={athlete}/>,
@@ -739,7 +740,6 @@ export default function App(){
   const activeTab = TABS.find(t=>t.id===page) ? page : (MORE_PAGES.find(p=>p.id===page) ? "more" : "overview");
   const pageTitleMap = {overview:"Home",running:"Running",plan:"Plan",recovery:"Recovery",more:"More",gym:"Gym",nutrition:"Nutrition",races:"Races",chat:"Coach"};
   const pageTitle = pageTitleMap[page] || "More";
-  const goToChat = () => setPage("chat");
 
   return (
     <div style={{height:"100vh",background:T.bg,color:T.text,fontFamily:sans,overflow:"hidden",display:"flex"}}>
