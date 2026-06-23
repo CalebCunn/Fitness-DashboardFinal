@@ -293,38 +293,239 @@ function BerlinTargets({T}){
   </div></Card>;
 }
 // ─── OVERVIEW ─────────────────────────────────────────────────────────────────
-function Overview({stats,activities,whoopData,whoopOk,onConnectWhoop,bestEfforts,gear,userPrefs,onSavePrefs,onGoToChat,onNav,athlete,T}){
-  const ytd=stats?.ytd_run_totals||{},all=stats?.all_run_totals||{};
-  const rec=whoopData?.recoveries?.records?.[0],sleep=whoopData?.sleeps?.records?.[0],cyc=whoopData?.cycles?.records?.[0];
-  const streaks=calcStreaks(activities),recoveryScore=Math.round(rec?.score?.recovery_score||0);
-  const vol=weeklyVol(activities);
-  const paceTrend=vol.map(w=>{const wr=activities.filter(a=>{if(a.type!=="Run")return false;const d=new Date(a.start_date_local);const mon=new Date(d);mon.setDate(d.getDate()-((d.getDay()+6)%7));return mon.toLocaleDateString("en-GB",{day:"numeric",month:"short"})===w.week;});const avg=wr.length?wr.reduce((s,r)=>s+(r.average_speed||0),0)/wr.length:0;return{week:w.week,pace:avg?parseFloat((1000/avg/60).toFixed(2)):null};}).filter(w=>w.pace);
-  const PBs=[{label:"5K",time:"18:42",pace:"3:44/km"},{label:"10K",time:"40:52",pace:"4:05/km"},{label:"HM",time:"1:32:48",pace:"4:23/km"},{label:"Marathon",time:"3:48:59",pace:"5:25/km"}];
-  return <div style={{display:"flex",flexDirection:"column",gap:14,paddingBottom:24}} className="page-enter">
-    {whoopOk&&rec&&recoveryScore<34&&<div style={{background:A.coralL,border:`1.5px solid ${A.coral}30`,borderRadius:18,padding:"13px 16px",display:"flex",alignItems:"center",gap:12}}><span style={{fontSize:20}}>⚠️</span><div style={{flex:1}}><div style={{fontSize:13,fontWeight:700,color:A.coral,fontFamily:sans}}>Low recovery today ({recoveryScore}%)</div><div style={{fontSize:12,color:T.sub,fontFamily:sans,marginTop:2}}>Consider easy or rest. Ask Claude to adjust your plan.</div></div><Btn onClick={onGoToChat} color={A.coral} sm>Ask Claude</Btn></div>}
-    <HeroCard athlete={athlete} activities={activities} stats={stats} whoopData={whoopData} whoopOk={whoopOk} userPrefs={userPrefs} T={T}/>
-    <div style={{display:"grid",gridTemplateColumns:"repeat(2,1fr)",gap:10}}>
-      {(()=>{
-        const recentVol=vol.slice(-8).map(w=>w.km||0);
-        const recentCounts=vol.slice(-8).map(w=>w.count||0);
-        return <>
-          <TapTile T={T} label="YTD Distance" value={ytd.distance?`${(ytd.distance/1000).toFixed(1)}km`:"449.6km"} sub={`${ytd.count||58} runs`} color={A.blue} onClick={()=>onNav("running")} bars={recentVol}/>
-          <TapTile T={T} label="YTD Time" value={ytd.moving_time?`${(ytd.moving_time/3600).toFixed(1)}h`:"36.9h"} color={T.text} onClick={()=>onNav("running")} bars={recentCounts}/>
-          <TapTile T={T} label="Streak" value={`${streaks.current}d`} sub={streaks.current>2?`🔥 ${streaks.current} days`:""} color={streaks.current>6?A.green:streaks.current>2?"#FF9500":T.sub} onClick={()=>onNav("running")} bars={recentCounts}/>
-          <TapTile T={T} label="All-Time" value={all.distance?`${(all.distance/1000).toFixed(0)}km`:"1093km"} sub={`${all.count||161} runs`} color={T.text} onClick={()=>onNav("running")} bars={recentCounts}/>
-        </>;
-      })()}
+function TodayCoachCard({plan,whoopData,onGoToChat,T}){
+  const rec=whoopData?.recoveries?.records?.[0];
+  const recScore=Math.round(rec?.score?.recovery_score||0);
+  const todaySessions=plan?.sessions?.filter(s=>{
+    const days=["Sun","Mon","Tue","Wed","Thu","Fri","Sat"];
+    return s.day===days[new Date().getDay()];
+  })||[];
+  const hasLowRec=rec&&recScore<34;
+  return (
+    <div style={{background:`linear-gradient(135deg,#1a1a2e 0%,#16213e 100%)`,borderRadius:20,padding:20,position:"relative",overflow:"hidden"}}>
+      <div style={{position:"absolute",top:-30,right:-30,width:120,height:120,borderRadius:"50%",background:`${A.blue}15`,pointerEvents:"none"}}/>
+      <div style={{display:"flex",alignItems:"flex-start",justifyContent:"space-between",marginBottom:16}}>
+        <div>
+          <div style={{fontSize:11,fontWeight:600,color:"rgba(255,255,255,0.4)",letterSpacing:"0.06em",textTransform:"uppercase",fontFamily:sans,marginBottom:4}}>Coach Claude</div>
+          <div style={{fontSize:13,color:"rgba(255,255,255,0.5)",fontFamily:sans}}>{hasLowRec?"⚠️ Low recovery · adjust plan":"● Online · adapts to your data"}</div>
+        </div>
+        <button onClick={onGoToChat} style={{background:`${A.blue}25`,border:`1px solid ${A.blue}50`,borderRadius:20,padding:"6px 14px",color:A.blue,fontSize:12,fontWeight:600,cursor:"pointer",fontFamily:sans}}>Open</button>
+      </div>
+      {todaySessions.length>0?(
+        <div style={{display:"flex",flexDirection:"column",gap:8}}>
+          {todaySessions.map((s,i)=>{
+            const typeColors={Easy:A.green,Interval:A.coral,Tempo:"#FF9500","Long Run":A.blue,Gym:A.purple,Rest:T.muted};
+            const col=typeColors[s.type]||A.blue;
+            const isRest=s.type==="Rest";
+            if(isRest)return null;
+            return (
+              <div key={i} style={{background:"rgba(255,255,255,0.06)",borderRadius:14,padding:"12px 14px",display:"flex",alignItems:"center",gap:12}}>
+                <div style={{width:36,height:36,borderRadius:10,background:`${col}20`,display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0}}>
+                  <div style={{width:10,height:10,borderRadius:"50%",background:col}}/>
+                </div>
+                <div style={{flex:1,minWidth:0}}>
+                  <div style={{fontSize:13,fontWeight:700,color:"#fff",fontFamily:sans}}>{s.type}</div>
+                  <div style={{fontSize:11,color:"rgba(255,255,255,0.4)",fontFamily:sans,marginTop:2}}>{[s.dist!=="0km"&&s.dist,s.pace!=="N/A"&&s.pace,s.shoe&&s.shoe!=="N/A"&&`👟 ${s.shoe}`].filter(Boolean).join(" · ")}</div>
+                </div>
+                <Tag color={col}>{s.dist!=="0km"?s.dist:s.type}</Tag>
+              </div>
+            );
+          })}
+        </div>
+      ):(
+        <div style={{background:"rgba(255,255,255,0.06)",borderRadius:14,padding:"12px 14px"}}>
+          <div style={{fontSize:13,color:"rgba(255,255,255,0.5)",fontFamily:sans}}>No plan yet · ask Claude to build your week</div>
+        </div>
+      )}
     </div>
-    {whoopOk&&sleep&&<div style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:10}}>
-      <Tile T={T} label="Sleep Score" value={`${Math.round(sleep.score?.sleep_performance_percentage||0)}%`} color={A.blue}/>
-      <Tile T={T} label="In Bed" value={sleep.score?.stage_summary?.total_in_bed_time_milli?`${(sleep.score.stage_summary.total_in_bed_time_milli/3600000).toFixed(1)}h`:"--"} color={A.teal}/>
-      <Tile T={T} label="Strain" value={cyc?.score?.strain?.toFixed(1)||"--"} color={"#FF9500"}/>
-    </div>}
-    <Card T={T}><SectionHeader T={T} title="Personal Bests" accent={A.green}/><div style={{display:"grid",gridTemplateColumns:"repeat(2,1fr)",gap:10}}>{(bestEfforts&&Object.values(bestEfforts).some(Boolean)?Object.entries(bestEfforts).filter(([,v])=>v).map(([name,e])=>({label:name,time:fTime(e.moving_time),pace:`${fPace(e.distance/e.moving_time)}/km`})):PBs).map(pb=><div key={pb.label} style={{background:T.surface2,borderRadius:14,padding:"13px 15px"}}><Label T={T} style={{marginBottom:7}}>{pb.label}</Label><div style={{fontSize:19,fontWeight:800,color:A.green,fontFamily:sans}}>{pb.time}</div><Sub T={T}>{pb.pace}</Sub></div>)}</div></Card>
-    {paceTrend.length>2&&<Card T={T}><SectionHeader T={T} title="Pace Trend" accent={A.blue} right={<span style={{fontSize:11,color:T.muted,fontFamily:sans}}>min/km, lower = faster</span>}/><ResponsiveContainer width="100%" height={110}><LineChart data={paceTrend}><defs><linearGradient id="pg" x1="0" y1="0" x2="1" y2="0"><stop offset="0%" stopColor={A.blue}/><stop offset="100%" stopColor={A.teal}/></linearGradient></defs><XAxis dataKey="week" tick={{fontSize:10,fill:T.muted,fontFamily:sans}} tickLine={false} axisLine={false} interval={2}/><YAxis tick={{fontSize:10,fill:T.muted}} tickLine={false} axisLine={false} width={26} reversed domain={["auto","auto"]}/><Tooltip content={<CT T={T}/>}/><Line type="monotone" dataKey="pace" name="min/km" stroke="url(#pg)" strokeWidth={2.5} dot={{fill:A.blue,r:3}} connectNulls/></LineChart></ResponsiveContainer></Card>}
-    <BerlinTargets T={T}/>
-    <RacePredictor activities={activities} T={T}/>
-    {userPrefs?.weightLog?.length>1&&(()=>{const log=userPrefs.weightLog.slice(-14),curr=log[log.length-1]?.weight;return <Card T={T}><SectionHeader T={T} title="Weight" accent={A.purple} right={<span style={{fontSize:12,color:T.sub,fontFamily:sans}}>{curr}kg of 65kg</span>}/><ResponsiveContainer width="100%" height={90}><LineChart data={log}><XAxis dataKey="date" tick={{fontSize:9,fill:T.muted,fontFamily:sans}} tickLine={false} axisLine={false} interval={2}/><YAxis tick={{fontSize:9,fill:T.muted}} tickLine={false} axisLine={false} width={30} domain={["auto","auto"]} unit="kg"/><Tooltip content={<CT T={T}/>}/><Line type="monotone" dataKey="weight" name="kg" stroke={A.purple} strokeWidth={2} dot={{fill:A.purple,r:3}} connectNulls/></LineChart></ResponsiveContainer></Card>})()}
+  );
+}
+
+function RecoveryCard({whoopData,whoopOk,onConnectWhoop,T}){
+  const rec=whoopData?.recoveries?.records?.[0];
+  const sleep=whoopData?.sleeps?.records?.[0];
+  const cyc=whoopData?.cycles?.records?.[0];
+  const score=Math.round(rec?.score?.recovery_score||0);
+  const col=score>=67?A.green:score>=34?A.yellow:A.coral;
+  const hrv=Math.round(rec?.score?.hrv_rmssd_milli||0);
+  const rhr=Math.round(rec?.score?.resting_heart_rate||0);
+  const sleepH=sleep?.score?.stage_summary?.total_in_bed_time_milli?(sleep.score.stage_summary.total_in_bed_time_milli/3600000).toFixed(1):"--";
+  const sleepScore=Math.round(sleep?.score?.sleep_performance_percentage||0);
+  if(!whoopOk) return (
+    <Card T={T} style={{display:"flex",alignItems:"center",justifyContent:"space-between",padding:"16px 18px"}}>
+      <div>
+        <div style={{fontSize:13,fontWeight:700,color:T.text,fontFamily:sans}}>Recovery</div>
+        <div style={{fontSize:12,color:T.sub,fontFamily:sans,marginTop:2}}>Connect Whoop for live data</div>
+      </div>
+      <button onClick={onConnectWhoop} style={{background:A.coral,border:"none",borderRadius:20,padding:"7px 14px",color:"#fff",fontSize:12,fontWeight:600,cursor:"pointer",fontFamily:sans}}>Connect</button>
+    </Card>
+  );
+  if(!rec) return null;
+  return (
+    <Card T={T} style={{padding:"18px 18px 14px"}}>
+      <Row style={{marginBottom:16}}>
+        <div style={{fontSize:13,fontWeight:700,color:T.text,fontFamily:sans}}>Recovery</div>
+        <div style={{fontSize:11,color:T.muted,fontFamily:sans,background:T.surface2,borderRadius:20,padding:"3px 10px"}}>WHOOP · just now</div>
+      </Row>
+      <div style={{display:"flex",alignItems:"center",gap:20}}>
+        <div style={{position:"relative",flexShrink:0}}>
+          <RecoveryRing score={score} size={88}/>
+          <div style={{position:"absolute",inset:0,display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center"}}>
+            <div style={{fontSize:20,fontWeight:800,color:col,fontFamily:sans,lineHeight:1}}>{score}%</div>
+            <div style={{fontSize:8,color:T.muted,fontFamily:sans,fontWeight:600,letterSpacing:"0.04em",textTransform:"uppercase",marginTop:1}}>{score>=67?"Primed":score>=34?"Moderate":"Low"}</div>
+          </div>
+        </div>
+        <div style={{flex:1,display:"flex",flexDirection:"column",gap:10}}>
+          {[
+            {label:"HRV",value:`${hrv} ms`,color:A.green},
+            {label:"Resting HR",value:`${rhr} bpm`,color:A.coral},
+            {label:"Sleep",value:`${sleepH}h · ${sleepScore}%`,color:A.blue},
+          ].map((s,i)=>(
+            <div key={i} style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+              <div style={{fontSize:12,color:T.sub,fontFamily:sans}}>{s.label}</div>
+              <div style={{fontSize:13,fontWeight:700,color:s.color,fontFamily:sans}}>{s.value}</div>
+            </div>
+          ))}
+        </div>
+      </div>
+      {cyc?.score?.strain&&(
+        <div style={{marginTop:14,paddingTop:12,borderTop:`1px solid ${T.divider}`,display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+          <div style={{fontSize:12,color:T.sub,fontFamily:sans}}>Daily strain</div>
+          <div style={{display:"flex",alignItems:"center",gap:8}}>
+            <div style={{width:80,height:5,background:T.divider,borderRadius:3}}><div style={{width:`${Math.min(cyc.score.strain/21*100,100)}%`,height:"100%",background:"#FF9500",borderRadius:3}}/></div>
+            <div style={{fontSize:13,fontWeight:700,color:"#FF9500",fontFamily:sans}}>{cyc.score.strain.toFixed(1)}</div>
+          </div>
+        </div>
+      )}
+    </Card>
+  );
+}
+
+function Overview({stats,activities,whoopData,whoopOk,onConnectWhoop,bestEfforts,gear,userPrefs,onSavePrefs,onGoToChat,onNav,athlete,T,plan}){
+  const ytd=stats?.ytd_run_totals||{},all=stats?.all_run_totals||{};
+  const rec=whoopData?.recoveries?.records?.[0];
+  const streaks=calcStreaks(activities);
+  const vol=weeklyVol(activities);
+  const recentVol=vol.slice(-8).map(w=>w.km||0);
+  const recentCounts=vol.slice(-8).map(w=>w.count||0);
+  const berlin=new Date("2026-09-28");
+  const daysLeft=Math.max(0,Math.ceil((berlin-new Date())/86400000));
+  const blockStart=new Date("2026-06-22");
+  const blockPct=Math.min(100,Math.max(0,Math.round(((new Date()-blockStart)/(berlin-blockStart))*100)));
+  const weekStart=new Date();weekStart.setDate(weekStart.getDate()-((weekStart.getDay()+6)%7));weekStart.setHours(0,0,0,0);
+  const weekKm=activities.filter(a=>(a.type==="Run"||a.sport_type==="Run")&&new Date(a.start_date_local)>=weekStart).reduce((s,r)=>s+(r.distance||0)/1000,0);
+  const paceTrend=vol.slice(-8).map(w=>{const wr=activities.filter(a=>{if(a.type!=="Run")return false;const d=new Date(a.start_date_local);const mon=new Date(d);mon.setDate(d.getDate()-((d.getDay()+6)%7));return mon.toLocaleDateString("en-GB",{day:"numeric",month:"short"})===w.week;});const avg=wr.length?wr.reduce((s,r)=>s+(r.average_speed||0),0)/wr.length:0;return{week:w.week,pace:avg?parseFloat((1000/avg/60).toFixed(2)):null};}).filter(w=>w.pace);
+  const PBs=[{label:"5K",time:"18:42",pace:"3:44/km"},{label:"10K",time:"40:52",pace:"4:05/km"},{label:"HM",time:"1:32:48",pace:"4:23/km"},{label:"Marathon",time:"3:48:59",pace:"5:25/km"}];
+
+  return <div style={{display:"flex",flexDirection:"column",gap:12,paddingBottom:24}} className="page-enter">
+
+    {/* Hero greeting */}
+    <div style={{background:`linear-gradient(135deg,${T.heroFrom} 0%,#1a1a2e 100%)`,borderRadius:20,padding:"20px 20px 16px",position:"relative",overflow:"hidden"}}>
+      <div style={{position:"absolute",top:-40,right:-40,width:160,height:160,borderRadius:"50%",background:`${A.blue}12`,pointerEvents:"none"}}/>
+      <div style={{fontSize:12,color:"rgba(255,255,255,0.4)",fontFamily:sans,marginBottom:6}}>
+        {new Date().toLocaleDateString("en-GB",{weekday:"long",day:"numeric",month:"long"})}
+      </div>
+      <div style={{fontSize:26,fontWeight:800,color:"#fff",letterSpacing:"-0.03em",fontFamily:sans,lineHeight:1.1,marginBottom:12}}>
+      {new Date().getHours()<12?"Good morning":new Date().getHours()<18?"Good afternoon":"Good evening"}, {athlete?.firstname||"Caleb"}
+      </div>
+      {/* Berlin progress */}
+      <div style={{marginBottom:14}}>
+        <Row style={{marginBottom:6}}>
+          <div style={{fontSize:11,color:"rgba(255,255,255,0.45)",fontFamily:sans}}>Berlin block · {daysLeft} days to go</div>
+          <div style={{fontSize:11,color:A.blue,fontFamily:sans,fontWeight:600}}>{blockPct}%</div>
+        </Row>
+        <div style={{height:4,background:"rgba(255,255,255,0.1)",borderRadius:2}}>
+          <div style={{width:`${blockPct}%`,height:"100%",background:`linear-gradient(90deg,${A.blue},${A.teal})`,borderRadius:2}}/>
+        </div>
+      </div>
+      {/* Stat row */}
+      <div style={{display:"flex",gap:20,paddingTop:12,borderTop:"1px solid rgba(255,255,255,0.08)"}}>
+        {[
+          {label:"This week",value:`${weekKm.toFixed(1)}km`,color:A.teal},
+          {label:"Streak",value:streaks.current>0?`${streaks.current}d 🔥`:"0d",color:streaks.current>2?A.green:"rgba(255,255,255,0.5)"},
+          {label:"YTD",value:ytd.distance?`${(ytd.distance/1000).toFixed(0)}km`:"450km",color:"rgba(255,255,255,0.7)"},
+        ].map((s,i)=>(
+          <div key={i}>
+            <div style={{fontSize:10,color:"rgba(255,255,255,0.35)",fontFamily:sans,textTransform:"uppercase",letterSpacing:"0.05em",marginBottom:3}}>{s.label}</div>
+            <div style={{fontSize:15,fontWeight:700,color:s.color,fontFamily:sans}}>{s.value}</div>
+          </div>
+        ))}
+      </div>
+    </div>
+
+    {/* Recovery */}
+    <RecoveryCard whoopData={whoopData} whoopOk={whoopOk} onConnectWhoop={onConnectWhoop} T={T}/>
+
+    {/* Today from plan */}
+    <TodayCoachCard plan={plan} whoopData={whoopData} onGoToChat={onGoToChat} T={T}/>
+
+    {/* Stats grid */}
+    <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10}}>
+      <TapTile T={T} label="YTD Distance" value={ytd.distance?`${(ytd.distance/1000).toFixed(1)}km`:"449.6km"} sub={`${ytd.count||58} runs`} color={A.blue} onClick={()=>onNav("running")} bars={recentVol}/>
+      <TapTile T={T} label="YTD Time" value={ytd.moving_time?`${(ytd.moving_time/3600).toFixed(1)}h`:"36.9h"} color={T.text} onClick={()=>onNav("running")} bars={recentCounts}/>
+      <TapTile T={T} label="All-Time" value={all.distance?`${(all.distance/1000).toFixed(0)}km`:"1093km"} sub={`${all.count||161} runs`} color={T.text} onClick={()=>onNav("running")} bars={recentCounts}/>
+      <TapTile T={T} label="Elevation YTD" value={ytd.elevation_gain?`${ytd.elevation_gain}m`:"846m"} color={A.green} onClick={()=>onNav("running")} bars={recentVol}/>
+    </div>
+
+    {/* PBs */}
+    <Card T={T} style={{padding:"16px 16px 12px"}}>
+      <SectionHeader T={T} title="Personal Bests" accent={A.green}/>
+      <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8}}>
+        {(bestEfforts&&Object.values(bestEfforts).some(Boolean)?Object.entries(bestEfforts).filter(([,v])=>v).map(([name,e])=>({label:name,time:fTime(e.moving_time),pace:`${fPace(e.distance/e.moving_time)}/km`})):PBs).map(pb=>(
+          <div key={pb.label} style={{background:T.surface2,borderRadius:14,padding:"12px 14px"}}>
+            <div style={{fontSize:10,fontWeight:600,color:T.muted,letterSpacing:"0.06em",textTransform:"uppercase",fontFamily:sans,marginBottom:5}}>{pb.label}</div>
+            <div style={{fontSize:20,fontWeight:800,color:A.green,letterSpacing:"-0.02em",fontFamily:sans}}>{pb.time}</div>
+            <div style={{fontSize:11,color:T.sub,fontFamily:sans,marginTop:3}}>{pb.pace}</div>
+          </div>
+        ))}
+      </div>
+    </Card>
+
+    {/* Training load / Pace trend */}
+    {paceTrend.length>2&&(
+      <Card T={T} style={{padding:"16px 16px 8px"}}>
+        <Row style={{marginBottom:14}}>
+          <div style={{fontSize:13,fontWeight:700,color:T.text,fontFamily:sans}}>Training Load</div>
+          <div style={{fontSize:11,color:T.muted,fontFamily:sans}}>min/km · lower is faster</div>
+        </Row>
+        <ResponsiveContainer width="100%" height={90}>
+          <LineChart data={paceTrend}>
+            <defs><linearGradient id="pg" x1="0" y1="0" x2="1" y2="0"><stop offset="0%" stopColor={A.blue}/><stop offset="100%" stopColor={A.teal}/></linearGradient></defs>
+            <XAxis dataKey="week" tick={{fontSize:9,fill:T.muted,fontFamily:sans}} tickLine={false} axisLine={false} interval={2}/>
+            <YAxis tick={{fontSize:9,fill:T.muted}} tickLine={false} axisLine={false} width={22} reversed domain={["auto","auto"]}/>
+            <Tooltip content={<CT T={T}/>}/>
+            <Line type="monotone" dataKey="pace" name="min/km" stroke={`url(#pg)`} strokeWidth={2.5} dot={false} connectNulls/>
+          </LineChart>
+        </ResponsiveContainer>
+      </Card>
+    )}
+
+    {/* Berlin target */}
+    <div style={{background:`${A.blue}10`,border:`1.5px solid ${A.blue}30`,borderRadius:20,padding:"16px 18px"}}>
+      <Row>
+        <div>
+          <div style={{fontSize:13,fontWeight:700,color:A.blue,fontFamily:sans}}>Berlin Goal · Sub 3:20</div>
+          <div style={{fontSize:12,color:T.sub,fontFamily:sans,marginTop:3}}>Target pace 4:44/km · half split 1:40:00</div>
+        </div>
+        <div style={{textAlign:"right"}}>
+          <div style={{fontSize:22,fontWeight:800,color:A.blue,fontFamily:sans}}>{daysLeft}</div>
+          <div style={{fontSize:10,color:T.muted,fontFamily:sans}}>days</div>
+        </div>
+      </Row>
+    </div>
+
+    {/* Weight */}
+    {userPrefs?.weightLog?.length>1&&(()=>{const log=userPrefs.weightLog.slice(-14),curr=log[log.length-1]?.weight;return (
+      <Card T={T} style={{padding:"16px 16px 8px"}}>
+        <Row style={{marginBottom:10}}>
+          <div style={{fontSize:13,fontWeight:700,color:T.text,fontFamily:sans}}>Weight</div>
+          <div style={{fontSize:12,color:T.sub,fontFamily:sans}}>{curr}kg · target 65kg</div>
+        </Row>
+        <ResponsiveContainer width="100%" height={70}>
+          <LineChart data={log}><XAxis dataKey="date" hide/><YAxis hide domain={["auto","auto"]}/><Tooltip content={<CT T={T}/>}/><Line type="monotone" dataKey="weight" name="kg" stroke={A.purple} strokeWidth={2} dot={false} connectNulls/></LineChart>
+        </ResponsiveContainer>
+      </Card>
+    );})()}
 
   </div>;
 }
@@ -747,7 +948,7 @@ export default function App(){
   const goToChat=()=>setPage("chat");
 
   const views={
-    overview:<Overview {...sharedProps} bestEfforts={bestEfforts} gear={gear} userPrefs={userPrefs} onSavePrefs={handleSavePrefs} onGoToChat={goToChat} onNav={setPage} athlete={athlete}/>,
+    overview:<Overview {...sharedProps} bestEfforts={bestEfforts} gear={gear} userPrefs={userPrefs} onSavePrefs={handleSavePrefs} onGoToChat={goToChat} onNav={setPage} athlete={athlete} plan={savedPlan}/>,
     running:<Running activities={activities} stats={stats} gear={gear} T={T}/>,
     gym:<Gym activities={activities} userPrefs={userPrefs} onSavePrefs={handleSavePrefs} savedWorkout={savedWorkout} T={T}/>,
     recovery:<Recovery {...sharedProps}/>,
