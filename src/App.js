@@ -30,6 +30,8 @@ const GLOBAL_CSS = `
   @keyframes fadeUp{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:translateY(0)}}
   @keyframes bounce{0%,100%{transform:translateY(0)}50%{transform:translateY(-5px)}}
   @keyframes pulse{0%,100%{opacity:1}50%{opacity:0.4}}
+  @keyframes fireFlicker{0%,100%{transform:scaleY(1) scaleX(1);opacity:1}25%{transform:scaleY(1.1) scaleX(0.93);opacity:0.9}50%{transform:scaleY(0.94) scaleX(1.06);opacity:1}75%{transform:scaleY(1.06) scaleX(0.96);opacity:0.95}}
+  .fire{animation:fireFlicker 1.4s ease-in-out infinite;display:inline-block;transform-origin:bottom center}
   .page-enter{animation:fadeUp 0.22s ease both}
   *{-webkit-tap-highlight-color:transparent;box-sizing:border-box}
   ::-webkit-scrollbar{width:0px}
@@ -551,37 +553,167 @@ Always reference current lifts and suggest progressive overload.`;
   </div>;
 }
 
-// ─── NAV + APP ────────────────────────────────────────────────────────────────
-const NAV=[{id:"overview",label:"Overview",icon:"⚡"},{id:"running",label:"Running",icon:"🏃"},{id:"gym",label:"Gym",icon:"💪"},{id:"recovery",label:"Recovery",icon:"💤"},{id:"plan",label:"Plan",icon:"📋"},{id:"nutrition",label:"Nutrition",icon:"🥗"},{id:"races",label:"Races",icon:"🏅"},{id:"chat",label:"Chat",icon:"💬"}];
+// ─── MORE MENU ────────────────────────────────────────────────────────────────
+// Pages accessible via the "More" bottom tab
+const MORE_PAGES = [
+  {id:"plan",     label:"Plan",      icon:"📋"},
+  {id:"nutrition",label:"Nutrition", icon:"🥗"},
+  {id:"races",    label:"Races",     icon:"🏅"},
+  {id:"gym",      label:"Gym",       icon:"💪"},
+];
 
+function MoreMenu({page, setPage, T, whoopOk, onConnectWhoop, darkMode, setDarkMode, athlete, onDisconnect, onDisconnectWhoop}){
+  return (
+    <div style={{display:"flex",flexDirection:"column",gap:10,paddingBottom:24}} className="page-enter">
+      {/* Profile strip */}
+      <div style={{background:`linear-gradient(135deg, ${T.heroFrom} 0%, #1a1a2e 100%)`,borderRadius:20,padding:"20px 20px 18px",display:"flex",alignItems:"center",gap:14}}>
+        <div style={{width:48,height:48,background:`linear-gradient(135deg,${A.blue},${A.teal})`,borderRadius:14,display:"flex",alignItems:"center",justifyContent:"center",boxShadow:`0 4px 16px ${A.blue}40`,flexShrink:0}}>
+          <svg viewBox="0 0 24 24" width={24} height={24}><circle cx="12" cy="12" r="9" fill="none" stroke="rgba(255,255,255,0.3)" strokeWidth="2"/><path d="M12 3 a9 9 0 0 1 9 9" fill="none" stroke="white" strokeWidth="2.5" strokeLinecap="round"/><rect x="7" y="10" width="10" height="1.8" rx="0.9" fill="white"/><rect x="7" y="13" width="8" height="1.8" rx="0.9" fill="white"/><rect x="7" y="16" width="6" height="1.8" rx="0.9" fill="white"/></svg>
+        </div>
+        <div>
+          <div style={{fontSize:17,fontWeight:800,color:"#fff",fontFamily:sans,letterSpacing:"-0.02em"}}>Caleb Cunningham</div>
+          <div style={{fontSize:12,color:"rgba(255,255,255,0.45)",fontFamily:sans,marginTop:2}}>{athlete?.city||"Kingston"} · Berlin 28 Sep</div>
+        </div>
+      </div>
+
+      {/* More pages grid */}
+      <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10}}>
+        {MORE_PAGES.map(n=>(
+          <button key={n.id} onClick={()=>setPage(n.id)} style={{background:T.surface,border:`1px solid ${T.border}`,borderRadius:18,padding:"18px 16px",display:"flex",flexDirection:"column",alignItems:"flex-start",gap:8,cursor:"pointer",textAlign:"left",transition:"all .15s"}}>
+            <span style={{fontSize:26}}>{n.icon}</span>
+            <div style={{fontSize:14,fontWeight:700,color:T.text,fontFamily:sans}}>{n.label}</div>
+          </button>
+        ))}
+      </div>
+
+      {/* Settings */}
+      <div style={{background:T.surface,border:`1px solid ${T.border}`,borderRadius:20,overflow:"hidden"}}>
+        {/* Dark mode */}
+        <button onClick={()=>setDarkMode(!darkMode)} style={{display:"flex",alignItems:"center",justifyContent:"space-between",width:"100%",padding:"15px 18px",background:"transparent",border:"none",cursor:"pointer",borderBottom:`1px solid ${T.divider}`}}>
+          <div style={{display:"flex",alignItems:"center",gap:12}}>
+            <span style={{fontSize:18}}>{darkMode?"☀️":"🌙"}</span>
+            <span style={{fontSize:14,color:T.text,fontFamily:sans,fontWeight:500}}>{darkMode?"Light Mode":"Dark Mode"}</span>
+          </div>
+          <div style={{width:44,height:26,background:darkMode?A.blue:T.surface2,border:`1.5px solid ${darkMode?A.blue:T.border}`,borderRadius:13,position:"relative",transition:"all .2s"}}>
+            <div style={{position:"absolute",top:2,left:darkMode?18:2,width:18,height:18,background:"#fff",borderRadius:"50%",transition:"left .2s",boxShadow:"0 1px 4px rgba(0,0,0,0.2)"}}/>
+          </div>
+        </button>
+
+        {/* Whoop */}
+        {!whoopOk ? (
+          <button onClick={onConnectWhoop} style={{display:"flex",alignItems:"center",justifyContent:"space-between",width:"100%",padding:"15px 18px",background:"transparent",border:"none",cursor:"pointer",borderBottom:`1px solid ${T.divider}`}}>
+            <div style={{display:"flex",alignItems:"center",gap:12}}>
+              <span style={{fontSize:18}}>⌚</span>
+              <span style={{fontSize:14,color:T.text,fontFamily:sans,fontWeight:500}}>Connect Whoop</span>
+            </div>
+            <span style={{fontSize:13,color:A.coral,fontWeight:600,fontFamily:sans}}>Connect →</span>
+          </button>
+        ) : (
+          <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",padding:"15px 18px",borderBottom:`1px solid ${T.divider}`}}>
+            <div style={{display:"flex",alignItems:"center",gap:12}}>
+              <span style={{fontSize:18}}>⌚</span>
+              <span style={{fontSize:14,color:T.text,fontFamily:sans,fontWeight:500}}>Whoop</span>
+            </div>
+            <span style={{fontSize:12,color:A.green,fontWeight:600,fontFamily:sans}}>✓ Connected</span>
+          </div>
+        )}
+
+        {/* Disconnect buttons */}
+        <div style={{display:"flex",gap:0}}>
+          <button onClick={onDisconnect} style={{flex:1,padding:"13px 16px",background:"transparent",border:"none",borderRight:`1px solid ${T.divider}`,cursor:"pointer",fontSize:12,color:T.muted,fontFamily:sans}}>Disconnect Strava</button>
+          {whoopOk&&<button onClick={onDisconnectWhoop} style={{flex:1,padding:"13px 16px",background:"transparent",border:"none",cursor:"pointer",fontSize:12,color:T.muted,fontFamily:sans}}>Disconnect Whoop</button>}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ─── BOTTOM TAB BAR ──────────────────────────────────────────────────────────
+const TABS = [
+  {id:"overview",  label:"Home",     icon:(active,color)=>(
+    <svg width={22} height={22} viewBox="0 0 24 24" fill="none">
+      <path d="M3 12L12 3l9 9" stroke={active?color:"currentColor"} strokeWidth={active?2.5:1.8} strokeLinecap="round" strokeLinejoin="round"/>
+      <path d="M5 10v9a1 1 0 001 1h4v-4h4v4h4a1 1 0 001-1v-9" stroke={active?color:"currentColor"} strokeWidth={active?2.5:1.8} strokeLinecap="round" strokeLinejoin="round"/>
+    </svg>
+  )},
+  {id:"running",   label:"Running",  icon:(active,color)=>(
+    <svg width={22} height={22} viewBox="0 0 24 24" fill="none">
+      <circle cx="13" cy="4" r="1.5" fill={active?color:"currentColor"}/>
+      <path d="M7 20l2-5 3 2 2-7" stroke={active?color:"currentColor"} strokeWidth={active?2.5:1.8} strokeLinecap="round" strokeLinejoin="round"/>
+      <path d="M9 15l-2 5" stroke={active?color:"currentColor"} strokeWidth={active?2.5:1.8} strokeLinecap="round"/>
+      <path d="M12 10l3-1 2 3-3 1" stroke={active?color:"currentColor"} strokeWidth={active?2.5:1.8} strokeLinecap="round" strokeLinejoin="round"/>
+    </svg>
+  )},
+  {id:"recovery",  label:"Recovery", icon:(active,color)=>(
+    <svg width={22} height={22} viewBox="0 0 24 24" fill="none">
+      <path d="M22 12h-4l-3 9L9 3l-3 9H2" stroke={active?color:"currentColor"} strokeWidth={active?2.5:1.8} strokeLinecap="round" strokeLinejoin="round"/>
+    </svg>
+  )},
+  {id:"chat",      label:"Coach",    icon:(active,color)=>(
+    <svg width={22} height={22} viewBox="0 0 24 24" fill="none">
+      <path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z" stroke={active?color:"currentColor"} strokeWidth={active?2.5:1.8} strokeLinecap="round" strokeLinejoin="round" fill={active?`${color}15`:"none"}/>
+    </svg>
+  )},
+  {id:"more",      label:"More",     icon:(active,color)=>(
+    <svg width={22} height={22} viewBox="0 0 24 24" fill="none">
+      <circle cx="5" cy="12" r={active?2:1.5} fill={active?color:"currentColor"}/>
+      <circle cx="12" cy="12" r={active?2:1.5} fill={active?color:"currentColor"}/>
+      <circle cx="19" cy="12" r={active?2:1.5} fill={active?color:"currentColor"}/>
+    </svg>
+  )},
+];
+
+// ─── APP ──────────────────────────────────────────────────────────────────────
 export default function App(){
   const [page,setPage]=useState("overview");
-  const [connected,setConnected]=useState(isConnected());const [whoopOk,setWhoopOk]=useState(isWhoopConnected());
-  const [activities,setActivities]=useState([]);const [stats,setStats]=useState(null);const [athlete,setAthlete]=useState(null);
-  const [gear,setGear]=useState([]);const [bestEfforts,setBestEfforts]=useState({});const [whoopData,setWhoopData]=useState(null);
-  const [loading,setLoading]=useState(false);const [sidebarOpen,setSidebarOpen]=useState(window.innerWidth>640);
-  const [whoopPending,setWhoopPending]=useState(false);const [savedPlan,setSavedPlan]=useState(null);const [savedWorkout,setSavedWorkout]=useState(null);
-  const [userPrefs,setUserPrefs]=useState(null);const [darkMode,setDarkMode]=useState(()=>localStorage.getItem("theme")==="dark");
+  const [connected,setConnected]=useState(isConnected());
+  const [whoopOk,setWhoopOk]=useState(isWhoopConnected());
+  const [activities,setActivities]=useState([]);
+  const [stats,setStats]=useState(null);
+  const [athlete,setAthlete]=useState(null);
+  const [gear,setGear]=useState([]);
+  const [bestEfforts,setBestEfforts]=useState({});
+  const [whoopData,setWhoopData]=useState(null);
+  const [loading,setLoading]=useState(false);
+  const [whoopPending,setWhoopPending]=useState(false);
+  const [savedPlan,setSavedPlan]=useState(null);
+  const [savedWorkout,setSavedWorkout]=useState(null);
+  const [userPrefs,setUserPrefs]=useState(null);
+  const [darkMode,setDarkMode]=useState(()=>localStorage.getItem("theme")==="dark");
   const T=THEMES[darkMode?"dark":"light"];
+
+  // Active tab — "more" is a pseudo-tab that shows the MoreMenu view
+  const activeTab = TABS.find(t=>t.id===page) ? page : (MORE_PAGES.find(p=>p.id===page) ? "more" : "overview");
+
   useEffect(()=>{localStorage.setItem("theme",darkMode?"dark":"light");},[darkMode]);
+
   useEffect(()=>{
     const params=new URLSearchParams(window.location.search),code=params.get("code"),pending=localStorage.getItem("whoop_pending");
     if(!code)return;
     if(pending){setWhoopPending(true);exchangeWhoopCode(code).then(()=>{setWhoopOk(true);setWhoopPending(false);}).catch(e=>{console.error(e);setWhoopPending(false);}).finally(()=>window.history.replaceState({},"","/"));}
     else if(!isConnected()){exchangeCode(code).then(()=>setConnected(true)).catch(console.error).finally(()=>window.history.replaceState({},"","/"));}
   },[]);
+
   useEffect(()=>{
     if(!connected)return;setLoading(true);
-    Promise.all([getAthlete(),getActivities(100)]).then(([a,acts])=>{setAthlete(a);setActivities(acts);setBestEfforts(extractBestEfforts(acts));return Promise.all([getStats(a.id),getAllGear(a)]);}).then(([s,g])=>{setStats(s);setGear(g.filter(Boolean));}).catch(console.error).finally(()=>setLoading(false));
+    Promise.all([getAthlete(),getActivities(100)])
+      .then(([a,acts])=>{setAthlete(a);setActivities(acts);setBestEfforts(extractBestEfforts(acts));return Promise.all([getStats(a.id),getAllGear(a)]);})
+      .then(([s,g])=>{setStats(s);setGear(g.filter(Boolean));})
+      .catch(console.error).finally(()=>setLoading(false));
   },[connected]);
+
   const loadWhoop=useCallback(()=>{if(whoopOk)getWhoopData().then(setWhoopData).catch(console.error);},[whoopOk]);
   useEffect(()=>{loadWhoop();},[loadWhoop]);
   useEffect(()=>{loadUserPrefs().then(p=>{if(p)setUserPrefs(p);});},[]);
+
   const handleSavePrefs=useCallback(prefs=>{setUserPrefs(prefs);saveUserPrefs(prefs);},[]);
   const handleConnectWhoop=()=>window.location.assign(getWhoopAuthUrl());
   const goToChat=()=>setPage("chat");
+
   if(!connected||whoopPending)return <ConnectScreen whoopPending={whoopPending} T={T}/>;
+
   const sharedProps={activities,stats,whoopData,whoopOk,onConnectWhoop:handleConnectWhoop,onRefreshWhoop:loadWhoop,T};
+
   const views={
     overview:<Overview {...sharedProps} bestEfforts={bestEfforts} gear={gear} userPrefs={userPrefs} onSavePrefs={handleSavePrefs} onGoToChat={goToChat} athlete={athlete}/>,
     running:<Running activities={activities} stats={stats} gear={gear} T={T}/>,
@@ -591,53 +723,85 @@ export default function App(){
     nutrition:<Nutrition userPrefs={userPrefs} onSavePrefs={handleSavePrefs} T={T}/>,
     races:<Races userPrefs={userPrefs} onSavePrefs={handleSavePrefs} T={T}/>,
     chat:<Chat {...sharedProps} onPlanSaved={setSavedPlan} onGymSaved={setSavedWorkout} userPrefs={userPrefs}/>,
+    more:<MoreMenu page={page} setPage={setPage} T={T} whoopOk={whoopOk} onConnectWhoop={handleConnectWhoop} darkMode={darkMode} setDarkMode={setDarkMode} athlete={athlete} onDisconnect={()=>{disconnect();setConnected(false);setActivities([]);}} onDisconnectWhoop={()=>{disconnectWhoop();setWhoopOk(false);setWhoopData(null);}}/>,
   };
-  const recoveryForBar=whoopData?.recoveries?.records?.[0];
-  const recScore=recoveryForBar?Math.round(recoveryForBar.score?.recovery_score||0):null;
-  const recColor=recScore!==null?(recScore>=67?A.green:recScore>=34?A.yellow:A.coral):T.muted;
-  return <div style={{display:"flex",height:"100vh",background:T.bg,color:T.text,fontFamily:sans,overflow:"hidden"}}>
-    <style>{GLOBAL_CSS}</style>
-    {/* Sidebar */}
-    <div style={{width:sidebarOpen?210:0,minWidth:sidebarOpen?210:0,background:T.navBg,borderRight:`1px solid ${T.navBorder}`,flexShrink:0,height:"100vh",overflowY:"auto",overflowX:"hidden",transition:"width 0.2s ease, min-width 0.2s ease"}}>
-      <div style={{width:210,minWidth:210}}>
-        <div style={{padding:"22px 20px 18px"}}>
-          <div style={{width:38,height:38,background:`linear-gradient(135deg, ${A.blue}, ${A.teal})`,borderRadius:12,display:"flex",alignItems:"center",justifyContent:"center",marginBottom:14,boxShadow:`0 4px 16px ${A.blue}30`}}>
-            <svg viewBox="0 0 24 24" width={20} height={20}><circle cx="12" cy="12" r="9" fill="none" stroke="rgba(255,255,255,0.3)" strokeWidth="2"/><path d="M12 3 a9 9 0 0 1 9 9" fill="none" stroke="white" strokeWidth="2.5" strokeLinecap="round"/><rect x="7" y="10" width="10" height="1.8" rx="0.9" fill="white"/><rect x="7" y="13" width="8" height="1.8" rx="0.9" fill="white"/><rect x="7" y="16" width="6" height="1.8" rx="0.9" fill="white"/></svg>
+
+  const currentView = views[page] || views.more;
+  const recScore = whoopData?.recoveries?.records?.[0] ? Math.round(whoopData.recoveries.records[0].score?.recovery_score||0) : null;
+  const recColor = recScore!=null?(recScore>=67?A.green:recScore>=34?A.yellow:A.coral):T.muted;
+  const pageTitle = [...TABS,...MORE_PAGES].find(n=>n.id===page)?.label || "More";
+
+  // On desktop (>768px), show a centered max-width column. On mobile, fill screen.
+  const isDesktop = typeof window !== "undefined" && window.innerWidth > 768;
+
+  return (
+    <div style={{height:"100vh",background:T.bg,color:T.text,fontFamily:sans,overflow:"hidden",display:"flex",justifyContent:"center"}}>
+      <style>{GLOBAL_CSS}</style>
+
+      {/* App column — max 430px centred, full width on mobile */}
+      <div style={{width:"100%",maxWidth:430,display:"flex",flexDirection:"column",height:"100vh",position:"relative",background:T.bg}}>
+
+        {/* Status bar area / top header */}
+        <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",padding:"14px 20px 10px",flexShrink:0}}>
+          <div>
+            <div style={{fontSize:11,fontWeight:600,color:T.muted,fontFamily:sans,letterSpacing:"0.04em",textTransform:"uppercase"}}>Fitness Dashboard</div>
+            <div style={{fontSize:20,fontWeight:800,color:T.text,fontFamily:sans,letterSpacing:"-0.03em",lineHeight:1.1,marginTop:2}}>{pageTitle}</div>
           </div>
-          <div style={{fontSize:14,fontWeight:800,color:T.text,fontFamily:sans,letterSpacing:"-0.02em"}}>Caleb Cunningham</div>
-          <div style={{fontSize:11,color:T.sub,marginTop:2,fontFamily:sans}}>{athlete?.city||"Kingston"}</div>
+          <div style={{display:"flex",alignItems:"center",gap:10}}>
+            {recScore!=null&&(
+              <div style={{display:"flex",alignItems:"center",gap:6,background:T.surface,border:`1px solid ${T.border}`,borderRadius:20,padding:"5px 10px"}}>
+                <div style={{width:7,height:7,borderRadius:"50%",background:recColor,boxShadow:`0 0 6px ${recColor}`}}/>
+                <span style={{fontSize:12,color:T.sub,fontFamily:sans,fontWeight:600}}>{recScore}%</span>
+              </div>
+            )}
+          </div>
         </div>
-        <nav style={{padding:"0 10px 16px"}}>
-          {NAV.map(n=><button key={n.id} onClick={()=>{setPage(n.id);if(window.innerWidth<=640)setSidebarOpen(false);}} style={{display:"flex",alignItems:"center",gap:10,width:"100%",padding:"9px 12px",background:page===n.id?`${A.blue}12`:"transparent",borderRadius:12,color:page===n.id?A.blue:T.sub,fontSize:13,fontWeight:page===n.id?700:400,marginBottom:2,cursor:"pointer",border:"none",fontFamily:sans,transition:"all .15s",position:"relative"}}>
-            {page===n.id&&<div style={{position:"absolute",left:0,top:"50%",transform:"translateY(-50%)",width:3,height:20,background:A.blue,borderRadius:"0 2px 2px 0"}}/>}
-            <span style={{fontSize:15}}>{n.icon}</span><span>{n.label}</span>
-          </button>)}
-        </nav>
-        <div style={{padding:"14px 20px 24px",borderTop:`1px solid ${T.divider}`}}>
-          {!whoopOk&&<Btn onClick={handleConnectWhoop} color={A.coral} full sm style={{marginBottom:12}}>Connect Whoop</Btn>}
-          {whoopOk&&<div style={{fontSize:11,color:A.green,marginBottom:10,fontWeight:600,fontFamily:sans}}>✓ Whoop connected</div>}
-          <button onClick={()=>setDarkMode(!darkMode)} style={{display:"flex",alignItems:"center",gap:8,background:T.surface2,border:`1px solid ${T.border}`,borderRadius:20,padding:"6px 12px",cursor:"pointer",fontSize:12,color:T.sub,fontFamily:sans,marginBottom:10,width:"100%"}}>
-            <span>{darkMode?"☀️":"🌙"}</span><span>{darkMode?"Light mode":"Dark mode"}</span>
+
+        {/* Scrollable content */}
+        <div style={{flex:1,overflowY:page==="chat"?"hidden":"auto",padding:"4px 16px 0",display:"flex",flexDirection:"column",WebkitOverflowScrolling:"touch"}}>
+          {loading ? <Loader T={T} text="Loading your data..."/> : currentView}
+        </div>
+
+        {/* Bottom tab bar */}
+        <div style={{flexShrink:0,background:T.navBg,borderTop:`1px solid ${T.navBorder}`,paddingBottom:"env(safe-area-inset-bottom, 8px)",backdropFilter:"blur(20px)",WebkitBackdropFilter:"blur(20px)"}}>
+          <div style={{display:"flex",alignItems:"stretch"}}>
+            {TABS.map(tab=>{
+              const isActive=activeTab===tab.id;
+              return (
+                <button key={tab.id} onClick={()=>setPage(tab.id)} style={{flex:1,display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",gap:4,padding:"10px 4px 10px",background:"transparent",border:"none",cursor:"pointer",color:isActive?A.blue:T.muted,transition:"color .15s",position:"relative"}}>
+                  {/* Dot indicator above active icon */}
+                  {isActive&&<div style={{position:"absolute",top:6,width:4,height:4,borderRadius:"50%",background:A.blue}}/>}
+                  {tab.icon(isActive,A.blue)}
+                  <span style={{fontSize:10,fontWeight:isActive?700:500,fontFamily:sans,letterSpacing:"0.01em"}}>{tab.label}</span>
+                </button>
+              );
+            })}
+          </div>
+        </div>
+      </div>
+
+      {/* Desktop sidebar for the extra width — only shows on wide screens */}
+      <style>{`
+        @media (min-width: 769px) {
+          .desktop-panel { display: flex !important; }
+        }
+      `}</style>
+      <div className="desktop-panel" style={{display:"none",flexDirection:"column",width:260,borderLeft:`1px solid ${T.navBorder}`,background:T.surface,padding:"32px 24px",gap:14,overflowY:"auto"}}>
+        <div style={{fontSize:11,fontWeight:700,color:T.muted,letterSpacing:"0.06em",textTransform:"uppercase",fontFamily:sans,marginBottom:4}}>Quick Nav</div>
+        {[...TABS.filter(t=>t.id!=="more"),...MORE_PAGES].map(n=>(
+          <button key={n.id} onClick={()=>setPage(n.id)} style={{display:"flex",alignItems:"center",gap:10,width:"100%",padding:"10px 14px",background:page===n.id?`${A.blue}12`:"transparent",borderRadius:14,border:"none",cursor:"pointer",fontFamily:sans,fontSize:13,fontWeight:page===n.id?700:400,color:page===n.id?A.blue:T.sub,textAlign:"left",transition:"all .15s"}}>
+            {"icon" in n && typeof n.icon==="function" ? n.icon(page===n.id,A.blue) : <span style={{fontSize:16}}>{n.icon}</span>}
+            <span>{"label" in n ? n.label : n.id}</span>
           </button>
-          <div style={{display:"flex",gap:6,flexWrap:"wrap"}}>
-            <button onClick={()=>{disconnect();setConnected(false);setActivities([]);}} style={{fontSize:10,color:T.muted,background:"transparent",border:`1px solid ${T.border}`,borderRadius:20,padding:"3px 10px",cursor:"pointer",fontFamily:sans}}>Strava</button>
-            {whoopOk&&<button onClick={()=>{disconnectWhoop();setWhoopOk(false);setWhoopData(null);}} style={{fontSize:10,color:T.muted,background:"transparent",border:`1px solid ${T.border}`,borderRadius:20,padding:"3px 10px",cursor:"pointer",fontFamily:sans}}>Whoop</button>}
-          </div>
+        ))}
+        <div style={{marginTop:"auto",display:"flex",flexDirection:"column",gap:8}}>
+          <button onClick={()=>setDarkMode(d=>!d)} style={{display:"flex",alignItems:"center",gap:8,background:T.surface2,border:`1px solid ${T.border}`,borderRadius:12,padding:"9px 12px",cursor:"pointer",fontSize:12,color:T.sub,fontFamily:sans}}>
+            <span>{darkMode?"☀️":"🌙"}</span><span>{darkMode?"Light":"Dark"} mode</span>
+          </button>
+          {!whoopOk&&<Btn onClick={handleConnectWhoop} color={A.coral} full sm>Connect Whoop</Btn>}
+          {whoopOk&&<div style={{fontSize:11,color:A.green,fontWeight:600,fontFamily:sans}}>✓ Whoop connected</div>}
         </div>
       </div>
     </div>
-    {/* Main */}
-    <div style={{flex:1,display:"flex",flexDirection:"column",height:"100vh",overflow:"hidden"}}>
-      <div style={{display:"flex",alignItems:"center",gap:12,padding:"12px 20px",borderBottom:`1px solid ${T.navBorder}`,background:T.navBg,flexShrink:0}}>
-        <button onClick={()=>setSidebarOpen(!sidebarOpen)} style={{background:"transparent",border:"none",color:T.sub,fontSize:18,cursor:"pointer",lineHeight:1,padding:"2px 6px",borderRadius:8}}>{sidebarOpen?"✕":"☰"}</button>
-        <div style={{width:1,height:18,background:T.divider}}/>
-        <div style={{fontSize:13,fontWeight:700,color:T.text,fontFamily:sans}}>{NAV.find(n=>n.id===page)?.label}</div>
-        <div style={{flex:1}}/>
-        {recScore!==null&&<div style={{display:"flex",alignItems:"center",gap:6}}><div style={{width:7,height:7,borderRadius:"50%",background:recColor,boxShadow:`0 0 8px ${recColor}80`}}/><div style={{fontSize:12,color:T.sub,fontFamily:sans}}>{recScore}% recovery</div></div>}
-      </div>
-      <div style={{flex:1,overflowY:page==="chat"?"hidden":"auto",padding:"18px 20px",display:"flex",flexDirection:"column"}}>
-        {loading?<Loader T={T} text="Loading your data..."/>:views[page]}
-      </div>
-    </div>
-  </div>;
+  );
 }
