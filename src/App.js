@@ -1194,7 +1194,6 @@ Always reference current lifts and suggest progressive overload.`;
 
 // ─── MORE MENU ────────────────────────────────────────────────────────────────
 const MORE_PAGES = [
-  {id:"coach",   label:"Coach",   icon:(a,c)=><svg width={22} height={22} viewBox="0 0 24 24" fill="none"><path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z" stroke={a?c:"currentColor"} strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" fill={a?`${c}15`:"none"}/></svg>},
   {id:"gym",     label:"Gym",     icon:(a,c)=><svg width={22} height={22} viewBox="0 0 24 24" fill="none"><path d="M6 5v14M18 5v14M2 9h4M18 9h4M2 15h4M18 15h4M6 9h12M6 15h12" stroke={a?c:"currentColor"} strokeWidth={2} strokeLinecap="round"/></svg>},
   {id:"races",   label:"Races",   icon:(a,c)=><svg width={22} height={22} viewBox="0 0 24 24" fill="none"><path d="M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1z" stroke={a?c:"currentColor"} strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" fill={a?`${c}15`:"none"}/><line x1="4" y1="22" x2="4" y2="15" stroke={a?c:"currentColor"} strokeWidth={2} strokeLinecap="round"/></svg>},
   {id:"profile", label:"Profile", icon:(a,c)=><svg width={22} height={22} viewBox="0 0 24 24" fill="none"><circle cx="12" cy="8" r="4" stroke={a?c:"currentColor"} strokeWidth={2} fill={a?`${c}15`:"none"}/><path d="M4 20c0-4 3.6-7 8-7s8 3 8 7" stroke={a?c:"currentColor"} strokeWidth={2} strokeLinecap="round"/></svg>},
@@ -1337,11 +1336,13 @@ function Profile({athlete,whoopData,stats,activities,whoopOk,darkMode,setDarkMod
 }
 
 const TABS = [
-  {id:"overview",  label:"Home",      icon:(a,c)=><svg width={22} height={22} viewBox="0 0 24 24" fill="none"><path d="M3 12L12 3l9 9" stroke={a?c:"currentColor"} strokeWidth={a?2.5:1.8} strokeLinecap="round" strokeLinejoin="round"/><path d="M5 10v9a1 1 0 001 1h4v-4h4v4h4a1 1 0 001-1v-9" stroke={a?c:"currentColor"} strokeWidth={a?2.5:1.8} strokeLinecap="round" strokeLinejoin="round" fill={a?`${c}15`:"none"}/></svg>},
-  {id:"running",   label:"Running",   icon:(a,c)=><svg width={22} height={22} viewBox="0 0 24 24" fill="none"><circle cx="14" cy="4" r="2" fill={a?c:"currentColor"}/><path d="M6 21l2.5-6L12 17l2.5-8" stroke={a?c:"currentColor"} strokeWidth={a?2.5:1.8} strokeLinecap="round" strokeLinejoin="round"/><path d="M8.5 15L6 21" stroke={a?c:"currentColor"} strokeWidth={a?2.5:1.8} strokeLinecap="round"/><path d="M12.5 9l3.5-1.5 2.5 3-3.5 1.5" stroke={a?c:"currentColor"} strokeWidth={a?2.5:1.8} strokeLinecap="round" strokeLinejoin="round"/></svg>},
-  {id:"plan",      label:"Plans",     icon:(a,c)=><svg width={22} height={22} viewBox="0 0 24 24" fill="none"><rect x="3" y="4" width="18" height="18" rx="3" stroke={a?c:"currentColor"} strokeWidth={a?2.5:1.8} fill={a?`${c}15`:"none"}/><path d="M16 2v4M8 2v4M3 10h18" stroke={a?c:"currentColor"} strokeWidth={a?2.5:1.8} strokeLinecap="round"/><path d="M8 14h4M8 17h6" stroke={a?c:"currentColor"} strokeWidth={a?2.5:1.8} strokeLinecap="round"/></svg>},
-  {id:"recovery",  label:"Recovery",  icon:(a,c)=><svg width={22} height={22} viewBox="0 0 24 24" fill="none"><path d="M22 12h-4l-3 9L9 3l-3 9H2" stroke={a?c:"currentColor"} strokeWidth={a?2.5:1.8} strokeLinecap="round" strokeLinejoin="round"/></svg>},
-  {id:"nutrition", label:"Nutrition", icon:(a,c)=><svg width={22} height={22} viewBox="0 0 24 24" fill="none"><path d="M12 22C6.5 22 2 17.5 2 12S6.5 2 12 2s10 4.5 10 10-4.5 10-10 10z" stroke={a?c:"currentColor"} strokeWidth={a?2.5:1.8} fill={a?`${c}15`:"none"}/><path d="M8 12h8M12 8v8" stroke={a?c:"currentColor"} strokeWidth={a?2.5:1.8} strokeLinecap="round"/></svg>},
+  {id:"overview",  label:"Home",      icon:(a,c)=><svg width={20} height={20} viewBox="0 0 24 24" fill="none"><path d="M3 12L12 3l9 9" stroke={a?c:"currentColor"} strokeWidth={a?2.5:1.8} strokeLinecap="round" strokeLinejoin="round"/><path d="M5 10v9a1 1 0 001 1h4v-4h4v4h4a1 1 0 001-1v-9" stroke={a?c:"currentColor"} strokeWidth={a?2.5:1.8} strokeLinecap="round" strokeLinejoin="round" fill={a?`${c}15`:"none"}/></svg>},
+  {id:"running",   label:"Running",   icon:(a,c)=><svg width={20} height={20} viewBox="0 0 24 24" fill="none"><circle cx="14" cy="4" r="2" fill={a?c:"currentColor"}/><path d="M6 21l2.5-6L12 17l2.5-8" stroke={a?c:"currentColor"} strokeWidth={a?2.5:1.8} strokeLinecap="round" strokeLinejoin="round"/><path d="M8.5 15L6 21" stroke={a?c:"currentColor"} strokeWidth={a?2.5:1.8} strokeLinecap="round"/><path d="M12.5 9l3.5-1.5 2.5 3-3.5 1.5" stroke={a?c:"currentColor"} strokeWidth={a?2.5:1.8} strokeLinecap="round" strokeLinejoin="round"/></svg>},
+  {id:"coach",     label:"Chat",      icon:(a,c)=><svg width={20} height={20} viewBox="0 0 24 24" fill="none"><path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z" stroke={a?c:"currentColor"} strokeWidth={a?2.5:1.8} strokeLinecap="round" strokeLinejoin="round" fill={a?`${c}15`:"none"}/></svg>},
+  {id:"plan",      label:"Plans",     icon:(a,c)=><svg width={20} height={20} viewBox="0 0 24 24" fill="none"><rect x="3" y="4" width="18" height="18" rx="3" stroke={a?c:"currentColor"} strokeWidth={a?2.5:1.8} fill={a?`${c}15`:"none"}/><path d="M16 2v4M8 2v4M3 10h18" stroke={a?c:"currentColor"} strokeWidth={a?2.5:1.8} strokeLinecap="round"/><path d="M8 14h4M8 17h6" stroke={a?c:"currentColor"} strokeWidth={a?2.5:1.8} strokeLinecap="round"/></svg>},
+  {id:"recovery",  label:"Recovery",  icon:(a,c)=><svg width={20} height={20} viewBox="0 0 24 24" fill="none"><path d="M22 12h-4l-3 9L9 3l-3 9H2" stroke={a?c:"currentColor"} strokeWidth={a?2.5:1.8} strokeLinecap="round" strokeLinejoin="round"/></svg>},
+  {id:"nutrition", label:"Nutrition", icon:(a,c)=><svg width={20} height={20} viewBox="0 0 24 24" fill="none"><path d="M12 22C6.5 22 2 17.5 2 12S6.5 2 12 2s10 4.5 10 10-4.5 10-10 10z" stroke={a?c:"currentColor"} strokeWidth={a?2.5:1.8} fill={a?`${c}15`:"none"}/><path d="M8 12h8M12 8v8" stroke={a?c:"currentColor"} strokeWidth={a?2.5:1.8} strokeLinecap="round"/></svg>},
+  {id:"more",      label:"More",      icon:(a,c)=><svg width={20} height={20} viewBox="0 0 24 24" fill="none"><circle cx="5" cy="12" r={a?2:1.5} fill={a?c:"currentColor"}/><circle cx="12" cy="12" r={a?2:1.5} fill={a?c:"currentColor"}/><circle cx="19" cy="12" r={a?2:1.5} fill={a?c:"currentColor"}/></svg>},
 ];
 
 // ─── APP ──────────────────────────────────────────────────────────────────────
@@ -1398,7 +1399,7 @@ export default function App() {
     more:<MoreMenu page={page} setPage={setPage} T={T} whoopOk={whoopOk} onConnectWhoop={handleConnectWhoop} darkMode={darkMode} setDarkMode={setDarkMode} athlete={athlete} onDisconnect={()=>{disconnect();setConnected(false);setActivities([]);}} onDisconnectWhoop={()=>{disconnectWhoop();setWhoopOk(false);setWhoopData(null);}}/>,
   };
   const currentView=views[page]||views.more;
-  const activeTab=TABS.find(t=>t.id===page)?page:(page==="chat"||page==="coach"?"coach":(MORE_PAGES.find(p=>p.id===page)?"more":"overview"));
+  const activeTab=TABS.find(t=>t.id===page)?page:(MORE_PAGES.find(p=>p.id===page)?"more":"overview");
   const recScore=whoopData?.recoveries?.records?.[0]?Math.round(whoopData.recoveries.records[0].score?.recovery_score||0):null;
   const pageTitles={overview:"Home",running:"Running",plan:"Plans",recovery:"Recovery",chat:"Coach",coach:"Coach",gym:"Gym",nutrition:"Nutrition",races:"Races",more:"More",profile:"Profile",nutrition:"Nutrition"};
 
@@ -1459,20 +1460,19 @@ export default function App() {
           {loading?<Loader T={T} text="Loading your data..."/>:currentView}
         </div>
 
-        {/* ── BOTTOM TABS: floating pill bar like FotMob ── */}
+        {/* ── BOTTOM TABS: full-width floating pill, iPhone 17 Pro ── */}
         <div className="mobile-tab" style={{
-          flexShrink:0, position:"relative",
-          paddingBottom:"calc(env(safe-area-inset-bottom, 0px) + 10px)",
-          paddingTop:8, paddingLeft:0, paddingRight:0,
-          background:"transparent"
+          flexShrink:0,
+          padding:"8px 16px",
+          paddingBottom:"calc(env(safe-area-inset-bottom, 20px) + 8px)",
+          background:"transparent",
         }}>
           <div style={{
             display:"flex", alignItems:"center",
             background:T.nav,
-            borderRadius:36,
-            boxShadow:"0 4px 24px rgba(0,0,0,0.12), 0 1px 4px rgba(0,0,0,0.08)",
-            padding:"6px 8px",
-            gap:0
+            borderRadius:40,
+            boxShadow:"0 2px 20px rgba(0,0,0,0.10), 0 1px 3px rgba(0,0,0,0.06)",
+            padding:"5px 2px",
           }}>
             {TABS.map(tab=>{
               const isActive=activeTab===tab.id;
@@ -1481,17 +1481,17 @@ export default function App() {
                   style={{
                     flex:1, display:"flex", flexDirection:"column",
                     alignItems:"center", justifyContent:"center",
-                    gap:3, background:"transparent", border:"none",
-                    cursor:"pointer", padding:"6px 4px", borderRadius:28,
-                    transition:"all .15s ease", minHeight:50
+                    gap:2, background:"transparent", border:"none",
+                    cursor:"pointer", padding:"7px 2px",
+                    WebkitTapHighlightColor:"transparent",
                   }}>
-                  <span style={{color:isActive?C.indigo:T.muted,display:"flex",transition:"color .15s"}}>
+                  <span style={{color:isActive?C.indigo:T.muted,display:"flex"}}>
                     {tab.icon(isActive,C.indigo)}
                   </span>
                   <span style={{
-                    fontSize:10, fontWeight:isActive?700:400,
+                    fontSize:9, fontWeight:isActive?700:400,
                     fontFamily:sans, color:isActive?C.indigo:T.muted,
-                    transition:"all .15s"
+                    letterSpacing:"0.01em",
                   }}>{tab.label}</span>
                 </button>
               );
