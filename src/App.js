@@ -486,6 +486,26 @@ function Home({stats,activities,whoopData,whoopOk,onConnectWhoop,bestEfforts,use
         </div>
       </Card>
 
+      {/* ── WEEKLY SUMMARY (show on Mondays) ── */}
+      {new Date().getDay()===1&&vol.length>1&&(()=>{
+        const lastWeek=vol[vol.length-2]||{km:0,count:0};
+        const thisWeek=vol[vol.length-1]||{km:0,count:0};
+        const diff=weekKm-lastWeek.km;
+        return <Card T={T} style={{padding:"16px 18px",marginBottom:12,border:`1.5px solid ${C.indigo}20`}}>
+          <Row>
+            <div>
+              <div style={{fontSize:11,fontWeight:600,color:C.indigo,letterSpacing:"0.06em",textTransform:"uppercase",fontFamily:sans,marginBottom:4}}>Last week summary</div>
+              <div style={{fontSize:22,fontWeight:800,color:T.text,fontFamily:sans,letterSpacing:"-0.02em"}}>{lastWeek.km.toFixed(1)}km</div>
+              <div style={{fontSize:12,color:T.sub,fontFamily:sans,marginTop:2}}>{lastWeek.count} runs completed</div>
+            </div>
+            <div style={{textAlign:"right"}}>
+              <div style={{fontSize:24,fontWeight:800,color:diff>=0?C.green:C.red,fontFamily:sans}}>{diff>=0?"+":""}{diff.toFixed(1)}km</div>
+              <div style={{fontSize:11,color:T.sub,fontFamily:sans,marginTop:2}}>vs week before</div>
+            </div>
+          </Row>
+        </Card>;
+      })()}
+
       {/* ── STAT TILES ── */}
       <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10,marginBottom:12}}>
         <StatCard T={T} label="YTD Distance" value={ytd.distance?`${(ytd.distance/1000).toFixed(1)}km`:"449.6km"} sub={`${ytd.count||58} runs`} color={C.indigo} bars={recentVol} onClick={()=>onNav("running")}/>
@@ -557,23 +577,42 @@ function Home({stats,activities,whoopData,whoopOk,onConnectWhoop,bestEfforts,use
         );
       })()}
 
-      {/* ── BERLIN TARGET ── */}
-      <Card T={T} style={{padding:18,marginBottom:12}}>
-        <Row>
-          <div>
-            <div style={{fontSize:15,fontWeight:700,color:T.text,fontFamily:sans}}>Berlin · Sub 3:20</div>
-            <div style={{fontSize:13,color:T.sub,fontFamily:sans,marginTop:3}}>Target 4:44/km · half split 1:40</div>
+      {/* ── GEAR WARNINGS ── */}
+      {(()=>{
+        // Pulled from gear prop - show warning if any shoe over 650km
+        return null; // gear not available in Home, handled in Running page
+      })()}
+
+      {/* ── BERLIN COUNTDOWN ── */}
+      {(()=>{
+        const recentRuns=activities.filter(a=>(a.type==="Run"||a.sport_type==="Run")&&a.distance>5000&&a.average_speed).slice(0,5);
+        const avgSpeed=recentRuns.length?recentRuns.reduce((s,r)=>s+r.average_speed,0)/recentRuns.length:0;
+        const predictedMarathonSecs=avgSpeed?(42195/(avgSpeed*0.9)):null;
+        const predictedPace=predictedMarathonSecs?fPace(42195/predictedMarathonSecs):null;
+        const targetSecs=200*60; // 3:20
+        const targetPace="4:44";
+        const onTrack=predictedMarathonSecs&&predictedMarathonSecs<=targetSecs;
+        return <Card T={T} style={{padding:18,marginBottom:12,border:`1.5px solid ${onTrack?C.green:C.indigo}20`}}>
+          <Row style={{marginBottom:12}}>
+            <div>
+              <div style={{fontSize:15,fontWeight:700,color:T.text,fontFamily:sans}}>Berlin · Sub 3:20</div>
+              <div style={{fontSize:12,color:T.sub,fontFamily:sans,marginTop:3}}>28 Sep 2026 · target {targetPace}/km</div>
+            </div>
+            <div style={{textAlign:"right"}}>
+              <div style={{fontSize:32,fontWeight:800,color:C.indigo,fontFamily:sans,letterSpacing:"-0.03em",lineHeight:1}}>{daysLeft}</div>
+              <div style={{fontSize:11,color:T.muted,fontFamily:sans}}>days</div>
+            </div>
+          </Row>
+          {predictedPace&&<div style={{background:onTrack?C.greenL:C.indigoL,borderRadius:10,padding:"8px 12px",marginBottom:12,display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+            <div style={{fontSize:12,color:T.sub,fontFamily:sans}}>Predicted marathon pace</div>
+            <div style={{fontSize:13,fontWeight:700,color:onTrack?C.green:C.indigo,fontFamily:sans}}>{predictedPace}/km {onTrack?"✓":""}</div>
+          </div>}
+          <div style={{height:6,background:T.card2,borderRadius:3,overflow:"hidden"}}>
+            <div style={{height:"100%",width:`${blockPct}%`,background:onTrack?C.green:C.indigo,borderRadius:3,transition:"width 1s"}}/>
           </div>
-          <div style={{textAlign:"right"}}>
-            <div style={{fontSize:32,fontWeight:800,color:C.indigo,fontFamily:sans,letterSpacing:"-0.03em",lineHeight:1}}>{daysLeft}</div>
-            <div style={{fontSize:11,color:T.muted,fontFamily:sans}}>days</div>
-          </div>
-        </Row>
-        <div style={{marginTop:12,height:6,background:T.card2,borderRadius:3,overflow:"hidden"}}>
-          <div style={{height:"100%",width:`${blockPct}%`,background:C.indigo,borderRadius:3,transition:"width 1s"}}/>
-        </div>
-        <div style={{fontSize:11,color:T.muted,fontFamily:sans,marginTop:5}}>Block {blockPct}% complete</div>
-      </Card>
+          <div style={{fontSize:11,color:T.muted,fontFamily:sans,marginTop:5}}>Block {blockPct}% complete</div>
+        </Card>;
+      })()}
 
     </div>
   );
@@ -851,13 +890,35 @@ function RecoveryPage({whoopData,whoopOk,onConnectWhoop,onRefreshWhoop,T}) {
   </div>;
 }
 // ─── PLAN ─────────────────────────────────────────────────────────────────────
-function SessionRow({s,typeC,onToggle,T}) {
+function SessionRow({s,typeC,onToggle,onEdit,T}) {
   const [open,setOpen]=useState(false);
+  const [editing,setEditing]=useState(false);
+  const [draft,setDraft]=useState({...s});
   const col=s.done?C.green:(typeC[s.type]||C.indigo);
   const isRest=s.type==="Rest";
-  if(isRest) return <div style={{padding:"10px 0",borderBottom:`1px solid ${T.divider}`,display:"flex",alignItems:"center",gap:12,opacity:0.4}}>
+  const SESSION_TYPES=["Easy","Interval","Tempo","Long Run","Rest","Gym"];
+  if(isRest&&!editing) return <div style={{padding:"10px 0",borderBottom:`1px solid ${T.divider}`,display:"flex",alignItems:"center",gap:12,opacity:0.4}}>
     <div style={{width:36,height:36,borderRadius:99,border:`1.5px solid ${T.border}`,display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0}}><div style={{width:8,height:8,borderRadius:"50%",background:T.muted}}/></div>
     <div style={{fontSize:13,fontWeight:500,color:T.sub,fontFamily:sans,flex:1}}>{s.day} · Rest</div>
+    <button onClick={()=>{setDraft({...s});setEditing(true);}} style={{background:"transparent",border:"none",color:T.muted,cursor:"pointer",fontSize:11,fontFamily:sans,padding:"2px 6px"}}>Edit</button>
+  </div>;
+  if(editing) return <div style={{padding:"12px 0",borderBottom:`1px solid ${T.divider}`}}>
+    <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:10}}>
+      <div style={{fontSize:12,fontWeight:600,color:T.muted,fontFamily:sans,minWidth:28}}>{s.day?.slice(0,3)}</div>
+      <select value={draft.type} onChange={e=>setDraft(p=>({...p,type:e.target.value}))} style={{background:T.card2,border:`1px solid ${T.border}`,borderRadius:8,padding:"6px 8px",fontSize:13,color:T.text,fontFamily:sans,flex:1}}>
+        {SESSION_TYPES.map(t=><option key={t} value={t}>{t}</option>)}
+      </select>
+    </div>
+    <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8,marginBottom:8}}>
+      <div><div style={{fontSize:10,color:T.muted,fontFamily:sans,marginBottom:3}}>Distance</div><input value={draft.dist||""} onChange={e=>setDraft(p=>({...p,dist:e.target.value}))} placeholder="e.g. 10km" style={{width:"100%",background:T.card2,border:`1px solid ${T.border}`,borderRadius:8,padding:"7px 9px",fontSize:13,color:T.text,fontFamily:sans,outline:"none"}}/></div>
+      <div><div style={{fontSize:10,color:T.muted,fontFamily:sans,marginBottom:3}}>Target pace</div><input value={draft.pace||""} onChange={e=>setDraft(p=>({...p,pace:e.target.value}))} placeholder="e.g. 5:00-5:15/km" style={{width:"100%",background:T.card2,border:`1px solid ${T.border}`,borderRadius:8,padding:"7px 9px",fontSize:13,color:T.text,fontFamily:sans,outline:"none"}}/></div>
+    </div>
+    <div style={{marginBottom:8}}><div style={{fontSize:10,color:T.muted,fontFamily:sans,marginBottom:3}}>Shoe</div><input value={draft.shoe||""} onChange={e=>setDraft(p=>({...p,shoe:e.target.value}))} placeholder="e.g. Novablast 5" style={{width:"100%",background:T.card2,border:`1px solid ${T.border}`,borderRadius:8,padding:"7px 9px",fontSize:13,color:T.text,fontFamily:sans,outline:"none"}}/></div>
+    <div style={{marginBottom:10}}><div style={{fontSize:10,color:T.muted,fontFamily:sans,marginBottom:3}}>Notes</div><textarea value={draft.notes||""} onChange={e=>setDraft(p=>({...p,notes:e.target.value}))} rows={2} style={{width:"100%",background:T.card2,border:`1px solid ${T.border}`,borderRadius:8,padding:"7px 9px",fontSize:13,color:T.text,fontFamily:sans,outline:"none",resize:"none"}}/></div>
+    <div style={{display:"flex",gap:8}}>
+      <Btn onClick={()=>{onEdit&&onEdit(draft);setEditing(false);}} color={C.indigo} sm style={{flex:1}}>Save</Btn>
+      <Btn onClick={()=>setEditing(false)} color={T.muted} sm ghost style={{flex:1}}>Cancel</Btn>
+    </div>
   </div>;
   return <div style={{borderBottom:`1px solid ${T.divider}`}}>
     <div style={{display:"flex",alignItems:"center",gap:12,padding:"11px 0"}}>
@@ -873,20 +934,62 @@ function SessionRow({s,typeC,onToggle,T}) {
         {s.shoe&&s.shoe!=="N/A"&&<div style={{fontSize:11,color:C.purple,fontFamily:sans,marginTop:2}}>👟 {s.shoe}</div>}
         {!open&&s.notes&&<div style={{fontSize:12,color:T.sub,fontFamily:sans,marginTop:2,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{s.notes}</div>}
       </div>
-      <div style={{fontSize:12,color:T.muted,fontFamily:sans,flexShrink:0}}>{s.day?.slice(0,3)}</div>
+      <div style={{fontSize:11,color:T.muted,fontFamily:sans,flexShrink:0,textAlign:"right"}}>
+        <div>{s.day?.slice(0,3)}</div>
+        {s.date&&<div style={{fontSize:9,marginTop:1}}>{new Date(s.date).toLocaleDateString("en-GB",{day:"numeric",month:"short"})}</div>}
+      </div>
+      <button onClick={()=>{setDraft({...s});setEditing(true);}} style={{background:"transparent",border:"none",color:T.muted,cursor:"pointer",padding:4}}>
+        <svg width={14} height={14} viewBox="0 0 24 24" fill="none"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round"/><path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round"/></svg>
+      </button>
       <button onClick={()=>setOpen(!open)} style={{background:"transparent",border:"none",color:T.muted,cursor:"pointer",fontSize:12,padding:4}}>{open?"▲":"▼"}</button>
     </div>
-    {open&&s.notes&&<div style={{padding:"0 0 12px 48px",fontSize:13,color:T.sub,fontFamily:sans,lineHeight:1.6}}>{s.notes}</div>}
+    {open&&<div style={{padding:"0 0 12px 48px",fontSize:13,color:T.sub,fontFamily:sans,lineHeight:1.6}}>{s.notes}</div>}
+  </div>;
+}
+
+function DebriefModal({session,onSave,onSkip,T}) {
+  const [feel,setFeel]=useState(3);
+  const [notes,setNotes]=useState("");
+  const labels=["Very hard","Hard","Moderate","Good","Great"];
+  return <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.5)",zIndex:999,display:"flex",alignItems:"flex-end",justifyContent:"center",padding:"0 16px 32px"}}>
+    <div style={{background:T.card,borderRadius:24,padding:24,width:"100%",maxWidth:420}}>
+      <div style={{fontSize:16,fontWeight:700,color:T.text,fontFamily:sans,marginBottom:4}}>How did that go?</div>
+      <div style={{fontSize:13,color:T.sub,fontFamily:sans,marginBottom:20}}>{session.type}{session.dist&&session.dist!=="0km"?" · "+session.dist:""}</div>
+      <div style={{display:"flex",justifyContent:"space-between",marginBottom:8}}>
+        {[1,2,3,4,5].map(n=><button key={n} onClick={()=>setFeel(n)} style={{width:48,height:48,borderRadius:14,background:feel===n?C.indigo:T.card2,border:`2px solid ${feel===n?C.indigo:T.border}`,fontSize:20,cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center"}}>
+          {["😵","😓","😐","😊","🔥"][n-1]}
+        </button>)}
+      </div>
+      <div style={{fontSize:12,color:C.indigo,fontFamily:sans,textAlign:"center",marginBottom:16,fontWeight:600}}>{labels[feel-1]}</div>
+      <textarea value={notes} onChange={e=>setNotes(e.target.value)} placeholder="Any notes? Legs heavy, felt strong, adjusted pace..." rows={3} style={{width:"100%",background:T.card2,border:`1px solid ${T.border}`,borderRadius:12,padding:"10px 13px",fontSize:13,color:T.text,fontFamily:sans,outline:"none",resize:"none",marginBottom:14}}/>
+      <div style={{display:"flex",gap:10}}>
+        <Btn onClick={()=>onSave({feel,notes})} color={C.indigo} full>Save debrief</Btn>
+        <Btn onClick={onSkip} color={T.muted} ghost style={{flexShrink:0}}>Skip</Btn>
+      </div>
+    </div>
   </div>;
 }
 
 function Plans({onChat,externalPlan,whoopData,onGoToChat,T}) {
   const [plan,setPlan]=useState(null);const [planLoaded,setPlanLoaded]=useState(false);
+  const [debriefSession,setDebriefSession]=useState(null);
   useEffect(()=>{loadTrainingPlan().then(p=>{if(p)setPlan(p);setPlanLoaded(true);}).catch(()=>setPlanLoaded(true));},[]);
   const savePlan=p=>{setPlan(p);saveTrainingPlan(p);};
   useEffect(()=>{if(externalPlan&&planLoaded)savePlan(externalPlan);},[externalPlan,planLoaded]);
   const typeC={Rest:T.muted,Easy:C.green,Interval:C.red,Tempo:C.orange,"Long Run":C.indigo,Gym:C.purple};
-  const toggleDone=i=>savePlan({...plan,sessions:plan.sessions.map((s,j)=>j===i?{...s,done:!s.done}:s)});
+  const toggleDone=i=>{
+    const s=plan.sessions[i];
+    const nowDone=!s.done;
+    savePlan({...plan,sessions:plan.sessions.map((ss,j)=>j===i?{...ss,done:nowDone}:ss)});
+    if(nowDone&&s.type!=="Rest"&&s.type!=="Gym") setDebriefSession({...s,index:i});
+  };
+  const editSession=(i,updated)=>savePlan({...plan,sessions:plan.sessions.map((s,j)=>j===i?{...s,...updated}:s)});
+  const saveDebrief=(data)=>{
+    if(debriefSession){
+      savePlan({...plan,sessions:plan.sessions.map((s,j)=>j===debriefSession.index?{...s,debrief:data}:s)});
+    }
+    setDebriefSession(null);
+  };
   const rec=whoopData?.recoveries?.records?.[0],recScore=Math.round(rec?.score?.recovery_score||0),lowRec=rec&&recScore<34;
   const done=plan?plan.sessions.filter(s=>s.done).length:0,total=plan?plan.sessions.filter(s=>s.type!=="Rest").length:0;
   return <div style={{display:"flex",flexDirection:"column",gap:12,paddingBottom:24}} className="page">
@@ -922,7 +1025,7 @@ function Plans({onChat,externalPlan,whoopData,onGoToChat,T}) {
           </>}
         </Card>
         <Card T={T} style={{padding:"4px 18px 8px"}}>
-          {plan.sessions.map((s,i)=><SessionRow key={i} s={s} typeC={typeC} onToggle={()=>toggleDone(i)} T={T}/>)}
+          {plan.sessions.map((s,i)=><SessionRow key={i} s={s} typeC={typeC} onToggle={()=>toggleDone(i)} onEdit={u=>editSession(i,u)} T={T}/>)}
         </Card>
         <div style={{background:T.card2,borderRadius:14,padding:"14px 18px",display:"flex",justifyContent:"space-between",alignItems:"center",border:`1px solid ${T.border}`}}>
           <div style={{fontSize:13,color:T.sub,fontFamily:sans}}>Need to adjust this plan?</div>
@@ -930,6 +1033,7 @@ function Plans({onChat,externalPlan,whoopData,onGoToChat,T}) {
         </div>
       </>
     )}
+    {debriefSession&&<DebriefModal session={debriefSession} onSave={saveDebrief} onSkip={()=>setDebriefSession(null)} T={T}/>}
   </div>;
 }
 
@@ -1078,7 +1182,13 @@ function Coach({activities,stats,whoopData,whoopOk,onPlanSaved,onGymSaved,userPr
   useEffect(()=>{bottomRef.current?.scrollIntoView({behavior:"smooth"});},[messages]);
   useEffect(()=>{if(chatLoaded)saveChatHistory(messages);},[messages,chatLoaded]);
   const handleImages=e=>{const files=Array.from(e.target.files);if(!files.length)return;let loaded=0;const newImgs=[];files.forEach(file=>{const r=new FileReader();r.onload=ev=>{newImgs.push({base64:ev.target.result.split(",")[1],mediaType:file.type,preview:ev.target.result});loaded++;if(loaded===files.length)setImages(prev=>[...prev,...newImgs].slice(0,5));};r.readAsDataURL(file);});};
-  const extractPlan=text=>{if(!text.includes("PLAN_START")||!text.includes("PLAN_END"))return null;try{const section=text.split("PLAN_START")[1].split("PLAN_END")[0].trim();const lines=section.split("\n").map(l=>l.trim()).filter(Boolean);let title="Training Plan";const sessions=[];for(const line of lines){if(line.startsWith("TITLE:")){title=line.replace("TITLE:","").trim();continue;}const parts=line.split("|").map(p=>p.trim());if(parts.length>=4)sessions.push({day:parts[0],type:parts[1],dist:parts[2],pace:parts[3],shoe:parts[4]||"",notes:parts[5]||""});}if(sessions.length>=3)return{title,startDate:new Date().toISOString().split("T")[0],sessions};}catch{}return null;};
+  const extractPlan=text=>{if(!text.includes("PLAN_START")||!text.includes("PLAN_END"))return null;try{const section=text.split("PLAN_START")[1].split("PLAN_END")[0].trim();const lines=section.split("\n").map(l=>l.trim()).filter(Boolean);let title="Training Plan";const sessions=[];for(const line of lines){if(line.startsWith("TITLE:")){title=line.replace("TITLE:","").trim();continue;}const parts=line.split("|").map(p=>p.trim());if(parts.length>=4)sessions.push({day:parts[0],type:parts[1],dist:parts[2],pace:parts[3],shoe:parts[4]||"",notes:parts[5]||""});}if(sessions.length>=3){// Attach real calendar dates starting from today
+      const dayOrder=["Mon","Tue","Wed","Thu","Fri","Sat","Sun"];
+      const today=new Date();today.setHours(0,0,0,0);
+      const todayDow=today.getDay()===0?6:today.getDay()-1;// 0=Mon
+      sessions.forEach((s,i)=>{const d=new Date(today);d.setDate(today.getDate()+i);s.date=d.toISOString().split("T")[0];});
+      return{title,startDate:new Date().toISOString().split("T")[0],sessions};}
+  }catch{}return null;};
   const extractGym=text=>{if(!text.includes("GYM_START")||!text.includes("GYM_END"))return null;try{const section=text.split("GYM_START")[1].split("GYM_END")[0].trim();const lines=section.split("\n").map(l=>l.trim()).filter(Boolean);let title="Gym Session";const exercises=[];for(const line of lines){if(line.startsWith("TITLE:")){title=line.replace("TITLE:","").trim();continue;}const parts=line.split("|").map(p=>p.trim());if(parts.length>=3){const nums=parts[1].match(/(\d+)[xX](\d+)/);exercises.push({name:parts[0],sets:nums?parseInt(nums[1]):3,reps:nums?parseInt(nums[2]):10,weight:parts[2],notes:parts[3]||""});}}if(exercises.length>=1)return{title,exercises,date:new Date().toISOString().split("T")[0]};}catch{}return null;};
   const cleanReply=text=>{let out=text;if(out.includes("PLAN_START")&&out.includes("PLAN_END")){const b=out.split("PLAN_START")[0].trim();const a=out.split("PLAN_END")[1]?.trim()||"";out=(b+(a?"\n\n"+a:"")).trim();}if(out.includes("GYM_START")&&out.includes("GYM_END")){const b=out.split("GYM_START")[0].trim();const a=out.split("GYM_END")[1]?.trim()||"";out=(b+(a?"\n\n"+a:"")).trim();}return out;};
   const buildContext=()=>{
@@ -1146,7 +1256,7 @@ Always reference current lifts and suggest progressive overload.`;
       const plan=extractPlan(reply),gym=extractGym(reply),cleaned=cleanReply(reply);
       const suffix=(plan?"\n\nTraining plan saved to your Plans tab.":"")+(gym?"\n\nGym workout saved to your Gym tab.":"");
       setMessages(prev=>[...prev,{role:"assistant",content:cleaned+suffix}]);
-      if(plan&&onPlanSaved)onPlanSaved(plan);if(gym&&onGymSaved)onGymSaved(gym);
+      if(plan&&onPlanSaved)onPlanSaved(plan);if(gym&&onGymSaved)onGymSaved(gym);if(plan&&userPrefs)userPrefs.currentPlan=plan;
     }catch{setMessages(prev=>[...prev,{role:"assistant",content:"Something went wrong. Try again."}]);}
     setLoading(false);
   };
@@ -1463,17 +1573,17 @@ export default function App() {
         {/* ── BOTTOM TABS: full-width floating pill, iPhone 17 Pro ── */}
         <div className="mobile-tab" style={{
           flexShrink:0,
-          padding:"8px 16px",
-          paddingBottom:"calc(env(safe-area-inset-bottom, 20px) + 8px)",
+          padding:"10px 16px",
+          paddingBottom:"calc(env(safe-area-inset-bottom, 28px) + 12px)",
           background:"transparent",
           display:"flex",
         }}>
           <div style={{
             display:"flex", alignItems:"center",
             background:T.nav,
-            borderRadius:40,
-            boxShadow:"0 2px 20px rgba(0,0,0,0.10), 0 1px 3px rgba(0,0,0,0.06)",
-            padding:"5px 2px",
+            borderRadius:44,
+            boxShadow:"0 4px 24px rgba(0,0,0,0.13), 0 1px 4px rgba(0,0,0,0.07)",
+            padding:"7px 4px",
             width:"100%",
           }}>
             {TABS.map(tab=>{
@@ -1483,8 +1593,8 @@ export default function App() {
                   style={{
                     flex:1, display:"flex", flexDirection:"column",
                     alignItems:"center", justifyContent:"center",
-                    gap:2, background:"transparent", border:"none",
-                    cursor:"pointer", padding:"7px 2px",
+                    gap:3, background:"transparent", border:"none",
+                    cursor:"pointer", padding:"8px 2px",
                     WebkitTapHighlightColor:"transparent",
                   }}>
                   <span style={{color:isActive?C.indigo:T.muted,display:"flex"}}>
