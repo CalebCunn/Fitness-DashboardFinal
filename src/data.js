@@ -76,5 +76,15 @@ export const weeklyVol = (activities) => {
     const k = mon.toLocaleDateString("en-GB", { day:"numeric", month:"short" });
     w[k] = (w[k]||0) + r.distance/1000;
   });
-  return Object.entries(w).slice(-12).map(([week,km]) => ({ week, km: parseFloat(km.toFixed(1)) }));
+  const months = {Jan:0,Feb:1,Mar:2,Apr:3,May:4,Jun:5,Jul:6,Aug:7,Sep:8,Oct:9,Nov:10,Dec:11};
+  return Object.entries(w)
+    .map(([week, km]) => {
+      const [day, mon] = week.split(" ");
+      const d = new Date(new Date().getFullYear(), months[mon]||0, parseInt(day)||1);
+      if (d > new Date(Date.now() + 7*86400000)) d.setFullYear(d.getFullYear()-1);
+      return { week, km: parseFloat(km.toFixed(1)), sort: d.getTime() };
+    })
+    .sort((a,b) => a.sort - b.sort)
+    .slice(-12)
+    .map(({week,km}) => ({week,km}));
 };
