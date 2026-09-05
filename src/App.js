@@ -3,6 +3,7 @@ import { LineChart, Line, BarChart, Bar, AreaChart, Area, XAxis, YAxis, Tooltip,
 import { isConnected, disconnect, exchangeCode, getAthlete, getStats, getActivities, getActivity, getStreams, getAllGear, extractBestEfforts } from "./strava";
 import { isWhoopConnected, disconnectWhoop, exchangeWhoopCode, getWhoopAuthUrl, getWhoopData } from "./whoop";
 import { loadChatHistory, saveChatHistory, loadTrainingPlan, saveTrainingPlan, loadUserPrefs, saveUserPrefs } from "./supabase";
+import { isCorosConnected, disconnectCoros, getCorosAuthUrl, exchangeCorosCode, getCorosData } from "./coros";
 import { LIFTS as DEFAULT_LIFTS, RACES as DEFAULT_RACES, SPONSORSHIP as DEFAULT_SPONSORSHIP, fPace, fTime, fDist, actType, typeCol, recCol, weeklyVol } from "./data";
 
 // ─── DESIGN SYSTEM ────────────────────────────────────────────────────────────
@@ -889,6 +890,128 @@ function RecoveryPage({whoopData,whoopOk,onConnectWhoop,onRefreshWhoop,T}) {
     </Card>}
   </div>;
 }
+// ─── TRAINING CALENDAR ────────────────────────────────────────────────────────
+function TrainingCalendar({plan,activities,onEditSession,onNav,T}) {
+  const [viewDate,setViewDate]=useState(new Date());
+  const [selectedDay,setSelectedDay]=useState(null);
+  const typeColors={Easy:C.green,Interval:C.red,Tempo:C.orange,"Long Run":C.indigo,Gym:C.purple,Rest:T.muted,Run:C.green};
+
+  const year=viewDate.getFullYear(),month=viewDate.getMonth();
+  const firstDay=new Date(year,month,1);
+  const lastDay=new Date(year,month+1,0);
+  const startPad=(firstDay.getDay()+6)%7; // Mon=0
+  const days=[];
+  for(let i=0;i<startPad;i++)days.push(null);
+  for(let d=1;d<=lastDay.getDate();d++)days.push(new Date(year,month,d));
+
+  // Map plan sessions to dates
+  const planByDate={};
+  if(plan?.sessions){
+    const start=new Date(plan.startDate||new Date());start.setHours(0,0,0,0);
+    plan.sessions.forEach((s,i)=>{
+      const d=new Date(start);d.setDate(start.getDate()+i);
+      const key=d.toISOString().split("T")[0];
+      planByDate[key]=(planByDate[key]||[]).concat(s);
+    });
+  }
+  // Map actual runs to dates
+  const runByDate={};
+  activities.filter(a=>a.type==="Run"||a.sport_type==="Run").forEach(a=>{
+    const key=new Date(a.start_date_local).toISOString().split("T")[0];
+    runByDate[key]=(runByDate[key]||[]).concat(a);
+  });
+
+  const today=new Date().toISOString().split("T")[0];
+  const selectedKey=selectedDay?.toISOString().split("T")[0];
+  const selectedPlan=selectedKey?planByDate[selectedKey]||[]:[];
+  const selectedRuns=selectedKey?runByDate[selectedKey]||[]:[];
+
+  return <div style={{display:"flex",flexDirection:"column",gap:12,paddingBottom:24}} className="page">
+    {/* Month nav */}
+    <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:4}}>
+      <button onClick={()=>setViewDate(new Date(year,month-1,1))} style={{background:T.card2,border:`1px solid ${T.border}`,borderRadius:10,padding:"6px 14px",fontSize:16,cursor:"pointer",color:T.text}}>‹</button>
+      <div style={{fontSize:16,fontWeight:700,color:T.text,fontFamily:sans}}>{viewDate.toLocaleDateString("en-GB",{month:"long",year:"numeric"})}</div>
+      <button onClick={()=>setViewDate(new Date(year,month+1,1))} style={{background:T.card2,border:`1px solid ${T.border}`,borderRadius:10,padding:"6px 14px",fontSize:16,cursor:"pointer",color:T.text}}>›</button>
+    </div>
+
+    {/* Day header */}
+    <div style={{display:"grid",gridTemplateColumns:"repeat(7,1fr)",gap:2,marginBottom:4}}>
+      {["M","T","W","T","F","S","S"].map((d,i)=><div key={i} style={{textAlign:"center",fontSize:10,fontWeight:600,color:T.muted,fontFamily:sans,padding:"4px 0"}}>{d}</div>)}
+    </div>
+
+    {/* Calendar grid */}
+    <Card T={T} style={{padding:10}}>
+      <div style={{display:"grid",gridTemplateColumns:"repeat(7,1fr)",gap:3}}>
+        {days.map((date,i)=>{
+          if(!date)return <div key={i}/>;
+          const key=date.toISOString().split("T")[0];
+          const isToday=key===today;
+          const isSelected=key===selectedKey;
+          const plans=planByDate[key]||[];
+          const runs=runByDate[key]||[];
+          const hasRun=runs.length>0;
+          const hasPlanned=plans.length>0&&plans.some(s=>s.type!=="Rest");
+          const planType=plans[0]?.type;
+          const planCol=typeColors[planType]||C.indigo;
+          const done=plans.some(s=>s.done);
+          return <button key={key} onClick={()=>setSelectedDay(isSelected?null:date)}
+            style={{aspectRatio:"1",display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"flex-start",padding:"4px 2px",background:isSelected?C.indigo:isToday?`${C.indigo}12`:"transparent",borderRadius:10,border:isToday&&!isSelected?`1.5px solid ${C.indigo}`:"1.5px solid transparent",cursor:"pointer",position:"relative",gap:2}}>
+            <div style={{fontSize:12,fontWeight:isToday?700:400,color:isSelected?"#fff":isToday?C.indigo:T.text,fontFamily:sans}}>{date.getDate()}</div>
+            <div style={{display:"flex",gap:2,flexWrap:"wrap",justifyContent:"center"}}>
+              {hasPlanned&&<div style={{width:5,height:5,borderRadius:"50%",background:isSelected?"rgba(255,255,255,0.7)":done?C.green:planCol}}/>}
+              {hasRun&&<div style={{width:5,height:5,borderRadius:"50%",background:isSelected?"rgba(255,255,255,0.7)":C.teal}}/>}
+            </div>
+          </button>;
+        })}
+      </div>
+      {/* Legend */}
+      <div style={{display:"flex",gap:14,marginTop:12,paddingTop:10,borderTop:`1px solid ${T.divider}`,flexWrap:"wrap"}}>
+        {[{c:C.indigo,l:"Planned"},{c:C.green,l:"Done"},{c:C.teal,l:"Actual run"}].map((l,i)=>(
+          <div key={i} style={{display:"flex",alignItems:"center",gap:5}}>
+            <div style={{width:7,height:7,borderRadius:"50%",background:l.c}}/>
+            <div style={{fontSize:10,color:T.muted,fontFamily:sans}}>{l.l}</div>
+          </div>
+        ))}
+      </div>
+    </Card>
+
+    {/* Selected day detail */}
+    {selectedDay&&<Card T={T} style={{padding:18}}>
+      <div style={{fontSize:15,fontWeight:700,color:T.text,fontFamily:sans,marginBottom:12}}>
+        {selectedDay.toLocaleDateString("en-GB",{weekday:"long",day:"numeric",month:"long"})}
+      </div>
+      {selectedPlan.length>0&&<>
+        <div style={{fontSize:11,fontWeight:600,color:T.muted,letterSpacing:"0.05em",textTransform:"uppercase",fontFamily:sans,marginBottom:8}}>Planned</div>
+        {selectedPlan.map((s,i)=>{
+          const col=s.done?C.green:(typeColors[s.type]||C.indigo);
+          return <div key={i} style={{background:T.card2,borderRadius:12,padding:"11px 14px",marginBottom:8,display:"flex",alignItems:"center",gap:12}}>
+            <div style={{width:8,height:8,borderRadius:"50%",background:col,flexShrink:0}}/>
+            <div style={{flex:1}}>
+              <div style={{fontSize:13,fontWeight:600,color:T.text,fontFamily:sans,textDecoration:s.done?"line-through":"none"}}>{s.type}</div>
+              {(s.dist||s.pace)&&<div style={{fontSize:11,color:T.sub,fontFamily:sans,marginTop:2}}>{[s.dist!=="0km"&&s.dist,s.pace!=="N/A"&&s.pace].filter(Boolean).join(" · ")}</div>}
+            </div>
+            {s.done&&<Chip color={C.green} style={{fontSize:9}}>Done</Chip>}
+          </div>;
+        })}
+      </>}
+      {selectedRuns.length>0&&<>
+        <div style={{fontSize:11,fontWeight:600,color:T.muted,letterSpacing:"0.05em",textTransform:"uppercase",fontFamily:sans,marginBottom:8,marginTop:selectedPlan.length>0?12:0}}>Actual</div>
+        {selectedRuns.map((r,i)=>(
+          <div key={i} style={{background:T.card2,borderRadius:12,padding:"11px 14px",marginBottom:8,display:"flex",alignItems:"center",gap:12}}>
+            <div style={{width:8,height:8,borderRadius:"50%",background:C.teal,flexShrink:0}}/>
+            <div style={{flex:1}}>
+              <div style={{fontSize:13,fontWeight:600,color:T.text,fontFamily:sans}}>{r.name}</div>
+              <div style={{fontSize:11,color:T.sub,fontFamily:sans,marginTop:2}}>{(r.distance/1000).toFixed(2)}km · {fPace(r.average_speed)}/km</div>
+            </div>
+          </div>
+        ))}
+      </>}
+      {selectedPlan.length===0&&selectedRuns.length===0&&<div style={{fontSize:13,color:T.sub,fontFamily:sans,textAlign:"center",padding:"12px 0"}}>Rest day · nothing planned</div>}
+      {!plan&&<Btn onClick={()=>onNav("coach")} color={C.indigo} full style={{marginTop:8}}>Ask Claude to plan this week</Btn>}
+    </Card>}
+  </div>;
+}
+
 // ─── PLAN ─────────────────────────────────────────────────────────────────────
 function SessionRow({s,typeC,onToggle,onEdit,T}) {
   const [open,setOpen]=useState(false);
@@ -970,9 +1093,10 @@ function DebriefModal({session,onSave,onSkip,T}) {
   </div>;
 }
 
-function Plans({onChat,externalPlan,whoopData,onGoToChat,T}) {
+function Plans({onChat,externalPlan,whoopData,onGoToChat,activities,onNav,T}) {
   const [plan,setPlan]=useState(null);const [planLoaded,setPlanLoaded]=useState(false);
   const [debriefSession,setDebriefSession]=useState(null);
+  const [planTab,setPlanTab]=useState("list"); // "list" | "calendar"
   useEffect(()=>{loadTrainingPlan().then(p=>{if(p)setPlan(p);setPlanLoaded(true);}).catch(()=>setPlanLoaded(true));},[]);
   const savePlan=p=>{setPlan(p);saveTrainingPlan(p);};
   useEffect(()=>{if(externalPlan&&planLoaded)savePlan(externalPlan);},[externalPlan,planLoaded]);
@@ -1024,76 +1148,223 @@ function Plans({onChat,externalPlan,whoopData,onGoToChat,T}) {
             <div style={{fontSize:11,color:T.muted,fontFamily:sans,marginTop:5}}>{Math.round(done/total*100)}% complete</div>
           </>}
         </Card>
-        <Card T={T} style={{padding:"4px 18px 8px"}}>
+        {planTab==="calendar"&&<TrainingCalendar plan={plan} activities={activities} onNav={onNav} T={T}/>}
+        {planTab==="list"&&<Card T={T} style={{padding:"4px 18px 8px"}}>
           {plan.sessions.map((s,i)=><SessionRow key={i} s={s} typeC={typeC} onToggle={()=>toggleDone(i)} onEdit={u=>editSession(i,u)} T={T}/>)}
-        </Card>
+        </Card>}
         <div style={{background:T.card2,borderRadius:14,padding:"14px 18px",display:"flex",justifyContent:"space-between",alignItems:"center",border:`1px solid ${T.border}`}}>
           <div style={{fontSize:13,color:T.sub,fontFamily:sans}}>Need to adjust this plan?</div>
           <Btn onClick={onGoToChat} color={C.indigo} sm>Ask Claude</Btn>
-        </div>
+        </div>}
       </>
     )}
+    {/* Calendar / List tab switcher - always show calendar even without plan */}
+    <div style={{display:"flex",gap:0,marginBottom:12,background:T.card2,borderRadius:14,padding:4}}>
+      {[["list","Session list"],["calendar","Calendar"]].map(([id,label])=>(
+        <button key={id} onClick={()=>setPlanTab(id)} style={{flex:1,padding:"7px 0",borderRadius:10,border:"none",cursor:"pointer",fontSize:13,fontWeight:planTab===id?700:400,color:planTab===id?C.indigo:T.sub,background:planTab===id?T.card:"transparent",fontFamily:sans,transition:"all .15s"}}>{label}</button>
+      ))}
+    </div>
     {debriefSession&&<DebriefModal session={debriefSession} onSave={saveDebrief} onSkip={()=>setDebriefSession(null)} T={T}/>}
   </div>;
 }
 
 // ─── NUTRITION ────────────────────────────────────────────────────────────────
 function Nutrition({userPrefs,onSavePrefs,T}) {
-  const today=new Date().toISOString().split("T")[0],log=userPrefs?.nutrition||{},todayLog=log[today]||{kcal:"",carbs:"",protein:"",notes:""};
-  const [entry,setEntry]=useState(todayLog);const [saved,setSaved]=useState(false);
-  const targets={kcal:3000,carbs:300,protein:140};
-  const save=()=>{onSavePrefs({...userPrefs,nutrition:{...log,[today]:entry}});setSaved(true);setTimeout(()=>setSaved(false),2000);};
-  const recent=Object.entries(log).sort(([a],[b])=>b.localeCompare(a)).slice(0,7);
-  const fields=[{key:"kcal",label:"Calories",target:3000,unit:"kcal",color:C.indigo},{key:"carbs",label:"Carbs",target:300,unit:"g",color:C.teal},{key:"protein",label:"Protein",target:140,unit:"g",color:C.red}];
-  return <div style={{display:"flex",flexDirection:"column",gap:12,paddingBottom:24}} className="page">
-    <Card T={T} style={{padding:18}}>
-      <div style={{fontSize:17,fontWeight:700,color:T.text,fontFamily:sans,marginBottom:4,letterSpacing:"-0.02em"}}>Today</div>
-      <div style={{fontSize:12,color:T.sub,fontFamily:sans,marginBottom:16}}>{new Date().toLocaleDateString("en-GB",{weekday:"long",day:"numeric",month:"long"})}</div>
-      <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:10,marginBottom:14}}>
-        {fields.map(f=>{const val=parseFloat(entry[f.key])||0,pct=Math.min(100,Math.round(val/f.target*100));return(
-          <div key={f.key} style={{background:T.card2,borderRadius:14,padding:"13px 12px"}}>
-            <div style={{fontSize:9,fontWeight:600,color:T.muted,letterSpacing:"0.06em",textTransform:"uppercase",fontFamily:sans,marginBottom:6}}>{f.label}</div>
-            <input type="number" value={entry[f.key]} onChange={e=>setEntry(prev=>({...prev,[f.key]:e.target.value}))} placeholder={String(f.target)}
-              style={{width:"100%",background:"transparent",border:"none",borderBottom:`2px solid ${f.color}`,padding:"2px 0",fontSize:20,fontWeight:800,color:f.color,fontFamily:sans,outline:"none",letterSpacing:"-0.02em"}}/>
-            <div style={{fontSize:9,color:T.muted,marginTop:5,fontFamily:sans}}>of {f.target}{f.unit}</div>
-            <div style={{height:3,background:T.divider,borderRadius:2,marginTop:6}}><div style={{width:`${pct}%`,height:"100%",background:f.color,borderRadius:2}}/></div>
+  const today=new Date().toISOString().split("T")[0],log=userPrefs?.nutrition||{},todayLog=log[today]||{kcal:"",carbs:"",protein:"",fat:"",meals:[]};
+  const [entry,setEntry]=useState(todayLog);
+  const [saved,setSaved]=useState(false);
+  const [aiInput,setAiInput]=useState("");
+  const [aiLoading,setAiLoading]=useState(false);
+  const [aiImage,setAiImage]=useState(null);
+  const [aiImagePreview,setAiImagePreview]=useState(null);
+  const [activeTab,setActiveTab]=useState("log"); // "log" | "history" | "targets"
+  const fileRef=useRef(null);
+  const targets={kcal:3000,carbs:300,protein:140,fat:80};
+  
+  const save=(updatedEntry)=>{
+    const e=updatedEntry||entry;
+    onSavePrefs({...userPrefs,nutrition:{...log,[today]:e}});
+    setSaved(true);setTimeout(()=>setSaved(false),1500);
+  };
+
+  const handleImageSelect=(e)=>{
+    const file=e.target.files[0];if(!file)return;
+    const reader=new FileReader();
+    reader.onload=ev=>{setAiImage(ev.target.result.split(",")[1]);setAiImagePreview(ev.target.result);};
+    reader.readAsDataURL(file);
+  };
+
+  const analyseFood=async()=>{
+    if(!aiInput.trim()&&!aiImage)return;
+    setAiLoading(true);
+    try{
+      const content=[];
+      if(aiImage)content.push({type:"image",source:{type:"base64",media_type:"image/jpeg",data:aiImage}});
+      content.push({type:"text",text:`Analyse this food${aiImage?" in the image":""}: ${aiInput||"what's shown"}. Return ONLY a JSON object with: {"name":"meal name","kcal":number,"protein":number,"carbs":number,"fat":number,"items":["item1","item2"]}. Be accurate with UK portions. No other text.`});
+      const res=await fetch("/.netlify/functions/claude-chat",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({system:"You are a nutrition expert. Always respond with only valid JSON.",messages:[{role:"user",content}]})});
+      const data=await res.json();
+      const text=data.content?.[0]?.text||"{}";
+      const clean=text.replace(/```json|```/g,"").trim();
+      const parsed=JSON.parse(clean);
+      const meal={...parsed,time:new Date().toLocaleTimeString("en-GB",{hour:"2-digit",minute:"2-digit"}),image:aiImagePreview||null};
+      const newEntry={
+        ...entry,
+        kcal:String(Math.round((parseFloat(entry.kcal)||0)+parsed.kcal)),
+        protein:String(Math.round((parseFloat(entry.protein)||0)+parsed.protein)),
+        carbs:String(Math.round((parseFloat(entry.carbs)||0)+parsed.carbs)),
+        fat:String(Math.round((parseFloat(entry.fat)||0)+parsed.fat)),
+        meals:[...(entry.meals||[]),meal],
+      };
+      setEntry(newEntry);
+      save(newEntry);
+      setAiInput("");setAiImage(null);setAiImagePreview(null);
+    }catch(e){console.error(e);}
+    setAiLoading(false);
+  };
+
+  const removeMeal=(i)=>{
+    const meals=(entry.meals||[]).filter((_,j)=>j!==i);
+    const newEntry={...entry,
+      kcal:String(meals.reduce((s,m)=>s+(m.kcal||0),0)),
+      protein:String(meals.reduce((s,m)=>s+(m.protein||0),0)),
+      carbs:String(meals.reduce((s,m)=>s+(m.carbs||0),0)),
+      fat:String(meals.reduce((s,m)=>s+(m.fat||0),0)),
+      meals};
+    setEntry(newEntry);save(newEntry);
+  };
+
+  const recent=Object.entries(log).sort(([a],[b])=>b.localeCompare(a)).slice(0,14);
+  const fields=[{key:"kcal",label:"Calories",target:targets.kcal,unit:"kcal",color:C.indigo},{key:"carbs",label:"Carbs",target:targets.carbs,unit:"g",color:C.teal},{key:"protein",label:"Protein",target:targets.protein,unit:"g",color:C.red},{key:"fat",label:"Fat",target:targets.fat,unit:"g",color:C.orange}];
+  return <div style={{display:"flex",flexDirection:"column",gap:0,paddingBottom:24}} className="page">
+    {/* Tab selector */}
+    <div style={{display:"flex",gap:0,marginBottom:14,background:T.card2,borderRadius:14,padding:4}}>
+      {[["log","Today"],["history","History"],["targets","Targets"]].map(([id,label])=>(
+        <button key={id} onClick={()=>setActiveTab(id)} style={{flex:1,padding:"8px 0",borderRadius:10,border:"none",cursor:"pointer",fontSize:13,fontWeight:activeTab===id?700:400,color:activeTab===id?C.indigo:T.sub,background:activeTab===id?T.card:"transparent",fontFamily:sans,transition:"all .15s",boxShadow:activeTab===id?T.shadow:"none"}}>{label}</button>
+      ))}
+    </div>
+
+    {activeTab==="log"&&<>
+      {/* Macro rings */}
+      <Card T={T} style={{padding:18,marginBottom:12}}>
+        <Row style={{marginBottom:16}}>
+          <div>
+            <div style={{fontSize:16,fontWeight:700,color:T.text,fontFamily:sans}}>Today</div>
+            <div style={{fontSize:12,color:T.sub,fontFamily:sans,marginTop:1}}>{new Date().toLocaleDateString("en-GB",{weekday:"long",day:"numeric",month:"long"})}</div>
           </div>
-        );})}
-      </div>
-      <TxtInput T={T} value={entry.notes} onChange={v=>setEntry(prev=>({...prev,notes:v}))} placeholder="Notes (pre-run meal, gel timing...)" style={{marginBottom:12,fontSize:13}}/>
-      <Btn onClick={save} color={saved?C.green:C.indigo} full>{saved?"Saved!":"Save Today"}</Btn>
-    </Card>
-    <Card T={T} style={{padding:18}}>
-      <div style={{fontSize:15,fontWeight:700,color:T.text,fontFamily:sans,marginBottom:14}}>Daily Targets</div>
-      <div style={{display:"flex",flexDirection:"column",gap:8}}>
-        {[{l:"Calories",v:"2,800 to 3,200 kcal",c:C.indigo},{l:"Carbohydrates",v:"250 to 350g",c:C.teal},{l:"Protein",v:"130 to 150g",c:C.red},{l:"Long runs",v:"SiS Beta Fuel every 30 min",c:C.green}].map((t,i)=>(
-          <div key={i} style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"10px 0",borderBottom:`1px solid ${T.divider}`}}>
-            <div style={{fontSize:13,color:T.sub,fontFamily:sans}}>{t.l}</div>
-            <div style={{fontSize:13,fontWeight:600,color:t.c,fontFamily:sans}}>{t.v}</div>
+          {saved&&<Chip color={C.green}>Saved ✓</Chip>}
+        </Row>
+        <div style={{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:8,marginBottom:16}}>
+          {fields.map(f=>{
+            const val=parseFloat(entry[f.key])||0,pct=Math.min(100,Math.round(val/f.target*100));
+            const size=58,stroke=5,r=(size-stroke)/2,circ=2*Math.PI*r,dash=(pct/100)*circ;
+            return <div key={f.key} style={{display:"flex",flexDirection:"column",alignItems:"center",gap:4}}>
+              <div style={{position:"relative",width:size,height:size}}>
+                <svg width={size} height={size} style={{transform:"rotate(-90deg)"}}>
+                  <circle cx={size/2} cy={size/2} r={r} fill="none" stroke={`${f.color}20`} strokeWidth={stroke}/>
+                  <circle cx={size/2} cy={size/2} r={r} fill="none" stroke={f.color} strokeWidth={stroke} strokeDasharray={`${dash} ${circ}`} strokeLinecap="round" style={{transition:"stroke-dasharray .5s"}}/>
+                </svg>
+                <div style={{position:"absolute",inset:0,display:"flex",alignItems:"center",justifyContent:"center"}}>
+                  <div style={{fontSize:10,fontWeight:700,color:f.color,fontFamily:sans,textAlign:"center",lineHeight:1}}>{val>0?val:"-"}</div>
+                </div>
+              </div>
+              <div style={{fontSize:9,color:T.muted,fontFamily:sans,textAlign:"center"}}>{f.label}</div>
+              <div style={{fontSize:8,color:T.muted,fontFamily:sans}}>/{f.target}{f.unit}</div>
+            </div>;
+          })}
+        </div>
+
+        {/* AI food logger */}
+        <div style={{background:T.card2,borderRadius:14,padding:14,marginBottom:12}}>
+          <div style={{fontSize:12,fontWeight:600,color:T.text,fontFamily:sans,marginBottom:10,display:"flex",alignItems:"center",gap:6}}>
+            <div style={{width:18,height:18,borderRadius:5,background:C.indigo,display:"flex",alignItems:"center",justifyContent:"center"}}>
+              <svg viewBox="0 0 24 24" width={11} height={11} fill="none"><path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5" stroke="white" strokeWidth={2} strokeLinecap="round"/></svg>
+            </div>
+            AI Food Logger
           </div>
-        ))}
-      </div>
-      <div style={{marginTop:14}}>
-        <div style={{fontSize:12,fontWeight:600,color:T.muted,fontFamily:sans,marginBottom:8}}>Log weight</div>
-        <div style={{display:"flex",gap:8,alignItems:"center"}}>
+          {aiImagePreview&&<div style={{marginBottom:10,position:"relative",display:"inline-block"}}>
+            <img src={aiImagePreview} alt="food" style={{height:80,width:80,objectFit:"cover",borderRadius:10,border:`1px solid ${T.border}`}}/>
+            <button onClick={()=>{setAiImage(null);setAiImagePreview(null);}} style={{position:"absolute",top:-6,right:-6,background:C.red,color:"#fff",border:"none",borderRadius:"50%",width:18,height:18,fontSize:11,cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center"}}>×</button>
+          </div>}
+          <div style={{display:"flex",gap:8,alignItems:"flex-end"}}>
+            <input ref={fileRef} type="file" accept="image/*" style={{display:"none"}} onChange={handleImageSelect}/>
+            <button onClick={()=>fileRef.current?.click()} style={{background:T.card,border:`1px solid ${T.border}`,borderRadius:10,padding:"9px 10px",fontSize:16,cursor:"pointer",flexShrink:0,color:T.sub}}>📷</button>
+            <input value={aiInput} onChange={e=>setAiInput(e.target.value)} onKeyDown={e=>e.key==="Enter"&&analyseFood()} placeholder="Describe what you ate... or take a photo" style={{flex:1,background:T.card,border:`1px solid ${T.border}`,borderRadius:10,padding:"9px 12px",fontSize:13,color:T.text,fontFamily:sans,outline:"none"}}/>
+            <Btn onClick={analyseFood} color={C.indigo} sm disabled={aiLoading||(!aiInput.trim()&&!aiImage)} style={{flexShrink:0}}>{aiLoading?"...":"Add"}</Btn>
+          </div>
+          <div style={{fontSize:11,color:T.muted,fontFamily:sans,marginTop:6}}>e.g. "porridge with banana and honey" or take a photo of your meal</div>
+        </div>
+
+        {/* Meal list */}
+        {(entry.meals||[]).length>0&&<div style={{display:"flex",flexDirection:"column",gap:8,marginBottom:12}}>
+          <div style={{fontSize:12,fontWeight:600,color:T.text,fontFamily:sans}}>Today's meals · {Math.round(entry.meals.reduce((s,m)=>s+(m.kcal||0),0))} logged</div>
+          {entry.meals.map((meal,i)=>(
+            <div key={i} style={{display:"flex",gap:10,alignItems:"center",background:T.card2,borderRadius:12,padding:"10px 12px"}}>
+              {meal.image&&<img src={meal.image} alt="" style={{width:40,height:40,borderRadius:8,objectFit:"cover",flexShrink:0}}/>}
+              <div style={{flex:1,minWidth:0}}>
+                <div style={{fontSize:13,fontWeight:600,color:T.text,fontFamily:sans,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{meal.name}</div>
+                <div style={{fontSize:11,color:T.sub,fontFamily:sans,marginTop:1}}>{meal.time} · {meal.kcal}kcal · {meal.protein}g P · {meal.carbs}g C</div>
+              </div>
+              <button onClick={()=>removeMeal(i)} style={{background:"transparent",border:"none",color:T.muted,cursor:"pointer",fontSize:16,flexShrink:0}}>×</button>
+            </div>
+          ))}
+        </div>}
+
+        {/* Manual override */}
+        <details style={{marginTop:4}}>
+          <summary style={{fontSize:12,color:T.muted,fontFamily:sans,cursor:"pointer",userSelect:"none"}}>Manual entry</summary>
+          <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8,marginTop:10}}>
+            {fields.map(f=><div key={f.key}>
+              <div style={{fontSize:10,color:T.muted,fontFamily:sans,marginBottom:3}}>{f.label}</div>
+              <input type="number" value={entry[f.key]} onChange={e=>setEntry(prev=>({...prev,[f.key]:e.target.value}))} placeholder={String(f.target)} style={{width:"100%",background:T.card2,border:`1px solid ${T.border}`,borderRadius:8,padding:"7px 9px",fontSize:14,fontWeight:700,color:f.color,fontFamily:sans,outline:"none"}}/>
+            </div>)}
+          </div>
+          <Btn onClick={()=>save()} color={C.indigo} full style={{marginTop:10}}>Save manual</Btn>
+        </details>
+      </Card>
+
+      {/* Weight log */}
+      <Card T={T} style={{padding:18}}>
+        <Row>
+          <div style={{fontSize:14,fontWeight:700,color:T.text,fontFamily:sans}}>Log weight</div>
+          <div style={{fontSize:12,color:T.sub,fontFamily:sans}}>target 65kg</div>
+        </Row>
+        <div style={{display:"flex",gap:8,alignItems:"center",marginTop:10}}>
           <input type="number" step="0.1" placeholder="e.g. 60.5"
             style={{flex:1,background:T.card2,border:`1px solid ${T.border}`,borderRadius:10,padding:"9px 13px",color:T.text,fontSize:16,fontFamily:sans,fontWeight:700,outline:"none"}}
             onBlur={e=>{const w=parseFloat(e.target.value);if(!w)return;const wl=userPrefs?.weightLog||[];const up=[...wl.filter(l=>l.date!==today),{date:today,weight:w}].slice(-60);onSavePrefs({...userPrefs,weightLog:up});e.target.value="";}}/>
-          <span style={{fontSize:12,color:T.sub,fontFamily:sans,flexShrink:0}}>kg · target 65kg</span>
+          <span style={{fontSize:12,color:T.sub,fontFamily:sans,flexShrink:0}}>kg</span>
         </div>
-      </div>
-    </Card>
-    {recent.length>0&&<Card T={T} style={{padding:"18px 18px 10px"}}>
-      <div style={{fontSize:15,fontWeight:700,color:T.text,fontFamily:sans,marginBottom:4}}>Recent Log</div>
+      </Card>
+    </>}
+
+    {activeTab==="history"&&<Card T={T} style={{padding:18}}>
+      <div style={{fontSize:16,fontWeight:700,color:T.text,fontFamily:sans,marginBottom:14}}>Food History</div>
+      {recent.length===0&&<div style={{fontSize:13,color:T.sub,fontFamily:sans,textAlign:"center",padding:"32px 0"}}>No meals logged yet. Use the AI logger to start tracking.</div>}
       <div style={{display:"flex",flexDirection:"column"}}>
         {recent.map(([date,e])=>(
-          <div key={date} style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"10px 0",borderBottom:`1px solid ${T.divider}`}}>
-            <div style={{fontSize:12,color:T.sub,fontFamily:sans}}>{new Date(date).toLocaleDateString("en-GB",{weekday:"short",day:"numeric",month:"short"})}</div>
-            <div style={{display:"flex",gap:10}}>
-              {e.kcal&&<span style={{fontSize:12,color:C.indigo,fontFamily:sans,fontWeight:600}}>{e.kcal}kcal</span>}
-              {e.protein&&<span style={{fontSize:12,color:C.red,fontFamily:sans}}>{e.protein}g P</span>}
-              {e.carbs&&<span style={{fontSize:12,color:C.teal,fontFamily:sans}}>{e.carbs}g C</span>}
+          <div key={date} style={{padding:"12px 0",borderBottom:`1px solid ${T.divider}`}}>
+            <Row style={{marginBottom:6}}>
+              <div style={{fontSize:13,fontWeight:600,color:T.text,fontFamily:sans}}>{new Date(date).toLocaleDateString("en-GB",{weekday:"long",day:"numeric",month:"short"})}</div>
+              <div style={{fontSize:13,fontWeight:700,color:C.indigo,fontFamily:sans}}>{e.kcal||0}kcal</div>
+            </Row>
+            <div style={{display:"flex",gap:12}}>
+              <span style={{fontSize:11,color:C.red,fontFamily:sans}}>{e.protein||0}g protein</span>
+              <span style={{fontSize:11,color:C.teal,fontFamily:sans}}>{e.carbs||0}g carbs</span>
+              <span style={{fontSize:11,color:C.orange,fontFamily:sans}}>{e.fat||0}g fat</span>
             </div>
+            {e.meals?.length>0&&<div style={{fontSize:11,color:T.muted,fontFamily:sans,marginTop:4}}>{e.meals.map(m=>m.name).join(" · ")}</div>}
+          </div>
+        ))}
+      </div>
+    </Card>}
+
+    {activeTab==="targets"&&<Card T={T} style={{padding:18}}>
+      <div style={{fontSize:16,fontWeight:700,color:T.text,fontFamily:sans,marginBottom:14}}>Daily Targets</div>
+      <div style={{display:"flex",flexDirection:"column"}}>
+        {[{l:"Calories",v:"2,800–3,200 kcal",c:C.indigo,note:"Higher on long run days"},{l:"Protein",v:"130–150g",c:C.red,note:"~2.2g per kg bodyweight"},{l:"Carbohydrates",v:"250–350g",c:C.teal,note:"Front-load around runs"},{l:"Fat",v:"70–90g",c:C.orange,note:"Healthy fats priority"},{l:"Long runs",v:"SiS Beta Fuel every 30 min",c:C.green,note:"Start fuelling from km 1"},{l:"Race day",v:"3,500–4,000 kcal",c:C.purple,note:"Carb load 2 days before"}].map((t,i)=>(
+          <div key={i} style={{padding:"12px 0",borderBottom:`1px solid ${T.divider}`}}>
+            <Row><div style={{fontSize:13,color:T.text,fontFamily:sans,fontWeight:600}}>{t.l}</div><div style={{fontSize:13,fontWeight:700,color:t.c,fontFamily:sans}}>{t.v}</div></Row>
+            <div style={{fontSize:11,color:T.muted,fontFamily:sans,marginTop:3}}>{t.note}</div>
           </div>
         ))}
       </div>
@@ -1173,7 +1444,7 @@ function Races({userPrefs,onSavePrefs,T}) {
 }
 
 // ─── CHAT ─────────────────────────────────────────────────────────────────────
-function Coach({activities,stats,whoopData,whoopOk,onPlanSaved,onGymSaved,userPrefs,T}) {
+function Coach({activities,stats,whoopData,whoopOk,corosData,corosOk,onPlanSaved,onGymSaved,userPrefs,T}) {
   const [messages,setMessages]=useState([{role:"assistant",content:"Hey Caleb! I've got your Strava, Whoop, nutrition and training plan loaded. What do you need?"}]);
   const [chatLoaded,setChatLoaded]=useState(false);
   const [input,setInput]=useState("");const [loading,setLoading]=useState(false);const [images,setImages]=useState([]);
@@ -1193,6 +1464,7 @@ function Coach({activities,stats,whoopData,whoopOk,onPlanSaved,onGymSaved,userPr
   const cleanReply=text=>{let out=text;if(out.includes("PLAN_START")&&out.includes("PLAN_END")){const b=out.split("PLAN_START")[0].trim();const a=out.split("PLAN_END")[1]?.trim()||"";out=(b+(a?"\n\n"+a:"")).trim();}if(out.includes("GYM_START")&&out.includes("GYM_END")){const b=out.split("GYM_START")[0].trim();const a=out.split("GYM_END")[1]?.trim()||"";out=(b+(a?"\n\n"+a:"")).trim();}return out;};
   const buildContext=()=>{
     const runs=activities.filter(a=>a.type==="Run").slice(0,5),ytd=stats?.ytd_run_totals||{},rec=whoopData?.recoveries?.records?.[0],sleep=whoopData?.sleeps?.records?.[0];
+    const corosSummary=corosData?.workouts?.slice(0,5).map(w=>`${w.startTime||"?"}: ${w.sport||"workout"} ${w.distance?((w.distance/1000).toFixed(1)+"km"):""}${w.avgHeartRate?(" "+w.avgHeartRate+"bpm"):""}${w.trainingLoad?(" load:"+w.trainingLoad):""}`).join("\n")||"Not connected";
     const recentRecs=(whoopData?.recoveries?.records||[]).slice(0,7).map(r=>`${new Date(r.created_at).toLocaleDateString("en-GB",{day:"numeric",month:"short"})}: recovery ${Math.round(r.score?.recovery_score||0)}%, HRV ${Math.round(r.score?.hrv_rmssd_milli||0)}ms, RHR ${Math.round(r.score?.resting_heart_rate||0)}bpm`).join("\n");
     const recentSleeps=(whoopData?.sleeps?.records||[]).slice(0,7).map(s=>`${new Date(s.start).toLocaleDateString("en-GB",{day:"numeric",month:"short"})}: sleep ${Math.round(s.score?.sleep_performance_percentage||0)}%, ${s.score?.stage_summary?.total_in_bed_time_milli?(s.score.stage_summary.total_in_bed_time_milli/3600000).toFixed(1):0}h in bed`).join("\n");
     const recentNutrition=Object.entries(userPrefs?.nutrition||{}).sort((a,b)=>b[0].localeCompare(a[0])).slice(0,7).map(([date,log])=>`${new Date(date).toLocaleDateString("en-GB",{weekday:"short",day:"numeric",month:"short"})}: ${[log.kcal&&log.kcal+"kcal",log.protein&&log.protein+"g protein",log.carbs&&log.carbs+"g carbs"].filter(Boolean).join(", ")}`).join("\n");
@@ -1226,6 +1498,8 @@ WHOOP HISTORY (7 days):\n${recentRecs||"No data"}
 SLEEP HISTORY (7 days):\n${recentSleeps||"No data"}
 
 NUTRITION (last 7 days):\n${recentNutrition||"No nutrition logged"}
+
+COROS RECENT WORKOUTS:\n${corosSummary}
 
 PLAN FORMAT: When asked for a training plan, reply conversationally first (2-3 sentences), then use exactly this format:
 PLAN_START
@@ -1362,7 +1636,7 @@ function MoreMenu({page,setPage,T,whoopOk,onConnectWhoop,darkMode,setDarkMode,at
 }
 
 // ─── NAV TABS ─────────────────────────────────────────────────────────────────
-function Profile({athlete,whoopData,stats,activities,whoopOk,darkMode,setDarkMode,onConnectWhoop,T}) {
+function Profile({athlete,whoopData,stats,activities,whoopOk,corosOk,darkMode,setDarkMode,onConnectWhoop,T}) {
   const rec=whoopData?.recoveries?.records?.[0];
   const recScore=Math.round(rec?.score?.recovery_score||0);
   const hrv=Math.round(rec?.score?.hrv_rmssd_milli||0);
@@ -1421,7 +1695,7 @@ function Profile({athlete,whoopData,stats,activities,whoopOk,darkMode,setDarkMod
         <div key={i} style={{display:"flex",alignItems:"center",gap:12,padding:"11px 0",borderBottom:`1px solid ${T.divider}`}}>
           <div style={{width:38,height:38,borderRadius:11,background:app.color,display:"flex",alignItems:"center",justifyContent:"center",color:"#fff",fontSize:14,fontWeight:700,fontFamily:sans,flexShrink:0}}>{app.icon}</div>
           <div style={{flex:1}}><div style={{fontSize:13,fontWeight:600,color:T.text,fontFamily:sans}}>{app.name}</div><div style={{fontSize:11,color:T.sub,fontFamily:sans,marginTop:1}}>{app.sub}</div></div>
-          {app.ok?<Chip color={C.green} style={{fontSize:10}}>Synced</Chip>:<button onClick={app.name==="WHOOP"?onConnectWhoop:undefined} style={{background:"transparent",border:`1px solid ${T.border}`,borderRadius:99,padding:"4px 12px",fontSize:11,color:T.sub,cursor:"pointer",fontFamily:sans}}>Connect</button>}
+          {app.ok?<Chip color={C.green} style={{fontSize:10}}>Synced</Chip>:<button onClick={app.onConnect||onConnectWhoop} style={{background:"transparent",border:`1px solid ${T.border}`,borderRadius:99,padding:"4px 12px",fontSize:11,color:T.sub,cursor:"pointer",fontFamily:sans}}>Connect</button>}
         </div>
       ))}
     </Card>
@@ -1468,6 +1742,8 @@ export default function App() {
   const [whoopData,setWhoopData]=useState(null);
   const [loading,setLoading]=useState(false);
   const [whoopPending,setWhoopPending]=useState(false);
+  const [corosOk,setCorosOk]=useState(isCorosConnected());
+  const [corosData,setCorosData]=useState(null);
   const [savedPlan,setSavedPlan]=useState(null);
   const [savedWorkout,setSavedWorkout]=useState(null);
   const [userPrefs,setUserPrefs]=useState(null);
@@ -1476,7 +1752,8 @@ export default function App() {
 
   useEffect(()=>{localStorage.setItem("theme",darkMode?"dark":"light");},[darkMode]);
   useEffect(()=>{
-    const params=new URLSearchParams(window.location.search),code=params.get("code"),pending=localStorage.getItem("whoop_pending");
+    const params=new URLSearchParams(window.location.search),code=params.get("code"),pending=localStorage.getItem("whoop_pending"),corosPending=params.get("coros");
+    if(corosPending&&code){exchangeCorosCode(code).then(()=>setCorosOk(true)).catch(console.error).finally(()=>window.history.replaceState({},"","/"));return;}
     if(!code)return;
     if(pending){setWhoopPending(true);exchangeWhoopCode(code).then(()=>{setWhoopOk(true);setWhoopPending(false);}).catch(e=>{console.error(e);setWhoopPending(false);}).finally(()=>window.history.replaceState({},"","/"));}
     else if(!isConnected()){exchangeCode(code).then(()=>setConnected(true)).catch(console.error).finally(()=>window.history.replaceState({},"","/"));}
@@ -1486,6 +1763,7 @@ export default function App() {
     Promise.all([getAthlete(),getActivities(100)]).then(([a,acts])=>{setAthlete(a);setActivities(acts);setBestEfforts(extractBestEfforts(acts));return Promise.all([getStats(a.id),getAllGear(a)]);}).then(([s,g])=>{setStats(s);setGear(g.filter(Boolean));}).catch(console.error).finally(()=>setLoading(false));
   },[connected]);
   const loadWhoop=useCallback(()=>{if(whoopOk)getWhoopData().then(setWhoopData).catch(console.error);},[whoopOk]);
+  useEffect(()=>{if(corosOk)getCorosData().then(setCorosData).catch(console.error);},[corosOk]);
   useEffect(()=>{loadWhoop();},[loadWhoop]);
   useEffect(()=>{loadUserPrefs().then(p=>{if(p)setUserPrefs(p);});},[]);
   const handleSavePrefs=useCallback(prefs=>{setUserPrefs(prefs);saveUserPrefs(prefs);},[]);
@@ -1494,15 +1772,15 @@ export default function App() {
 
   if(!connected||whoopPending)return <ConnectScreen whoopPending={whoopPending} T={T}/>;
 
-  const shared={activities,stats,whoopData,whoopOk,onConnectWhoop:handleConnectWhoop,onRefreshWhoop:loadWhoop,T};
+  const shared={activities,stats,whoopData,whoopOk,corosData,corosOk,onConnectWhoop:handleConnectWhoop,onRefreshWhoop:loadWhoop,T};
   const views={
     overview:<Home {...shared} bestEfforts={bestEfforts} userPrefs={userPrefs} onNav={setPage} athlete={athlete} plan={savedPlan}/>,
     running:<Running activities={activities} stats={stats} gear={gear} T={T}/>,
-    plan:<Plans onChat={goToChat} onGoToChat={goToChat} externalPlan={savedPlan} whoopData={whoopData} T={T}/>,
+    plan:<Plans onChat={goToChat} onGoToChat={goToChat} externalPlan={savedPlan} whoopData={whoopData} activities={activities} onNav={setPage} T={T}/>,
     recovery:<RecoveryPage {...shared}/>,
     coach:<Coach {...shared} onPlanSaved={setSavedPlan} onGymSaved={setSavedWorkout} userPrefs={userPrefs}/>,
     chat:<Coach {...shared} onPlanSaved={setSavedPlan} onGymSaved={setSavedWorkout} userPrefs={userPrefs}/>,
-    profile:<Profile athlete={athlete} whoopData={whoopData} stats={stats} activities={activities} whoopOk={whoopOk} darkMode={darkMode} setDarkMode={setDarkMode} onConnectWhoop={handleConnectWhoop} T={T}/>,
+    profile:<Profile athlete={athlete} whoopData={whoopData} stats={stats} activities={activities} whoopOk={whoopOk} corosOk={corosOk} darkMode={darkMode} setDarkMode={setDarkMode} onConnectWhoop={handleConnectWhoop} T={T}/>,
     gym:<Gym activities={activities} userPrefs={userPrefs} onSavePrefs={handleSavePrefs} savedWorkout={savedWorkout} T={T}/>,
     nutrition:<Nutrition userPrefs={userPrefs} onSavePrefs={handleSavePrefs} T={T}/>,
     races:<Races userPrefs={userPrefs} onSavePrefs={handleSavePrefs} T={T}/>,
