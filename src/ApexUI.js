@@ -8,13 +8,14 @@ export function Icon({name,size=22}){return <svg width={size} height={size} view
 const navigation=[['home','Today'],['plan','Training'],['activity','Activities'],['recovery','Recovery'],['nutrition','Nutrition'],['gym','Strength'],['coach','Coach']];
 const headings={plan:['Your next chapter.','Training'],activity:['Every effort counts.','Activities'],recovery:['Come back stronger.','Recovery'],nutrition:['Fuel your ambition.','Nutrition'],gym:['Built for more.','Strength'],coach:['A little perspective.','Your coach'],profile:['Made around you.','Your profile'],races:['Something to chase.','Race calendar']};
 export function Frame({page,nav,athlete,dark,setDark,preview,children}){
+ const positions=useRef({}),previous=useRef(page);
  const scroll=useRef(null),[menu,setMenu]=useState(false);
  useDialog(menu,()=>setMenu(false));
- useEffect(()=>{scroll.current?.scrollTo(0,0);setMenu(false);},[page]);
+ useEffect(()=>{previous.current=page;if(scroll.current)scroll.current.scrollTop=positions.current[page]||0;setMenu(false);},[page]);
  return <div className={`apex-app ${dark?'apex-dark':''}`}>
-  <div className="apex-workspace" ref={scroll}>
+  <div className="apex-workspace" ref={scroll} onScroll={e=>{positions.current[previous.current]=e.currentTarget.scrollTop;}}>
    <header className="apex-top"><button className="wordmark" onClick={()=>nav('home')}>APEX<span>PERSONAL PERFORMANCE</span></button><div className="top-actions">{preview&&<span className="preview-label">Design preview · sample data</span>}<button className="theme-button" onClick={()=>setDark(!dark)} aria-label={dark?'Use light appearance':'Use dark appearance'}>{dark?'◐':'◑'}</button><button className="athlete-button" onClick={()=>nav('profile')}><span>{athlete?.firstname?.[0]||'A'}</span>{athlete?.firstname||'Your profile'}</button></div></header>
-   <main className={`apex-content screen-${page}`} id="main-content">{page!=='home'&&<div className="section-heading"><span className="eyebrow">{headings[page]?.[1]}</span><h1>{headings[page]?.[0]}</h1></div>}{children}</main>
+   <main className={`apex-content screen-${page}`} id="main-content">{page!=='home'&&<div className="section-heading"><span className="eyebrow">{headings[page]?.[1]}</span><h1>{headings[page]?.[1]}</h1></div>}{children}</main>
    <footer className="apex-footer"><span>APEX</span><span>Progress is personal.</span></footer>
   </div>
   <nav className="apex-dock" aria-label="Main navigation">{navigation.map(([id,label])=><button key={id} aria-label={label} aria-current={page===id?'page':undefined} className={page===id?'selected':''} onClick={()=>nav(id)}><span className="dock-icon"><Icon name={id}/></span><span>{label}</span></button>)}</nav>
