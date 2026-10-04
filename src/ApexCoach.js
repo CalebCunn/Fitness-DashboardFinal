@@ -40,7 +40,8 @@ export default function CoachScreen({whoop,userPrefs,onPlanSaved,onGymSaved,coro
 
  useEffect(()=>{loadChatHistory().then(m=>{if(m?.length)setMsgs(m);setLoaded(true);}).catch(()=>setLoaded(true));},[]);
  useEffect(()=>{if(loaded&&!sending)saveChatHistory(msgs.map(({previews,api,...m})=>m).slice(-60));},[msgs,loaded,sending]);
- useEffect(()=>{if(msgs.length>1)bottom.current?.scrollIntoView({behavior:window.matchMedia('(prefers-reduced-motion: reduce)').matches?'auto':'smooth',block:'end'});},[msgs.length,status]);
+ const logRef=useRef(null),stick=useRef(true);
+ useEffect(()=>{const el=logRef.current;if(!el||!stick.current)return;try{if(typeof el.scrollTo==='function')el.scrollTo({top:el.scrollHeight,behavior:window.matchMedia('(prefers-reduced-motion: reduce)').matches?'auto':'smooth'});else el.scrollTop=el.scrollHeight;}catch{el.scrollTop=el.scrollHeight;}},[msgs,status]);
 
  const rec=whoop?.recoveries?.records?.[0];
  const recScore=rec?.score?.recovery_score!=null?Math.round(rec.score.recovery_score):null;
@@ -114,8 +115,8 @@ Saving to COROS is ${writes?'ENABLED for this message only. Save only what the u
   if((!text&&!imgs.length)||sending)return;
   const content=[...imgs.map(img=>({type:'image',source:{type:'base64',media_type:img.type,data:img.b64}})),...(text?[{type:'text',text}]:[])];
   const user={role:'user',content:text||`${imgs.length} image${imgs.length>1?'s':''}`,raw:text,api:imgs.length?content:undefined,previews:imgs.map(i=>i.preview)};
-  const history=[...msgs,user];
-  setMsgs([...history,{role:'assistant',content:'',streaming:true}]);setInput('');setImgs([]);setSending(true);setStatus('');
+  const history=[...msgs,user];stick.current=true;
+  setMsgs([...history,{role:'assistant',content:'',streaming:true}]);setInput('');if(inputRef.current)inputRef.current.style.height='44px';setImgs([]);setSending(true);setStatus('');
   const writes=allowWrites;setAllowWrites(false);
   if(PREVIEW){setTimeout(()=>{setMsgs([...history,{role:'assistant',content:'This is the design preview, so the live coach is switched off. In your deployed app this conversation streams from Claude with your calendar, plan and COROS data in context.'}]);setSending(false);},600);return;}
   let raw='';const tools=[];
@@ -158,7 +159,7 @@ Saving to COROS is ${writes?'ENABLED for this message only. Save only what the u
    </div>
   </header>
 
-  <div className="coach-log" aria-live="polite">
+  <div className="coach-log" aria-live="polite" ref={logRef} onScroll={e=>{const el=e.currentTarget;stick.current=el.scrollHeight-el.scrollTop-el.clientHeight<80;}}>
    {fresh&&<div className="coach-starters">{PROMPTS.map(([k,p])=><button key={k} onClick={()=>send(p)}><span>{k}</span><p>{p}</p><Icon name="arrow" size={16}/></button>)}</div>}
    {msgs.map((m,i)=>(i===0&&m.role==='assistant'&&!fresh)?null:<article key={i} className={`bubble ${m.role==='user'?'mine':'theirs'}${m.error?' is-error':''}`}>
     {m.previews?.length>0&&<div className="bubble-images">{m.previews.map((src,j)=><img key={j} src={src} alt="Shared with coach"/>)}</div>}
@@ -177,7 +178,7 @@ Saving to COROS is ${writes?'ENABLED for this message only. Save only what the u
    <div className="compose-box">
     <input ref={fileRef} type="file" accept="image/jpeg,image/png,image/webp,image/gif" multiple hidden onChange={handleFiles}/>
     <button className="icon-button" onClick={()=>fileRef.current?.click()} aria-label="Attach an image"><Icon name="plus" size={18}/></button>
-    <textarea ref={inputRef} aria-label="Message your coach" value={input} onChange={e=>setInput(e.target.value)} onKeyDown={e=>{if(e.key==='Enter'&&!e.shiftKey&&!e.nativeEvent.isComposing){e.preventDefault();send();}}} placeholder="Ask your coach…" rows={1}/>
+    <textarea ref={inputRef} aria-label="Message your coach" value={input} onChange={e=>{setInput(e.target.value);const t=e.target;t.style.height='44px';t.style.height=Math.min(160,t.scrollHeight)+'px';}} onKeyDown={e=>{if(e.key==='Enter'&&!e.shiftKey&&!e.nativeEvent.isComposing){e.preventDefault();send();}}} placeholder="Ask your coach…" rows={1}/>
     <button className="send-button" disabled={sending||(!input.trim()&&!imgs.length)} onClick={()=>send()} aria-label="Send">{sending?<span className="spinner"/>:<Icon name="arrow" size={18}/>}</button>
    </div>
    <div className="compose-meta">

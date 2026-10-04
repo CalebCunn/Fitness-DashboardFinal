@@ -717,3 +717,60 @@
  .coach-compose{bottom:16px}
  .coach-pills{margin:12px 0 0;padding:0}
 }
+
+/* ── Fixes v2.1 ── */
+/* Grid children must never stretch a column past the screen. */
+.content,.today,.today-grid,.training-page,.activity-page,.recovery-page,.nutrition-app,.strength-page,.profile-page,.session-list,.activity-gallery,.live-workout,.goals-app,.daily-review,.food-composer,.food-diary,.nutrition-columns,.recovery-explorer,.routine-grid,.profile-columns{grid-template-columns:minmax(0,1fr)}
+.content>*,.today-grid>*,.training-page>*,.activity-page>*,.nutrition-app>*,.strength-page>*,.profile-page>*,.recovery-page>*{min-width:0}
+@media (min-width:960px){.today-grid{grid-template-columns:minmax(0,1.15fr) minmax(0,.85fr)}.nutrition-columns,.routine-grid,.profile-columns,.recovery-explorer{grid-template-columns:minmax(0,1fr) minmax(0,1fr)}}
+.workspace{overscroll-behavior-y:auto}
+
+/* Coach: a real chat layout. The conversation scrolls inside its own area,
+   the composer sits underneath on a solid surface, nothing shows through. */
+.apex-app:has(.screen-coach) .workspace{display:flex;flex-direction:column;overflow:hidden}
+.apex-app:has(.screen-coach) .topbar{flex:none}
+.screen-coach{flex:1;min-height:0;display:flex;flex-direction:column;padding-bottom:0}
+.screen-coach>.coach{animation:none}
+.coach{flex:1;min-height:0;min-width:0;width:100%;display:flex;flex-direction:column}
+.coach-head{flex:none;min-width:0}
+.coach-pills{max-width:calc(100% + 32px)}
+.coach-log{flex:1;min-height:0;overflow-y:auto;overflow-x:hidden;-webkit-overflow-scrolling:touch;overscroll-behavior:contain;padding:16px 2px 16px}
+.bubble{min-width:0;overflow-wrap:anywhere;word-break:break-word}
+.bubble.mine{max-width:82%}
+.bubble.theirs{max-width:min(94%,680px)}
+.proposal,.proposal-row>div{min-width:0}
+.coach-compose{position:static;flex:none;background:var(--bg);padding:10px 0 calc(var(--dock-h) + 22px + env(safe-area-inset-bottom));border-top:1px solid var(--line-2)}
+.compose-box{min-width:0}
+.compose-box textarea{field-sizing:fixed;min-width:0;width:100%;height:44px;overflow-y:auto}
+.compose-meta{min-width:0}
+.compose-meta span{flex:1;min-width:0}
+@media (min-width:960px){.coach-compose{padding-bottom:20px}}
+
+/* ── Consistency calendar (v2.2): the infield. 12 weeks of tiles, tilted,
+   coloured by time moving. Hover or tap a day to read it, tap again to open. ── */
+.movement-studio{overflow:hidden;background:linear-gradient(160deg,var(--card),color-mix(in srgb,var(--sage) 70%,var(--card)))}
+.mosaic-wrap{display:grid;gap:14px;min-width:0}
+.mosaic-label{display:flex;align-items:baseline;gap:10px;min-height:28px;font-size:13px;color:var(--ink-3)}
+.mosaic-label b{font-family:var(--display);font-weight:800;font-size:24px;text-transform:uppercase;color:var(--ink)}
+.movement-mosaic{--tile:#DCE3D6;gap:6px;padding:12px 18px 22px;transform:perspective(1100px) rotateX(20deg) rotateZ(-7deg);transform-origin:50% 60%;transform-style:preserve-3d}
+.movement-mosaic button{border-radius:22%;aspect-ratio:1;background:var(--tile);transition:transform .22s var(--ease),box-shadow .22s var(--ease),filter .2s;position:relative}
+.movement-mosaic .intensity-0{--tile:#DCE3D6}
+.movement-mosaic .intensity-1{--tile:#C3D0BA}
+.movement-mosaic .intensity-2{--tile:#93AA88;box-shadow:0 3px 0 #7E9474,0 6px 10px -4px rgba(47,74,40,.35)}
+.movement-mosaic .intensity-3{--tile:#6B8766;box-shadow:0 4px 0 #56704F,0 8px 14px -5px rgba(47,74,40,.45)}
+.movement-mosaic button:hover,.movement-mosaic button:focus-visible{transform:translateY(-4px) scale(1.22);z-index:2;box-shadow:0 10px 18px -6px rgba(37,36,46,.35);outline:none}
+.movement-mosaic .is-picked{transform:translateY(-4px) scale(1.22);z-index:2;box-shadow:0 0 0 2.5px var(--iris),0 10px 18px -6px rgba(37,36,46,.35)}
+.movement-mosaic .is-now::after{content:'';position:absolute;inset:32%;border-radius:50%;background:var(--chalk);opacity:.9}
+.apex-dark .movement-studio{background:linear-gradient(160deg,var(--card),#1E2620)}
+.apex-dark .movement-mosaic .intensity-0{--tile:#2A322B}.apex-dark .movement-mosaic .intensity-1{--tile:#3D5139}
+.apex-dark .movement-mosaic .intensity-2{--tile:#5E7D57;box-shadow:0 3px 0 #4A6445}.apex-dark .movement-mosaic .intensity-3{--tile:#86A97C;box-shadow:0 4px 0 #6B8A63}
+.movement-legend i.intensity-0{background:#DCE3D6}.movement-legend i.intensity-1{background:#C3D0BA}.movement-legend i.intensity-2{background:#93AA88}.movement-legend i.intensity-3{background:#6B8766}
+.day-panel{background:var(--card);border:1px solid var(--line);border-radius:var(--r-lg);padding:18px;display:grid;gap:4px;animation:rise .3s var(--ease)}
+.day-item{display:grid;grid-template-columns:8px 1fr 18px;gap:12px;align-items:center;padding:12px 0;border-top:1px solid var(--line-2);text-align:left;color:var(--ink)}
+.day-item b{display:block;font-size:15px;font-weight:620}
+.day-item small{font-size:12.5px;color:var(--ink-3)}
+.day-swatch{width:8px;height:32px;border-radius:4px;background:#25242E}
+.day-swatch[data-run=true]{background:var(--iris)}
+.detail-cover.is-strength{background:#25242E}
+@media (min-width:960px){.movement-studio{grid-template-columns:minmax(0,.8fr) minmax(0,1.3fr);padding:28px 32px}.movement-mosaic{gap:9px;padding:20px 34px 34px}}
+@media (prefers-reduced-motion:reduce){.movement-mosaic{transform:none}}
