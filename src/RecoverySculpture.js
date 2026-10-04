@@ -1,37 +1,39 @@
-import {useEffect,useRef} from 'react';
+// "The lap": recovery drawn as a 400m athletics track. The score is how far round
+// the lap you are. Runners go anticlockwise from the start line on the home straight.
+import {useEffect,useState} from 'react';
 
-// A small, dependency-free 3D renderer. The visible indigo arc represents recovery.
-export default function RecoverySculpture({score=null}) {
-  const ref=useRef(null);
-  useEffect(()=>{
-    const canvas=ref.current,ctx=canvas.getContext('2d');
-    if(!ctx)return;
-    const reduce=window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-    let frame=0,tiltX=.48,tiltY=-.18,targetX=.48,targetY=-.18,disposed=false;
-    const draw=()=>{
-      if(disposed)return;
-      tiltX+=(targetX-tiltX)*.12;tiltY+=(targetY-tiltY)*.12;
-      const w=canvas.clientWidth,h=canvas.clientHeight,dpr=Math.min(window.devicePixelRatio||1,2);
-      if(canvas.width!==Math.round(w*dpr)||canvas.height!==Math.round(h*dpr)){canvas.width=Math.round(w*dpr);canvas.height=Math.round(h*dpr);}
-      ctx.setTransform(dpr,0,0,dpr,0,0);ctx.clearRect(0,0,w,h);
-      const scale=Math.min(w,h)*.34;
-      const shadow=ctx.createRadialGradient(w*.51,h*.84,0,w*.51,h*.84,w*.33);
-      shadow.addColorStop(0,'rgba(55,37,125,.22)');shadow.addColorStop(1,'rgba(55,37,125,0)');
-      ctx.save();ctx.translate(0,h*.64);ctx.scale(1,.24);ctx.fillStyle=shadow;ctx.fillRect(0,0,w,h*2);ctx.restore();
-      const rot=([x,y,z])=>{const yy=y*Math.cos(tiltX)-z*Math.sin(tiltX),zz=y*Math.sin(tiltX)+z*Math.cos(tiltX);return[x*Math.cos(tiltY)+zz*Math.sin(tiltY),yy,-x*Math.sin(tiltY)+zz*Math.cos(tiltY)];};
-      const project=([x,y,z])=>{const p=4.8/(4.8-z);return[w/2+x*scale*p,h*.47+y*scale*p,z];};
-      const N=160,M=48,vertices=[],normals=[];
-      for(let i=0;i<=N;i++){vertices[i]=[];normals[i]=[];const a=i/N*Math.PI*2-Math.PI/2;for(let j=0;j<=M;j++){const b=j/M*Math.PI*2;vertices[i][j]=project(rot([(1+.23*Math.cos(b))*Math.cos(a),(1+.23*Math.cos(b))*Math.sin(a),.23*Math.sin(b)]));normals[i][j]=rot([Math.cos(b)*Math.cos(a),Math.cos(b)*Math.sin(a),Math.sin(b)]);}}
-      const faces=[];
-      for(let i=0;i<N;i++)for(let j=0;j<M;j++){const pts=[vertices[i][j],vertices[i+1][j],vertices[i+1][j+1],vertices[i][j+1]],n=normals[i][j];const lit=Math.max(0,-n[0]*.35-n[1]*.55+n[2]*.76);const spec=Math.pow(Math.max(0,-n[0]*.15-n[1]*.35+n[2]*.91),28);const active=score!==null&&i/N<Math.max(0,Math.min(100,score))/100;const base=active?[90,70,195]:[217,211,238];const color=base.map(c=>Math.round(Math.min(255,c*(.53+.48*lit)+spec*95)));faces.push({pts,z:pts.reduce((s,p)=>s+p[2],0)/4,color:`rgb(${color.join(',')})`});}
-      faces.sort((a,b)=>a.z-b.z).forEach(({pts,color})=>{ctx.beginPath();pts.forEach((p,i)=>i?ctx.lineTo(p[0],p[1]):ctx.moveTo(p[0],p[1]));ctx.closePath();ctx.fillStyle=color;ctx.strokeStyle=color;ctx.lineWidth=.6;ctx.fill();ctx.stroke();});
-      if(Math.abs(tiltX-targetX)+Math.abs(tiltY-targetY)>.001)frame=requestAnimationFrame(draw);
-    };
-    const move=e=>{if(reduce)return;const b=canvas.getBoundingClientRect();targetY=-.18+(e.clientX-b.left-b.width/2)/b.width*.55;targetX=.48+(e.clientY-b.top-b.height/2)/b.height*.35;cancelAnimationFrame(frame);draw();};
-    const leave=()=>{targetX=.48;targetY=-.18;cancelAnimationFrame(frame);draw();};
-    const observer=new ResizeObserver(()=>{cancelAnimationFrame(frame);draw();});observer.observe(canvas);
-    canvas.addEventListener('pointermove',move);canvas.addEventListener('pointerleave',leave);draw();
-    return()=>{disposed=true;cancelAnimationFrame(frame);observer.disconnect();canvas.removeEventListener('pointermove',move);canvas.removeEventListener('pointerleave',leave);};
-  },[score]);
-  return <canvas className="recovery-sculpture" ref={ref} aria-hidden="true"/>;
+const W=320,H=180,L=150,R0=58,LANES=4,GAP=7;
+const cx=W/2,cy=H/2;
+function stadium(r){return `M${cx-L/2},${cy+r} H${cx+L/2} A${r},${r} 0 0 0 ${cx+L/2},${cy-r} H${cx-L/2} A${r},${r} 0 0 0 ${cx-L/2},${cy+r} Z`;}
+function pointAt(t,r){
+ const P=2*L+2*Math.PI*r;let s=((t%1)+1)%1*P;
+ if(s<=L)return [cx-L/2+s,cy+r];s-=L;
+ const arc=Math.PI*r;
+ if(s<=arc){const a=Math.PI/2-s/r;return [cx+L/2+r*Math.cos(a),cy+r*Math.sin(a)];}s-=arc;
+ if(s<=L)return [cx+L/2-s,cy-r];s-=L;
+ const a=-Math.PI/2-s/r;return [cx-L/2+r*Math.cos(a),cy+r*Math.sin(a)];
+}
+export const bandOf=score=>score==null?{label:'Awaiting data',tone:'none'}:score>=67?{label:'Ready to push',tone:'high'}:score>=34?{label:'Steady day',tone:'mid'}:{label:'Recover first',tone:'low'};
+
+export default function RecoverySculpture({score=null,tone='surface',animate=true,compact=false}){
+ const target=score==null?0:Math.max(0,Math.min(100,score));
+ const [p,setP]=useState(animate?0:target);
+ useEffect(()=>{
+  if(!animate||window.matchMedia('(prefers-reduced-motion: reduce)').matches){setP(target);return;}
+  let raf,start;const dur=1400;
+  const step=ts=>{if(!start)start=ts;const k=Math.min(1,(ts-start)/dur),e=1-Math.pow(1-k,3);setP(target*e);if(k<1)raf=requestAnimationFrame(step);};
+  raf=requestAnimationFrame(step);return()=>cancelAnimationFrame(raf);
+ },[target,animate]);
+ const rIn=R0,rOut=R0+GAP*LANES,rMid=R0+GAP*LANES/2;
+ const [dx,dy]=pointAt(p/100,R0+GAP/2);
+ const band=bandOf(score);
+ return <svg className={`lap lap-${tone} lap-${band.tone}${compact?' lap-compact':''}`} viewBox={`0 0 ${W} ${H}`} role="img" aria-label={score==null?'Recovery not available yet':`Recovery ${Math.round(score)} percent, ${band.label}`}>
+  <path className="lap-surface" d={stadium(rMid)} strokeWidth={GAP*LANES+6} fill="none"/>
+  <path className="lap-infield" d={stadium(rIn-3)}/>
+  {Array.from({length:LANES+1},(_,i)=><path key={i} className="lap-line" d={stadium(rIn+i*GAP)} fill="none"/>)}
+  <path className="lap-progress" d={stadium(R0+GAP/2)} pathLength="100" strokeDasharray={`${p} 100`} fill="none"/>
+  <line className="lap-start" x1={cx-L/2} y1={cy+rIn} x2={cx-L/2} y2={cy+rOut}/>
+  {[0.25,0.5,0.75].map(t=>{const [x1,y1]=pointAt(t,rIn),[x2,y2]=pointAt(t,rIn-6);return <line key={t} className="lap-tick" x1={x1} y1={y1} x2={x2} y2={y2}/>;})}
+  {score!=null&&<circle className="lap-runner" cx={dx} cy={dy} r="6.5"/>}
+ </svg>;
 }

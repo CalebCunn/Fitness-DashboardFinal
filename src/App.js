@@ -12,6 +12,7 @@ import Coach from './ApexCoach';
 import Profile from './ApexProfile';
 import Journal from './ApexJournal';
 import {PREVIEW,fixture,previewStore} from './ApexPreview';
+import {isCorosConnected,isCorosCallback,finishCorosConnect,startCorosConnect,disconnectCoros} from './coros';
 const {loadUserPrefs,saveUserPrefs,loadTrainingPlan,saveTrainingPlan}=PREVIEW?previewStore:persistence;
 
 // Existing provider modules, OAuth callbacks, stored tokens and Supabase tables are retained.
@@ -25,10 +26,14 @@ export default function App(){
  const [page,setPage]=useState('home'),[connected,setConnected]=useState(PREVIEW||isConnected()),[whoopOk,setWhoopOk]=useState(PREVIEW||isWhoopConnected());
  const [acts,setActs]=useState([]),[stats,setStats]=useState(null),[athlete,setAthlete]=useState(null),[gear,setGear]=useState([]),[whoop,setWhoop]=useState(null),[loading,setLoading]=useState(false),[whoopPending,setWhoopPending]=useState(false),[error,setError]=useState(''),[retry,setRetry]=useState(0);
  const [savedPlan,setSavedPlan]=useState(null),[savedWorkout,setSavedWorkout]=useState(null),[userPrefs,setUserPrefs]=useState(null),[prefsReady,setPrefsReady]=useState(false);
- const [darkMode,setDarkMode]=useState(()=>localStorage.getItem('theme')==='dark');
+ const [darkMode,setDarkMode]=useState(()=>{const t=localStorage.getItem('theme');return t?t==='dark':window.matchMedia?.('(prefers-color-scheme: dark)').matches;});
+ const [corosOk,setCorosOk]=useState(()=>!PREVIEW&&isCorosConnected()),[corosError,setCorosError]=useState('');
+ const connectCoros=()=>{if(PREVIEW)return;setCorosError('');startCorosConnect().catch(e=>{setCorosError(e.message||'COROS could not be reached. Please try again.');navigate('profile');});};
+ const disconnectCorosNow=()=>{disconnectCoros();setCorosOk(false);};
  useEffect(()=>{localStorage.setItem('theme',darkMode?'dark':'light');},[darkMode]);
  useEffect(()=>{
   if(PREVIEW)return;
+  if(isCorosCallback()){finishCorosConnect().then(()=>{setCorosOk(true);setCorosError('');}).catch(e=>setCorosError(e.message||'COROS could not be connected.')).finally(()=>{window.history.replaceState({},'','/#profile');setPage('profile');});return;}
   const p=new URLSearchParams(window.location.search),code=p.get('code'),whoopP=localStorage.getItem('whoop_pending');if(!code)return;
   if(whoopP){setWhoopPending(true);exchangeWhoopCode(code).then(()=>setWhoopOk(true)).catch(()=>setError('WHOOP could not be connected. Please try again.')).finally(()=>{setWhoopPending(false);window.history.replaceState({},'','/');});}
   else if(!isConnected()){exchangeCode(code).then(()=>setConnected(true)).catch(()=>setError('Strava could not be connected. Please try again.')).finally(()=>window.history.replaceState({},'','/'));}
@@ -54,8 +59,8 @@ export default function App(){
   plan:<Training races={userPrefs?.races} openRaces={()=>navigate('races')} plan={savedPlan} onChange={savePlan} openCoach={()=>navigate('coach')}/>,
   activity:<Activity acts={acts} gear={gear} initialId={activityId}/>,
   gym:<Strength userPrefs={userPrefs} onSavePrefs={savePrefs} savedWorkout={savedWorkout} openCoach={()=>navigate('coach')}/>,
-  coach:<Coach acts={acts} stats={stats} whoop={whoop} whoopOk={whoopOk} onPlanSaved={savePlan} onGymSaved={saveWorkout} userPrefs={{...userPrefs,currentPlan:savedPlan}}/>,
-  profile:<Profile athlete={athlete} acts={acts} whoopOk={whoopOk} whoop={whoop} connectWhoop={connectWhoop} darkMode={darkMode} setDarkMode={setDarkMode} onDisconnect={()=>{if(PREVIEW)return;disconnect();setConnected(false);setActs([]);}} onDisconnectWhoop={()=>{if(PREVIEW)return;disconnectWhoop();setWhoopOk(false);setWhoop(null);}} userPrefs={userPrefs} onSavePrefs={savePrefs}/>
+  coach:<Coach whoop={whoop} onPlanSaved={savePlan} onGymSaved={saveWorkout} userPrefs={{...userPrefs,currentPlan:savedPlan}} corosOk={corosOk} connectCoros={connectCoros}/>,
+  profile:<Profile athlete={athlete} acts={acts} whoopOk={whoopOk} whoop={whoop} connectWhoop={connectWhoop} corosOk={corosOk} connectCoros={connectCoros} onDisconnectCoros={disconnectCorosNow} corosError={corosError} darkMode={darkMode} setDarkMode={setDarkMode} onDisconnect={()=>{if(PREVIEW)return;disconnect();setConnected(false);setActs([]);}} onDisconnectWhoop={()=>{if(PREVIEW)return;disconnectWhoop();setWhoopOk(false);setWhoop(null);}} userPrefs={userPrefs} onSavePrefs={savePrefs}/>
  };
  views.races=<Profile athlete={athlete} acts={acts} whoopOk={whoopOk} whoop={whoop} connectWhoop={connectWhoop} darkMode={darkMode} setDarkMode={setDarkMode} onDisconnect={()=>{if(!PREVIEW){disconnect();setConnected(false);}}} onDisconnectWhoop={()=>{if(!PREVIEW){disconnectWhoop();setWhoopOk(false);setWhoop(null);}}} userPrefs={userPrefs} onSavePrefs={savePrefs} racesOnly/>;
  const blocked=loadFailure&&((loadFailure.prefs&&['nutrition','gym','profile','races'].includes(page))||(['plan','coach'].includes(page)&&(loadFailure.prefs||loadFailure.plan)));
