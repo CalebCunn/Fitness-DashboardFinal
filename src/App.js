@@ -30,7 +30,7 @@ export default function App(){
  const [corosOk,setCorosOk]=useState(()=>!PREVIEW&&isCorosConnected()),[corosError,setCorosError]=useState('');
  const connectCoros=()=>{if(PREVIEW)return;setCorosError('');startCorosConnect().catch(e=>{setCorosError(e.message||'COROS could not be reached. Please try again.');navigate('profile');});};
  const disconnectCorosNow=()=>{disconnectCoros();setCorosOk(false);};
- useEffect(()=>{localStorage.setItem('theme',darkMode?'dark':'light');},[darkMode]);
+ useEffect(()=>{localStorage.setItem('theme',darkMode?'dark':'light');const c=darkMode?'#131218':'#f5f4f0';document.documentElement.style.background=c;document.documentElement.style.colorScheme=darkMode?'dark':'light';document.getElementById('apex-theme-color')?.setAttribute('content',c);},[darkMode]);
  useEffect(()=>{
   if(PREVIEW)return;
   if(isCorosCallback()){finishCorosConnect().then(()=>{setCorosOk(true);setCorosError('');}).catch(e=>setCorosError(e.message||'COROS could not be connected.')).finally(()=>{window.history.replaceState({},'','/#profile');setPage('profile');});return;}

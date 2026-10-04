@@ -774,3 +774,16 @@
 .detail-cover.is-strength{background:#25242E}
 @media (min-width:960px){.movement-studio{grid-template-columns:minmax(0,.8fr) minmax(0,1.3fr);padding:28px 32px}.movement-mosaic{gap:9px;padding:20px 34px 34px}}
 @media (prefers-reduced-motion:reduce){.movement-mosaic{transform:none}}
+
+/* ── App feel (v2.3): behave like an app, not a web page ── */
+.apex-app{-webkit-user-select:none;user-select:none;-webkit-touch-callout:none}
+.apex-app input,.apex-app textarea,.apex-app select,.bubble p,.session-details p,.diary-meal h3,.proposal-row small{-webkit-user-select:text;user-select:text;-webkit-touch-callout:default}
+.apex-app input:not([type=checkbox]):not([type=file]),.apex-app select,.apex-app textarea{font-size:16px!important}
+.apex-app img,.apex-app svg{-webkit-user-drag:none}
+.workspace,.coach-log,.apex-modal,.activity-detail,.sheet{overscroll-behavior:contain}
+/* Native-style press feedback */
+.results button,.sheet-lanes button,.day-item,.goal-link,.connection-row .text-button,.card-link{transition:background .15s,transform .15s var(--ease)}
+.results button:active,.day-item:active{background:var(--card-2);border-radius:12px}
+.sheet-lanes button:active,.goal-link:active,.card-link:active{transform:scale(.985)}
+.dock button:active{transform:scale(.94)}
+.dock button{transition:transform .15s var(--ease)}
