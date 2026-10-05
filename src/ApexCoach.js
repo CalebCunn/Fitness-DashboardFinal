@@ -5,7 +5,7 @@ import {PREVIEW,previewStore} from './ApexPreview';
 import {localDate,calendarTable,parsePlanBlock,mergePlan,prettyDate,weekdayLong,addDays,mondayOf,isISODate,surfaceFor} from './apexDates';
 import {datedSessions} from './ApexTraining';
 import {corosForCoach} from './coros';
-import {skyFor} from './ApexRidge';
+import {readyFor} from './ApexTrack';
 const {loadChatHistory,saveChatHistory}=PREVIEW?previewStore:persistence;
 
 const GREETING='Ready when you are. Ask about today, your week, or what to change.';
@@ -154,7 +154,7 @@ Saving to COROS is ${writes?'ENABLED for this message only. Save only what the u
    <div className="coach-id"><div><strong>Coach</strong><small>{sending?(status||'Writing…'):'Knows your calendar, plan and recovery'}</small></div><button className="text-button" onClick={()=>setMsgs([{role:'assistant',content:GREETING}])} disabled={sending}>New chat</button></div>
    <div className="coach-pills">
     <span className="pill"><i className="dot"/>{prettyDate(today,{weekday:'short',day:'numeric',month:'short'})}</span>
-    {recScore!=null&&<span className="pill"><i className={`sky-swatch sky-${skyFor(recScore).key}`}/>Recovery <b>{recScore}</b></span>}
+    {recScore!=null&&<span className="pill"><i className={`ready-dot ready-${readyFor(recScore).key}`}/>Recovery <b>{recScore}</b></span>}
     <span className="pill">{plan?.sessions?.length?`${plan.sessions.length} sessions planned`:'No plan yet'}</span>
     {corosOk?<span className="pill pill-live"><i className="dot"/>COROS live</span>:<button className="pill pill-action" onClick={connectCoros}>Connect COROS</button>}
    </div>

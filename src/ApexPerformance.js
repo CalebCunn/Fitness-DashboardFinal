@@ -1,0 +1,207 @@
+// APEX · Performance: fitness, fatigue and form, race predictions, the PB wall,
+// shoe mileage and a shareable weekly recap. Everything is computed on the device
+// from Strava activities (plus WHOOP resting HR when available).
+import {useEffect,useMemo,useState} from 'react';
+import {getActivity} from './strava';
+import {PREVIEW} from './ApexPreview';
+import {Icon} from './ApexUI';
+import {Spark,smooth} from './ApexTrack';
+import {focusRace,raceDate} from './ApexGoals';
+import {localDate,addDays,mondayOf} from './apexDates';
+
+export const isRun=a=>a.type==='Run'||a.sport_type==='Run'||a.sport_type==='TrailRun';
+const day=a=>(a.start_date_local||a.start_date||'').slice(0,10);
+export const clock=s=>{if(!Number.isFinite(s))return '—';s=Math.round(s);const h=Math.floor(s/3600),m=Math.floor(s%3600/60),x=s%60;return h?`${h}:${String(m).padStart(2,'0')}:${String(x).padStart(2,'0')}`:`${m}:${String(x).padStart(2,'0')}`;};
+const pacePer=(secs,m)=>{const v=Math.round(secs/(m/1000));return `${Math.floor(v/60)}:${String(v%60).padStart(2,'0')}`;};
+
+// ── Training load ──
+// Load per activity: Strava relative effort when present, otherwise Banister
+// TRIMP from heart rate, otherwise a time-based estimate.
+function loadOf(a,restHr,maxHr){
+ if(Number.isFinite(a.suffer_score)&&a.suffer_score>0)return a.suffer_score;
+ const mins=(a.moving_time||0)/60;
+ if(a.average_heartrate&&maxHr&&restHr&&maxHr>restHr){const r=Math.max(0,Math.min(1,(a.average_heartrate-restHr)/(maxHr-restHr)));return mins*r*0.64*Math.exp(1.92*r);}
+ return mins*(isRun(a)?0.9:0.55);
+}
+
+export function formSeries(acts,{restHr,maxHr,days=84}={}){
+ const today=localDate(new Date()),loads={};
+ const peak=maxHr||Math.max(0,...acts.map(a=>a.max_heartrate||0))||null;
+ acts.forEach(a=>{const k=day(a);if(k)loads[k]=(loads[k]||0)+loadOf(a,restHr,peak);});
+ const first=Object.keys(loads).sort()[0]||today;
+ // Seed both averages with the mean daily load of the first 6 weeks, so a short
+ // history doesn't read as a sudden spike of fatigue.
+ let seed=0,n=0;for(let k=first;k<=today&&n<42;k=addDays(k,1),n++)seed+=loads[k]||0;seed=n?seed/n:0;
+ let ctl=seed,atl=seed;const out=[];
+ for(let k=first;k<=today;k=addDays(k,1)){
+  const tsb=ctl-atl;// form uses yesterday's numbers, before today's session
+  const l=loads[k]||0;ctl+=(l-ctl)/42;atl+=(l-atl)/7;
+  out.push({key:k,load:l,ctl,atl,tsb});
+ }
+ return {series:out.slice(-days),warm:out.length<42,ready:out.length>=21};
+}
+
+export function formLabel(tsb){
+ if(tsb>=15)return {key:'peak',label:'Very fresh',line:'Rested enough to race. Much longer like this and fitness starts to fade.'};
+ if(tsb>=5)return {key:'fresh',label:'Fresh',line:'Fatigue is below fitness. A good day for something hard, or a race.'};
+ if(tsb>=-10)return {key:'neutral',label:'Balanced',line:'Training and recovery are in step.'};
+ if(tsb>=-30)return {key:'build',label:'Building',line:'Productive fatigue. Keep easy days easy and sleep well.'};
+ return {key:'over',label:'Overreaching',line:'Fatigue is well above fitness. Back off before it costs you.'};
+}
+
+// ── Predictions (Riegel, exponent 1.06) ──
+export const DISTANCES=[['5K',5000],['10K',10000],['Half',21097.5],['Marathon',42195]];
+const riegel=(t,d1,d2)=>t*Math.pow(d2/d1,1.06);
+
+function effortSources(acts,efforts,fromKey,toKey){
+ const src=[];
+ acts.forEach(a=>{const k=day(a);if(!isRun(a)||k<fromKey||k>toKey||!(a.distance>=3000)||!a.moving_time)return;src.push({d:a.distance,t:a.moving_time,label:`${a.name}, ${new Date(k+'T12:00:00').toLocaleDateString('en-GB',{day:'numeric',month:'short'})}`});});
+ Object.values(efforts||{}).forEach(e=>{if(e.date<fromKey||e.date>toKey)return;(e.efforts||[]).forEach(x=>{if(x.distance>=1500&&x.moving_time)src.push({d:x.distance,t:x.moving_time,label:`${x.name} in ${e.name}, ${new Date(e.date+'T12:00:00').toLocaleDateString('en-GB',{day:'numeric',month:'short'})}`});});});
+ return src;
+}
+function bestPrediction(src,target,withSource){let best=null,from=null;src.forEach(s=>{const p=riegel(s.t,s.d,target);if(!best||p<best){best=p;from=s;}});return withSource?{time:best,from}:best;}
+
+export function predictions(acts,efforts){
+ const today=localDate(new Date()),from=addDays(today,-56);
+ const src=effortSources(acts,efforts,from,today);
+ const now=Object.fromEntries(DISTANCES.map(([k,d])=>[k,bestPrediction(src,d)]));
+ const basis=bestPrediction(src,42195,true).from;
+ const trend=Array.from({length:12},(_,i)=>{const end=addDays(today,-7*(11-i));return bestPrediction(effortSources(acts,efforts,addDays(end,-42),end),42195);});
+ return {now,trend,sources:src.length,basis};
+}
+
+export function parseTarget(text){
+ const m=(text||'').match(/(\d{1,2}):(\d{2})(?::(\d{2}))?/);if(!m)return null;
+ return m[3]!=null?(+m[1])*3600+(+m[2])*60+(+m[3]):(+m[1])*3600+(+m[2])*60;
+}
+
+// ── Best efforts cache (filled from detailed activities) ──
+const KEY='apex-efforts-v1';
+export function loadEfforts(){try{return JSON.parse(localStorage.getItem(KEY))||{};}catch{return {};}}
+export function rememberEfforts(a){
+ if(!a?.id||!isRun(a)||!Array.isArray(a.best_efforts))return;
+ try{const all=loadEfforts();all[a.id]={date:day(a),name:a.name,efforts:a.best_efforts.map(e=>({name:e.name,distance:e.distance,moving_time:e.moving_time||e.elapsed_time}))};localStorage.setItem(KEY,JSON.stringify(all));}catch{}
+}
+const WALL=[['1K',['1k','1K']],['1 mile',['1 mile']],['5K',['5k','5K']],['10K',['10k','10K']],['Half',['Half-Marathon','half-marathon']],['Marathon',['Marathon','marathon']]];
+export function pbWall(efforts){
+ return WALL.map(([label,names])=>{let best=null;Object.entries(efforts).forEach(([id,e])=>(e.efforts||[]).forEach(x=>{if(names.includes(x.name)&&x.moving_time&&(!best||x.moving_time<best.time))best={time:x.moving_time,date:e.date,run:e.name,id:+id};}));return {label,best};});
+}
+
+// ── Shoes ──
+export function shoeState(km){
+ if(km>=800)return ['Past 800 km','retire'];
+ if(km>=600)return ['Retire soon','warn'];
+ if(km>=150)return ['In its prime','prime'];
+ return ['Breaking in','new'];
+}
+
+// ── Weekly recap card, drawn on a canvas so it can be shared as an image ──
+async function drawRecap(stats){
+ const c=document.createElement('canvas');c.width=1080;c.height=1350;const g=c.getContext('2d');
+ try{await document.fonts?.load('italic 900 120px "Barlow Condensed"');}catch{}
+ g.fillStyle='#08090C';g.fillRect(0,0,1080,1350);
+ g.save();g.translate(80,250);g.transform(1,0,-0.2,1,0,0);g.fillStyle='#7C5CFF';g.fillRect(0,0,560,300);g.restore();
+ g.fillStyle='#fff';g.font='italic 900 280px "Barlow Condensed", sans-serif';g.fillText(stats.km,110,520);
+ g.font='italic 800 64px "Barlow Condensed", sans-serif';g.fillText('KM THIS WEEK',90,640);
+ g.fillStyle='#A7ACB8';g.font='600 40px -apple-system, Helvetica, sans-serif';g.fillText(stats.range,90,200);
+ const rows=[['RUNS',stats.runs],['TIME',stats.time],['LONGEST',stats.longest],['FORM',stats.form],['MARATHON',stats.marathon]];
+ rows.forEach(([k,v],i)=>{const y=760+i*96;g.fillStyle='#A7ACB8';g.font='700 34px -apple-system, Helvetica, sans-serif';g.fillText(k,90,y);g.fillStyle='#fff';g.font='italic 800 64px "Barlow Condensed", sans-serif';g.textAlign='right';g.fillText(v,990,y+8);g.textAlign='left';g.fillStyle='rgba(255,255,255,.12)';g.fillRect(90,y+34,900,2);});
+ g.fillStyle='#fff';g.font='italic 900 56px "Barlow Condensed", sans-serif';g.fillText('APEX',90,1280);
+ g.fillStyle='#7C5CFF';g.beginPath();g.moveTo(240,1280);g.lineTo(272,1232);g.lineTo(304,1280);g.fill();
+ return new Promise(r=>c.toBlob(r,'image/png'));
+}
+
+function weekStats(acts,form,pred){
+ const today=localDate(new Date()),mon=mondayOf(today),runs=acts.filter(a=>isRun(a)&&day(a)>=mon&&day(a)<=today);
+ const km=runs.reduce((s,a)=>s+(a.distance||0),0)/1000,time=runs.reduce((s,a)=>s+(a.moving_time||0),0),longest=Math.max(0,...runs.map(a=>a.distance||0))/1000;
+ const tsb=form.series[form.series.length-1]?.tsb;
+ return {km:km.toFixed(1),runs:String(runs.length),time:clock(time),longest:`${longest.toFixed(1)} km`,form:tsb==null?'—':`${tsb>=0?'+':''}${Math.round(tsb)} ${formLabel(tsb).label.toUpperCase()}`,marathon:pred.now.Marathon?clock(pred.now.Marathon):'—',range:`${new Date(mon+'T12:00:00').toLocaleDateString('en-GB',{day:'numeric',month:'short'})} – ${new Date(today+'T12:00:00').toLocaleDateString('en-GB',{day:'numeric',month:'short'})}`};
+}
+
+// Hook shared by Today and Performance so both read the same numbers.
+export function usePerformance(acts,whoop){
+ const restHr=whoop?.recoveries?.records?.[0]?.score?.resting_heart_rate||null;
+ const [efforts,setEfforts]=useState(()=>PREVIEW?previewEfforts(acts):loadEfforts());
+ useEffect(()=>{const sync=()=>setEfforts(PREVIEW?previewEfforts(acts):loadEfforts());sync();window.addEventListener('apex-efforts',sync);return()=>window.removeEventListener('apex-efforts',sync);},[acts]);
+ const form=useMemo(()=>formSeries(acts,{restHr}),[acts,restHr]);
+ const pred=useMemo(()=>predictions(acts,efforts),[acts,efforts]);
+ return {form,pred,efforts,setEfforts,restHr};
+}
+
+function previewEfforts(acts){
+ const out={};acts.filter(a=>isRun(a)&&a.distance>=5000).forEach((a,i)=>{const p=a.moving_time/a.distance;out[a.id]={date:day(a),name:a.name,efforts:[{name:'1k',distance:1000,moving_time:Math.round(p*1000*.86)},{name:'1 mile',distance:1609,moving_time:Math.round(p*1609*.88)},{name:'5k',distance:5000,moving_time:Math.round(p*5000*.93)},...(a.distance>=10000?[{name:'10k',distance:10000,moving_time:Math.round(p*10000*.96)}]:[]),...(a.distance>=21097?[{name:'Half-Marathon',distance:21097,moving_time:Math.round(p*21097*.99)}]:[])]};});
+ return out;
+}
+
+function FormChart({series}){
+ if(series.length<2)return null;
+ const W=400,H=180,top=10,mid=118,lo=Math.min(0,...series.map(s=>s.ctl),...series.map(s=>s.atl)),hi=Math.max(10,...series.map(s=>s.ctl),...series.map(s=>s.atl));
+ const y=v=>mid-(v-lo)/(hi-lo||1)*(mid-top);
+ const x=i=>i/(series.length-1)*W;
+ const tsbMax=Math.max(10,...series.map(s=>Math.abs(s.tsb)));
+ const base=152;
+ return <svg className="form-chart" viewBox={`0 0 ${W} ${H}`} preserveAspectRatio="none" role="img" aria-label="Fitness, fatigue and form over the last 12 weeks">
+  <path className="fc-fit-area" d={smooth(series.map((s,i)=>[x(i),y(s.ctl)]))+` L${W},${mid} L0,${mid}Z`}/>
+  <path className="fc-fit" d={smooth(series.map((s,i)=>[x(i),y(s.ctl)]))} vectorEffect="non-scaling-stroke"/>
+  <path className="fc-fat" d={smooth(series.map((s,i)=>[x(i),y(s.atl)]))} vectorEffect="non-scaling-stroke"/>
+  <line x1="0" x2={W} y1={base} y2={base} className="fc-zero" vectorEffect="non-scaling-stroke"/>
+  {series.map((s,i)=>{const h=s.tsb/tsbMax*24;return <rect key={s.key} x={x(i)-1.6} width="3.2" y={h>=0?base-h:base} height={Math.abs(h)} className={h>=0?'fc-form-pos':'fc-form-neg'}/>;})}
+ </svg>;
+}
+
+export default function Performance({acts=[],gear=[],whoop,userPrefs,nav}){
+ const {form,pred,efforts,setEfforts}=usePerformance(acts,whoop);
+ const [scan,setScan]=useState(null),[shareNote,setShareNote]=useState('');
+ const last=form.ready?form.series[form.series.length-1]:null,fl=last?formLabel(last.tsb):null;
+ const goal=focusRace(userPrefs?.races),goalSecs=parseTarget(goal?.target),goalDist=(parseFloat(goal?.distance)||42.195)*1000;
+ const goalPred=pred.now.Marathon&&goal?pred.now.Marathon*Math.pow(goalDist/42195,1.06):null;
+ const gap=goalSecs&&goalPred?goalPred-goalSecs:null;
+ const wall=pbWall(efforts);
+ const shoes=[...gear].sort((a,b)=>(b.distance||0)-(a.distance||0));
+ const runs=acts.filter(isRun).sort((a,b)=>new Date(b.start_date_local||b.start_date)-new Date(a.start_date_local||a.start_date));
+ const unscanned=runs.filter(a=>!efforts[a.id]&&a.distance>=1000);
+ const runScan=async()=>{
+  if(PREVIEW){setScan({done:0,total:0,msg:'Scanning works with your live Strava data.'});return;}
+  const batch=unscanned.slice(0,20);setScan({done:0,total:batch.length});
+  for(let i=0;i<batch.length;i++){try{const a=await getActivity(batch[i].id);rememberEfforts(a);}catch(e){setScan({done:i,total:batch.length,msg:'Strava stopped the scan (rate limit). Try again in 15 minutes.'});break;}setScan({done:i+1,total:batch.length});await new Promise(r=>setTimeout(r,350));}
+  setEfforts(loadEfforts());window.dispatchEvent(new Event('apex-efforts'));
+ };
+ const share=async()=>{
+  setShareNote('');const blob=await drawRecap(weekStats(acts,form,pred));if(!blob){setShareNote('The card could not be drawn on this device.');return;}
+  const file=new File([blob],'apex-week.png',{type:'image/png'});
+  try{if(navigator.canShare?.({files:[file]})){await navigator.share({files:[file],title:'My week on APEX'});return;}}catch(e){if(e?.name==='AbortError')return;}
+  const url=URL.createObjectURL(blob),a=document.createElement('a');a.href=url;a.download='apex-week.png';a.click();setTimeout(()=>URL.revokeObjectURL(url),1500);setShareNote('Saved as apex-week.png.');
+ };
+ return <div className="performance-page">
+  <section className="perf-form" aria-labelledby="form-title">
+   <div className="perf-head"><span className="eyebrow">Form · today</span><h2 id="form-title" className="sr-only">Fitness, fatigue and form</h2></div>
+   <div className="form-hero"><span className={`form-tag form-${fl?.key||'neutral'}`}><b>{last?`${last.tsb>=0?'+':''}${Math.round(last.tsb)}`:'—'}</b></span><div><strong>{fl?.label||'Warming up'}</strong><p>{fl?.line||'Form appears once three weeks of activities have synced.'}</p></div></div>
+   <FormChart series={form.series}/>
+   <div className="fc-key"><span><i className="k-fit"/>Fitness {last?Math.round(last.ctl):'—'}</span><span><i className="k-fat"/>Fatigue {last?Math.round(last.atl):'—'}</span><span><i className="k-form"/>Form</span></div>
+   <p className="form-note">Fitness is your 6-week training load, fatigue the last 7 days. Form is fitness minus fatigue.{form.warm?' Fewer than 6 weeks of activities are loaded, so fitness is still warming up.':''}</p>
+  </section>
+
+  <section className="perf-predict" aria-labelledby="pred-title">
+   <div className="section-head"><h2 id="pred-title">Race predictor</h2><span className="meta">Last 8 weeks</span></div>
+   <div className="predict-board">{DISTANCES.map(([k,d])=><div key={k} className={k==='Marathon'?'is-key':''}><small>{k}</small><b>{pred.now[k]?clock(pred.now[k]):'—'}</b><em>{pred.now[k]?`${pacePer(pred.now[k],d)} /km`:''}</em></div>)}</div>
+   {goal&&<div className="goal-strip"><div><small>{goal.name}{goal.target?` · ${goal.target}`:''}</small><b>{gap==null?'Set a target time on the race to see the gap.':gap<=0?`On track · ${clock(-gap)} inside target`:`${clock(gap)} to find · ${Math.round(gap/(goalDist/1000))} s/km`}</b></div>{raceDate(goal)&&<span>{Math.max(0,Math.ceil((new Date(goal.date+'T12:00:00')-new Date())/86400000))}<small>days</small></span>}</div>}
+   <div className="predict-trend"><small>Marathon prediction, 12 weeks</small><Spark values={pred.trend} goal={goalSecs&&goalDist===42195?goalSecs:null} invert/></div>
+   {pred.basis&&<p className="predict-basis">Strongest signal: <b>{pred.basis.label}</b></p>}
+   <p className="form-note">Riegel’s formula on your best runs and best efforts of the last 8 weeks. It assumes the training for the distance; treat the marathon number as the ceiling of your current shape.</p>
+  </section>
+
+  <section className="perf-pbs" aria-labelledby="pb-title">
+   <div className="section-head"><h2 id="pb-title">PB wall</h2>{!PREVIEW&&unscanned.length>0&&<button className="text-button" disabled={scan&&scan.done<scan.total&&!scan.msg} onClick={runScan}>{scan&&scan.done<scan.total&&!scan.msg?`Scanning ${scan.done}/${scan.total}`:`Scan ${Math.min(20,unscanned.length)} runs`}</button>}</div>
+   <div className="pb-wall">{wall.map(w=><button key={w.label} className={`pb-tile${w.best?'':' is-empty'}`} disabled={!w.best} onClick={()=>w.best&&nav('activity',w.best.id)}><small>{w.label}</small><b>{w.best?clock(w.best.time):'—'}</b><em>{w.best?new Date(w.best.date+'T12:00:00').toLocaleDateString('en-GB',{day:'numeric',month:'short',year:'2-digit'}):'Not yet'}</em></button>)}</div>
+   {scan?.msg&&<p className="form-note">{scan.msg}</p>}
+   <p className="form-note">Best efforts come from Strava’s detailed runs. Every run you open is added; scanning fetches up to 20 at a time to stay inside Strava’s limits.</p>
+  </section>
+
+  {shoes.length>0&&<section className="perf-shoes" aria-labelledby="shoe-title">
+   <div className="section-head"><h2 id="shoe-title">Shoes</h2><span className="meta">Retire at about 800 km</span></div>
+   {shoes.map(g=>{const km=Math.round((g.distance||0)/1000),[label,tone]=shoeState(km);return <div className={`shoe-row shoe-${tone}`} key={g.id}><div className="shoe-top"><span><b>{g.name||g.nickname}</b><small>{g.retired?'Retired':g.primary?'Default shoe':label}</small></span><strong>{km}<small>km</small></strong></div><div className="shoe-bar"><i style={{width:`${Math.min(100,km/800*100)}%`}}/></div></div>;})}
+  </section>}
+
+  <section className="perf-recap"><div><span className="eyebrow">This week</span><h2>Share your week</h2><p>A recap card with your kilometres, time, longest run, form and marathon prediction.</p></div><button className="primary-action" onClick={share}><Icon name="external" size={18}/>Share card</button>{shareNote&&<p className="form-note">{shareNote}</p>}</section>
+ </div>;
+}

@@ -1,6 +1,6 @@
-// Recovery drawn as a sky over a ridge: the colour of the morning is the reading.
-import {SkyTile,skyFor} from './ApexRidge';
+// Recovery drawn as a lap of a violet tartan track: the runner stops at your score.
+import {Lap,readyFor} from './ApexTrack';
 
-export const bandOf=score=>{const s=skyFor(score);return {label:s.label,tone:score==null?'none':score>=67?'high':score>=34?'mid':'low'};};
+export const bandOf=score=>{const r=readyFor(score);return {label:r.label,tone:score==null?'none':r.key};};
 
-export default function RecoverySculpture({score=null}){return <SkyTile score={score}/>;}
+export default function RecoverySculpture({score=null}){return <Lap score={score} size="tile"/>;}

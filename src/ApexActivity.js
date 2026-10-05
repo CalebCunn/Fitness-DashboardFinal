@@ -6,7 +6,8 @@ import {PREVIEW,previewDetail} from './ApexPreview';
 import {Icon} from './ApexUI';
 import {localDate} from './ApexTraining';
 import {addDays,mondayOf} from './apexDates';
-import {smooth,Profile} from './ApexRidge';
+import {smooth,Profile} from './ApexTrack';
+import {rememberEfforts} from './ApexPerformance';
 
 const run=a=>a.type==='Run'||a.sport_type==='Run'||a.sport_type==='TrailRun';
 const pace=s=>{if(!s||!Number.isFinite(s)||s<=0)return '—';const v=Math.round(1000/s);return `${Math.floor(v/60)}:${String(v%60).padStart(2,'0')}`;};
@@ -19,7 +20,7 @@ const typeName=a=>run(a)?(a.workout_type===1?'Race':'Run'):(a.sport_type||a.type
 const longDate=key=>new Date(key+'T12:00:00').toLocaleDateString('en-GB',{weekday:'long',day:'numeric',month:'long'});
 const shortDate=key=>new Date(key+'T12:00:00').toLocaleDateString('en-GB',{weekday:'short',day:'numeric',month:'short'});
 
-export default function Activity({acts=[],gear=[],initialId=null,restHr=null}){
+export default function Activity({acts=[],gear=[],initialId=null,restHr=null,nav}){
  const [hover,setHover]=useState(null),[picked,setPicked]=useState(null);
  const [type,setType]=useState('all'),[query,setQuery]=useState(''),[period,setPeriod]=useState('all'),[selected,setSelected]=useState(()=>acts.find(a=>a.id===initialId)||null);
  useEffect(()=>{if(initialId){const a=acts.find(x=>x.id===initialId);if(a)setSelected(a);}},[initialId,acts]);
@@ -38,6 +39,7 @@ export default function Activity({acts=[],gear=[],initialId=null,restHr=null}){
  const vmax=Math.max(10,...weeks);
  const ridge=smooth([[0,58],...weeks.map((v,i)=>[(i+.5)/12*400,58-v/vmax*52]),[400,58]])+' L400,64 L0,64Z';
  return <div className="activity-page">
+  {nav&&<button className="perf-link" onClick={()=>nav('performance')}><span><small>Performance</small><b>Form, race predictor, PB wall, shoes</b></span><Icon name="arrow" size={20}/></button>}
   <section className="volume" aria-label="Last 12 weeks">
    <p className="meta">Last 12 weeks · {sessions} sessions · {Math.round(hours)} h</p>
    <p className="hero-figure"><span>{Math.round(runKm)}</span><small>km run</small></p>
@@ -50,7 +52,7 @@ export default function Activity({acts=[],gear=[],initialId=null,restHr=null}){
       onClick={()=>{setHover(null);if(d.count===1){setPicked(d);setSelected(d.items[0]);}else setPicked(d);}}/>;})}
     </div>
    </div>
-   <div className="mosaic-label" aria-live="polite">{label?<><small>{shortDate(label.key)}</small><b>{label.count===0?(label.future?'Still to come':'Rest day'):label.count===1?`${label.items[0].name}${label.items[0].distance?` · ${(label.items[0].distance/1000).toFixed(2)} km`:''} · ${clock(label.items[0].moving_time)}`:`${label.count} sessions · ${Math.round(label.mins)} min`}</b></>:<><small>Tap a day</small><b>Darker squares are longer days. The sun is today.</b></>}</div>
+   <div className="mosaic-label" aria-live="polite">{label?<><small>{shortDate(label.key)}</small><b>{label.count===0?(label.future?'Still to come':'Rest day'):label.count===1?`${label.items[0].name}${label.items[0].distance?` · ${(label.items[0].distance/1000).toFixed(2)} km`:''} · ${clock(label.items[0].moving_time)}`:`${label.count} sessions · ${Math.round(label.mins)} min`}</b></>:<><small>Tap a day</small><b>Stronger colour, bigger day. Ringed square is today.</b></>}</div>
   </section>
 
   {picked?.count>1&&<section className="day-panel"><div className="section-head"><h2>{longDate(picked.key)}</h2><button className="text-button" onClick={()=>setPicked(null)}>Close</button></div>{picked.items.map(a=><button key={a.id} className="list-row" onClick={()=>setSelected(a)}><span className="row-copy"><small>{typeName(a)}</small><b>{a.name}</b></span><span className="row-figure">{run(a)?((a.distance||0)/1000).toFixed(1):Math.round((a.moving_time||0)/60)}<small>{run(a)?'km':'min'}</small></span><Icon name="chevron" size={16}/></button>)}</section>}
@@ -141,12 +143,44 @@ function insights(a,st,splits){
 
 const skyOf=a=>{const h=a.start_date_local?when(a).getUTCHours():when(a).getHours();return h<5||h>=21?'dark':h<9?'dawn':h<17?'day':'dusk';};
 
+
+// Run replay: the route redrawn as you ran it, coloured by pace, with a runner
+// you can play or scrub. Faster kilometres burn brighter.
+function RunReplay({points,time,vel,dist,markers}){
+ const n=points.length,[i,setI]=useState(n-1),[playing,setPlaying]=useState(false);
+ const W=400,H=260,xy=useMemo(()=>project(points,W,H,26),[points]);
+ const step=Math.max(1,Math.floor(n/600)),idx=useMemo(()=>Array.from({length:Math.ceil(n/step)},(_,k)=>Math.min(n-1,k*step)),[n,step]);
+ const speeds=vel.filter(v=>v>.6).sort((a,b)=>a-b),q=f=>speeds[Math.floor(f*(speeds.length-1))]||0,cuts=[q(.2),q(.4),q(.6),q(.8)];
+ const band=v=>!(v>.6)?0:cuts.filter(c=>v>=c).length;
+ useEffect(()=>{if(!playing)return;let raf,last;const dur=9000;const tick=t=>{if(last==null)last=t;const adv=(t-last)/dur*(n-1);last=t;setI(p=>{const nx=Math.min(n-1,p+adv);if(nx>=n-1){setPlaying(false);}return nx;});raf=requestAnimationFrame(tick);};raf=requestAnimationFrame(tick);return()=>cancelAnimationFrame(raf);},[playing,n]);
+ const at=Math.round(i),segs=[];
+ for(let k=1;k<idx.length;k++){const a=idx[k-1],b=idx[k];if(a>at)break;segs.push(<line key={k} x1={xy[a][0]} y1={xy[a][1]} x2={xy[Math.min(b,at)][0]} y2={xy[Math.min(b,at)][1]} className={`rp-seg rp-${band(vel[b])}`}/>);}
+ const base=idx.map(k=>`${xy[k][0].toFixed(1)},${xy[k][1].toFixed(1)}`).join(' ');
+ const [rx,ry]=xy[at]||xy[0];
+ const play=()=>{if(at>=n-1)setI(0);setPlaying(!playing);};
+ return <div className="replay">
+  <svg viewBox={`0 0 ${W} ${H}`} className="route-svg" role="img" aria-label="Route replay">
+   <polyline points={base} className="rp-base"/>
+   {segs}
+   {markers.map(m=>{const [x,y]=xy[Math.min(n-1,m.index)];return <g key={m.label} className="route-km"><circle cx={x} cy={y} r="10"/><text x={x} y={y+3.8} textAnchor="middle">{m.label}</text></g>;})}
+   <circle cx={xy[0][0]} cy={xy[0][1]} r="6" className="route-start"/>
+   <circle cx={rx} cy={ry} r="9" className="rp-runner"/>
+  </svg>
+  <div className="replay-bar">
+   <button className="replay-play" onClick={play} aria-label={playing?'Pause replay':'Play replay'}>{playing?<svg width="18" height="18" viewBox="0 0 24 24"><path d="M7 5h3.5v14H7zM13.5 5H17v14h-3.5z" fill="currentColor"/></svg>:<svg width="18" height="18" viewBox="0 0 24 24"><path d="M7 4.5v15l12.5-7.5z" fill="currentColor"/></svg>}</button>
+   <input type="range" min="0" max={n-1} step="1" value={at} onChange={e=>{setPlaying(false);setI(+e.target.value);}} aria-label="Scrub through the run"/>
+  </div>
+  <div className="replay-read"><span><small>Distance</small><b>{dist[at]!=null?(dist[at]/1000).toFixed(2):'—'}</b></span><span><small>Time</small><b>{time[at]!=null?clock(time[at]):'—'}</b></span><span><small>Pace</small><b>{vel[at]>.6?pace(vel[at]):'—'}</b></span></div>
+  <div className="replay-key"><span>Slower</span>{[0,1,2,3,4].map(b=><i key={b} className={`rp-${b}`}/>)}<span>Faster</span></div>
+ </div>;
+}
+
 function ActivityDetail({summary,onClose,maxHr,restHr}){
  useDialog(true,onClose);
  const [scrolled,setScrolled]=useState(false),[activity,setActivity]=useState(summary),[st,setSt]=useState({}),[loading,setLoading]=useState(true),[error,setError]=useState(''),[metric,setMetric]=useState('heartrate');
  useEffect(()=>{let active=true;
   if(PREVIEW){const p=previewDetail(summary);setActivity(p.activity);setSt(p.streams);setLoading(false);return;}
-  Promise.all([getActivity(summary.id),getStreams(summary.id).catch(()=>({}))]).then(([a,s])=>{if(active){setActivity(a);setSt(s||{});}}).catch(()=>{if(active)setError('Detailed data could not be loaded. Your activity summary is shown.');}).finally(()=>{if(active)setLoading(false);});
+  Promise.all([getActivity(summary.id),getStreams(summary.id).catch(()=>({}))]).then(([a,s])=>{if(active){setActivity(a);setSt(s||{});rememberEfforts(a);window.dispatchEvent(new Event('apex-efforts'));}}).catch(()=>{if(active)setError('Detailed data could not be loaded. Your activity summary is shown.');}).finally(()=>{if(active)setLoading(false);});
   return()=>{active=false;};},[summary.id,summary]);
  const a=activity,isRun=run(a),hasDist=a.distance>0;
  const dist=st.distance?.data||[],alt=st.altitude?.data||[],hr=st.heartrate?.data||[],vel=st.velocity_smooth?.data||[],cad=st.cadence?.data||[],watts=st.watts?.data||[];
@@ -224,7 +258,7 @@ function ActivityDetail({summary,onClose,maxHr,restHr}){
 
     {a.laps?.length>1&&<section className="detail-section"><h3>Laps</h3><div className="splits laps"><div className="split split-head" aria-hidden="true"><span>Lap</span><span>Distance</span><span>Time</span><span>Pace</span><span>HR</span></div>{a.laps.map((l,i)=><div className="split" key={i}><span>{i+1}</span><span>{(l.distance/1000).toFixed(2)} km</span><span>{clock(l.moving_time)}</span><span>{pace(l.average_speed)}</span><span>{l.average_heartrate?Math.round(l.average_heartrate):'—'}</span></div>)}</div></section>}
 
-    {routePts.length>1&&<section className="detail-section"><h3>Route</h3><div className="route-box"><RouteLine points={routePts} markers={kmMarks}/></div><p className="form-note">{kmMarks.length?'Markers every '+(kmMarks[0].label)+' km. ':''}The filled dot is the start.</p></section>}
+    {routePts.length>1&&<section className="detail-section"><h3>{st.latlng?.data?.length>1&&st.time?.data?.length===st.latlng.data.length?'Replay':'Route'}</h3><div className="route-box">{st.latlng?.data?.length>1&&st.time?.data?.length===st.latlng.data.length?<RunReplay points={st.latlng.data} time={st.time.data} vel={vel.length===st.latlng.data.length?vel:st.latlng.data.map(()=>NaN)} dist={dist} markers={kmMarks}/>:<RouteLine points={routePts} markers={kmMarks}/>}</div><p className="form-note">{kmMarks.length?'Markers every '+(kmMarks[0].label)+' km. ':''}Press play to rerun it, or drag to any point.</p></section>}
 
     {a.best_efforts?.length>0&&<section className="detail-section"><h3>Best efforts</h3><dl className="facts single">{a.best_efforts.map((e,i)=><div key={i}><dt>{e.name}{e.pr_rank===1&&<span className="pr-tag">PR</span>}{e.pr_rank>1&&<span className="pr-tag is-quiet">{e.pr_rank===2?'2nd':'3rd'} best</span>}</dt><dd>{clock(e.moving_time||e.elapsed_time)}</dd></div>)}</dl></section>}
 

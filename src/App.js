@@ -11,6 +11,7 @@ import Strength from './ApexStrength';
 import Coach from './ApexCoach';
 import Profile from './ApexProfile';
 import Journal from './ApexJournal';
+import Performance from './ApexPerformance';
 import {PREVIEW,fixture,previewStore} from './ApexPreview';
 import {isCorosConnected,isCorosCallback,finishCorosConnect,startCorosConnect,disconnectCoros} from './coros';
 const {loadUserPrefs,saveUserPrefs,loadTrainingPlan,saveTrainingPlan}=PREVIEW?previewStore:persistence;
@@ -22,7 +23,7 @@ export default function App(){
  useEffect(()=>{if(PREVIEW)return;const update=()=>setSaveStatus(persistence.getSaveStatus());window.addEventListener('apex-save-status',update);return()=>window.removeEventListener('apex-save-status',update);},[]);
  const [activityId,setActivityId]=useState(null);
  const navigate=(id,activity=null)=>{setActivityId(activity);if(window.location.hash!=='#'+id)window.history.pushState({},'', '#'+id);setPage(id);};
- useEffect(()=>{const back=()=>{const id=window.location.hash.slice(1);setPage(['home','plan','activity','recovery','nutrition','gym','coach','profile','races'].includes(id)?id:'home');};window.addEventListener('popstate',back);back();return()=>window.removeEventListener('popstate',back);},[]);
+ useEffect(()=>{const back=()=>{const id=window.location.hash.slice(1);setPage(['home','plan','activity','performance','recovery','nutrition','gym','coach','profile','races'].includes(id)?id:'home');};window.addEventListener('popstate',back);back();return()=>window.removeEventListener('popstate',back);},[]);
  const [page,setPage]=useState('home'),[connected,setConnected]=useState(PREVIEW||isConnected()),[whoopOk,setWhoopOk]=useState(PREVIEW||isWhoopConnected());
  const [acts,setActs]=useState([]),[stats,setStats]=useState(null),[athlete,setAthlete]=useState(null),[gear,setGear]=useState([]),[whoop,setWhoop]=useState(null),[loading,setLoading]=useState(false),[whoopPending,setWhoopPending]=useState(false),[error,setError]=useState(''),[retry,setRetry]=useState(0);
  const [savedPlan,setSavedPlan]=useState(null),[savedWorkout,setSavedWorkout]=useState(null),[userPrefs,setUserPrefs]=useState(null),[prefsReady,setPrefsReady]=useState(false);
@@ -30,7 +31,7 @@ export default function App(){
  const [corosOk,setCorosOk]=useState(()=>!PREVIEW&&isCorosConnected()),[corosError,setCorosError]=useState('');
  const connectCoros=()=>{if(PREVIEW)return;setCorosError('');startCorosConnect().catch(e=>{setCorosError(e.message||'COROS could not be reached. Please try again.');navigate('profile');});};
  const disconnectCorosNow=()=>{disconnectCoros();setCorosOk(false);};
- useEffect(()=>{localStorage.setItem('theme',darkMode?'dark':'light');const c=darkMode?'#0B1017':'#EEF1EF';document.documentElement.style.background=c;document.documentElement.style.colorScheme=darkMode?'dark':'light';document.getElementById('apex-theme-color')?.setAttribute('content',c);},[darkMode]);
+ useEffect(()=>{localStorage.setItem('theme',darkMode?'dark':'light');const c=darkMode?'#08090C':'#F2F2F5';document.documentElement.style.background=c;document.documentElement.style.colorScheme=darkMode?'dark':'light';document.getElementById('apex-theme-color')?.setAttribute('content',c);},[darkMode]);
  useEffect(()=>{
   if(PREVIEW)return;
   if(isCorosCallback()){finishCorosConnect().then(()=>{setCorosOk(true);setCorosError('');}).catch(e=>setCorosError(e.message||'COROS could not be connected.')).finally(()=>{window.history.replaceState({},'','/#profile');setPage('profile');});return;}
@@ -40,7 +41,7 @@ export default function App(){
  },[]);
  useEffect(()=>{
   if(!connected)return;
-  if(PREVIEW){setAthlete(fixture.athlete);setActs(fixture.activities);setStats(fixture.stats);setWhoop(fixture.whoop);return;}
+  if(PREVIEW){setGear(fixture.gear||[]);setAthlete(fixture.athlete);setActs(fixture.activities);setStats(fixture.stats);setWhoop(fixture.whoop);return;}
   let active=true;setLoading(true);setError('');
   Promise.all([getAthlete(),getActivities(100)]).then(([a,activities])=>{if(active){setAthlete(a);setActs(activities);}return Promise.all([getStats(a.id),getAllGear(a)]);}).then(([s,g])=>{if(active){setStats(s);setGear(g.filter(Boolean));}}).catch(()=>{if(active)setError('Your activities could not finish syncing. Please try again.');}).finally(()=>{if(active)setLoading(false);});return()=>{active=false;};
  },[connected,retry]);
@@ -53,11 +54,12 @@ export default function App(){
  const stravaUrl=`https://www.strava.com/oauth/authorize?client_id=${process.env.REACT_APP_STRAVA_CLIENT_ID}&redirect_uri=${encodeURIComponent(window.location.origin)}&response_type=code&scope=read,activity:read_all`;
  if(!connected)return <>{error&&<p className="connection-error" role="alert">{error}</p>}<Welcome url={stravaUrl}/></>;
  const views={
-  home:<><Home prefsUnavailable={!!loadFailure?.prefs} planUnavailable={!!loadFailure?.plan} acts={acts} whoop={whoop} whoopOk={whoopOk} connectWhoop={connectWhoop} athlete={athlete} plan={savedPlan} nav={navigate} userPrefs={userPrefs}/>{!loadFailure?.prefs&&<Journal userPrefs={userPrefs} onSavePrefs={savePrefs} plan={savedPlan} nav={navigate}/>}</>,
+  home:<><Home gear={gear} prefsUnavailable={!!loadFailure?.prefs} planUnavailable={!!loadFailure?.plan} acts={acts} whoop={whoop} whoopOk={whoopOk} connectWhoop={connectWhoop} athlete={athlete} plan={savedPlan} nav={navigate} userPrefs={userPrefs}/>{!loadFailure?.prefs&&<Journal userPrefs={userPrefs} onSavePrefs={savePrefs} plan={savedPlan} nav={navigate}/>}</>,
   recovery:<><Recovery whoop={whoop} whoopOk={whoopOk} connectWhoop={connectWhoop}/>{!loadFailure?.prefs&&<Journal userPrefs={userPrefs} onSavePrefs={savePrefs} plan={savedPlan} nav={navigate}/>}</>,
+  performance:<Performance acts={acts} gear={gear} whoop={whoop} userPrefs={userPrefs} nav={navigate}/>,
   nutrition:<Nutrition userPrefs={userPrefs} onSavePrefs={savePrefs}/>,
   plan:<Training acts={acts} races={userPrefs?.races} openRaces={()=>navigate('races')} plan={savedPlan} onChange={savePlan} openCoach={()=>navigate('coach')}/>,
-  activity:<Activity acts={acts} gear={gear} initialId={activityId} restHr={whoop?.recoveries?.records?.[0]?.score?.resting_heart_rate}/>,
+  activity:<Activity acts={acts} gear={gear} initialId={activityId} restHr={whoop?.recoveries?.records?.[0]?.score?.resting_heart_rate} nav={navigate}/>,
   gym:<Strength userPrefs={userPrefs} onSavePrefs={savePrefs} savedWorkout={savedWorkout} openCoach={()=>navigate('coach')}/>,
   coach:<Coach whoop={whoop} onPlanSaved={savePlan} onGymSaved={saveWorkout} userPrefs={{...userPrefs,currentPlan:savedPlan}} corosOk={corosOk} connectCoros={connectCoros}/>,
   profile:<Profile athlete={athlete} acts={acts} whoopOk={whoopOk} whoop={whoop} connectWhoop={connectWhoop} corosOk={corosOk} connectCoros={connectCoros} onDisconnectCoros={disconnectCorosNow} corosError={corosError} darkMode={darkMode} setDarkMode={setDarkMode} onDisconnect={()=>{if(PREVIEW)return;disconnect();setConnected(false);setActs([]);}} onDisconnectWhoop={()=>{if(PREVIEW)return;disconnectWhoop();setWhoopOk(false);setWhoop(null);}} userPrefs={userPrefs} onSavePrefs={savePrefs}/>
