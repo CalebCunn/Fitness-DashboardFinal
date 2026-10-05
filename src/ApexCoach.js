@@ -5,6 +5,7 @@ import {PREVIEW,previewStore} from './ApexPreview';
 import {localDate,calendarTable,parsePlanBlock,mergePlan,prettyDate,weekdayLong,addDays,mondayOf,isISODate,surfaceFor} from './apexDates';
 import {datedSessions} from './ApexTraining';
 import {corosForCoach} from './coros';
+import {skyFor} from './ApexRidge';
 const {loadChatHistory,saveChatHistory}=PREVIEW?previewStore:persistence;
 
 const GREETING='Ready when you are. Ask about today, your week, or what to change.';
@@ -150,17 +151,16 @@ Saving to COROS is ${writes?'ENABLED for this message only. Save only what the u
 
  return <div className="coach">
   <header className="coach-head">
-   <div className="coach-id"><span className="coach-mark"><Icon name="coach" size={20}/></span><div><strong>APEX Coach</strong><small>{sending?(status||'Writing…'):'Knows your calendar, plan and recovery'}</small></div><button className="text-button" onClick={()=>setMsgs([{role:'assistant',content:GREETING}])} disabled={sending}>New chat</button></div>
+   <div className="coach-id"><div><strong>Coach</strong><small>{sending?(status||'Writing…'):'Knows your calendar, plan and recovery'}</small></div><button className="text-button" onClick={()=>setMsgs([{role:'assistant',content:GREETING}])} disabled={sending}>New chat</button></div>
    <div className="coach-pills">
     <span className="pill"><i className="dot"/>{prettyDate(today,{weekday:'short',day:'numeric',month:'short'})}</span>
-    {recScore!=null&&<span className="pill">Recovery <b>{recScore}%</b></span>}
+    {recScore!=null&&<span className="pill"><i className={`sky-swatch sky-${skyFor(recScore).key}`}/>Recovery <b>{recScore}</b></span>}
     <span className="pill">{plan?.sessions?.length?`${plan.sessions.length} sessions planned`:'No plan yet'}</span>
     {corosOk?<span className="pill pill-live"><i className="dot"/>COROS live</span>:<button className="pill pill-action" onClick={connectCoros}>Connect COROS</button>}
    </div>
   </header>
 
   <div className="coach-log" aria-live="polite" ref={logRef} onScroll={e=>{const el=e.currentTarget;stick.current=el.scrollHeight-el.scrollTop-el.clientHeight<80;}}>
-   {fresh&&<div className="coach-starters">{PROMPTS.map(([k,p])=><button key={k} onClick={()=>send(p)}><span>{k}</span><p>{p}</p><Icon name="arrow" size={16}/></button>)}</div>}
    {msgs.map((m,i)=>(i===0&&m.role==='assistant'&&!fresh)?null:<article key={i} className={`bubble ${m.role==='user'?'mine':'theirs'}${m.error?' is-error':''}`}>
     {m.previews?.length>0&&<div className="bubble-images">{m.previews.map((src,j)=><img key={j} src={src} alt="Shared with coach"/>)}</div>}
     {m.tools?.length>0&&<div className="bubble-tools">{[...new Set(m.tools)].map(t=><span key={t}>{TOOL_LABEL(t)}</span>)}</div>}
@@ -168,8 +168,9 @@ Saving to COROS is ${writes?'ENABLED for this message only. Save only what the u
     {m.streaming&&!m.content&&!m.drafting&&<div className="typing"><i/><i/><i/></div>}
     {m.drafting&&<div className="drafting"><span className="spinner"/>Drafting your sessions</div>}
     {m.plan&&<PlanProposal proposal={m.plan} applied={m.applied} onApply={()=>apply(i,m.plan)} onFix={()=>send('Some days or dates in that plan look wrong. Check every row against the calendar and send the corrected plan.')} busy={sending}/>}
-    {m.gym&&<div className="proposal"><div className="proposal-top"><span className="eyebrow">Strength session</span><strong>{m.gym.title}</strong></div><div className="proposal-lanes">{m.gym.exercises.map((e,j)=><div className="proposal-row" key={j} style={{'--lane':'#25242E'}}><span className="lane-date"><b>{String(j+1).padStart(2,'0')}</b></span><span className="lane-swatch"/><div><b>{e.name}</b><em>{e.sets} × {e.reps} · {e.weight}</em>{e.notes&&<small>{e.notes}</small>}</div></div>)}</div><div className="proposal-actions"><button className="primary-action" disabled={m.gymApplied} onClick={()=>{onGymSaved(m.gym);setMsgs(msgs.map((x,j)=>j===i?{...x,gymApplied:true}:x));}}>{m.gymApplied?'Added to Strength':'Add to Strength'}</button></div></div>}
+    {m.gym&&<div className="proposal"><div className="proposal-top"><span className="eyebrow">Strength session</span><strong>{m.gym.title}</strong></div><div className="proposal-lanes">{m.gym.exercises.map((e,j)=><div className="proposal-row" key={j} style={{'--lane':'#465363'}}><span className="lane-date"><b>{String(j+1).padStart(2,'0')}</b></span><span className="lane-swatch"/><div><b>{e.name}</b><em>{e.sets} × {e.reps} · {e.weight}</em>{e.notes&&<small>{e.notes}</small>}</div></div>)}</div><div className="proposal-actions"><button className="primary-action" disabled={m.gymApplied} onClick={()=>{onGymSaved(m.gym);setMsgs(msgs.map((x,j)=>j===i?{...x,gymApplied:true}:x));}}>{m.gymApplied?'Added to Strength':'Add to Strength'}</button></div></div>}
    </article>)}
+   {fresh&&<div className="coach-starters">{PROMPTS.map(([k,p])=><button key={k} onClick={()=>send(p)}><span>{k}</span><p>{p}</p><Icon name="arrow" size={16}/></button>)}</div>}
    <div ref={bottom}/>
   </div>
 
@@ -195,7 +196,7 @@ function PlanProposal({proposal,applied,onApply,onFix,busy}){
   <div className="proposal-top"><span className="eyebrow">Proposed plan</span><strong>{proposal.title}</strong><small>{prettyDate(proposal.startDate)} to {prettyDate(proposal.endDate)} · {run.toFixed(1)} km running</small></div>
   {proposal.corrections?.length>0&&<p className="proposal-fix">APEX corrected {proposal.corrections.length} weekday label{proposal.corrections.length>1?'s':''} so every session matches its real date.</p>}
   <div className="proposal-lanes">{proposal.sessions.map((s,j)=>{const sf=surfaceFor(s.type);return <div className="proposal-row" key={j} style={{'--lane':sf.bg}}><span className="lane-date"><b>{prettyDate(s.date,{weekday:'short'})}</b>{prettyDate(s.date,{day:'numeric',month:'short'})}</span><span className="lane-swatch"/><div><b>{s.type}</b>{s.type!=='Rest'&&<em>{[parseFloat(s.dist)>0?s.dist:'',s.pace&&s.pace!=='N/A'?s.pace:''].filter(Boolean).join(' · ')}</em>}{s.notes&&<small>{s.notes}</small>}</div></div>;})}</div>
-  <div className="proposal-actions"><button className="secondary-action" disabled={busy} onClick={onFix}>Dates look wrong</button><button className="primary-action" disabled={applied} onClick={onApply}>{applied?'Applied ✓':'Apply to my plan'}</button></div>
+  <div className="proposal-actions"><button className="secondary-action" disabled={busy} onClick={onFix}>Dates look wrong</button><button className="primary-action" disabled={applied} onClick={onApply}>{applied?'Applied':'Apply to my plan'}</button></div>
   <p className="form-note">Applying replaces only {prettyDate(proposal.startDate,{day:'numeric',month:'short'})} to {prettyDate(proposal.endDate,{day:'numeric',month:'short'})}. Everything else in your plan stays.</p>
  </div>;
 }

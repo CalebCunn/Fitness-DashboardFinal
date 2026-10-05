@@ -90,13 +90,14 @@ export function mergePlan(existing, proposal) {
   return { title: proposal.title, startDate: sessions[0]?.date || proposal.startDate, sessions };
 }
 
-// Session type to track surface.
+// Session type to effort value: one navy, lighter for easy and darker for hard,
+// like ridges fading with distance.
 export const SURFACE = {
-  'Long Run': { name: 'Long run', bg: '#5B45C0', ink: '#F5F4F0', soft: '#E8E0F0' },
-  Easy: { name: 'Easy', bg: '#2F6A4F', ink: '#F5F4F0', soft: '#E4EADD' },
-  Tempo: { name: 'Tempo', bg: '#A85A3B', ink: '#F5F4F0', soft: '#EAE2D8' },
-  Interval: { name: 'Intervals', bg: '#BF3A2B', ink: '#F5F4F0', soft: '#F3DDD8' },
-  Gym: { name: 'Strength', bg: '#25242E', ink: '#F5F4F0', soft: '#E6E4EA' },
-  Rest: { name: 'Rest', bg: '#8072A7', ink: '#F5F4F0', soft: '#E8E0F0' },
+  'Long Run': { name: 'Long run', bg: '#6F8DB2', ink: '#FFFFFF', soft: '#DCE4EE' },
+  Easy: { name: 'Easy', bg: '#A9BDD3', ink: '#101A26', soft: '#E3EAF1' },
+  Tempo: { name: 'Tempo', bg: '#3F5E86', ink: '#FFFFFF', soft: '#D5DDE8' },
+  Interval: { name: 'Intervals', bg: '#1F3656', ink: '#FFFFFF', soft: '#CED6E1' },
+  Gym: { name: 'Strength', bg: '#465363', ink: '#FFFFFF', soft: '#DDE1E6' },
+  Rest: { name: 'Rest', bg: '#C9D2DB', ink: '#101A26', soft: '#E8ECEF' },
 };
 export const surfaceFor = type => SURFACE[type] || SURFACE.Easy;

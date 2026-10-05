@@ -67,7 +67,7 @@ export const getAthlete = () => get("/athlete");
 export const getStats = (id) => get(`/athletes/${id}/stats`);
 export const getActivities = (n = 50) => get(`/athlete/activities?per_page=${n}`);
 export const getActivity = (id) => get(`/activities/${id}`);
-export const getStreams = (id) => get(`/activities/${id}/streams?keys=heartrate,cadence,watts,velocity_smooth,altitude,time&key_by_type=true`);
+export const getStreams = (id) => get(`/activities/${id}/streams?keys=time,distance,latlng,altitude,velocity_smooth,heartrate,cadence,watts,grade_smooth&key_by_type=true`);
 export const getGear = (id) => get(`/gear/${id}`);
 
 // Get all athlete gear (shoes)

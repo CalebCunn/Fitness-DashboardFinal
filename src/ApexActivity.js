@@ -1,36 +1,237 @@
 import {useDialog} from './ApexInteractions';
-import {useState,useEffect} from 'react';
-import {AreaChart,Area,XAxis,YAxis,Tooltip,ResponsiveContainer} from 'recharts';
+import {useState,useEffect,useMemo} from 'react';
+import {createPortal} from 'react-dom';
 import {getActivity,getStreams} from './strava';
-import {PREVIEW} from './ApexPreview';
+import {PREVIEW,previewDetail} from './ApexPreview';
 import {Icon} from './ApexUI';
 import {localDate} from './ApexTraining';
-const run=a=>a.type==='Run'||a.sport_type==='Run';
-const pace=s=>{if(!s)return '—';const v=Math.round(1000/s);return `${Math.floor(v/60)}:${String(v%60).padStart(2,'0')}`;};
+import {addDays,mondayOf} from './apexDates';
+import {smooth,Profile} from './ApexRidge';
+
+const run=a=>a.type==='Run'||a.sport_type==='Run'||a.sport_type==='TrailRun';
+const pace=s=>{if(!s||!Number.isFinite(s)||s<=0)return '—';const v=Math.round(1000/s);return `${Math.floor(v/60)}:${String(v%60).padStart(2,'0')}`;};
+const secPace=v=>{if(!Number.isFinite(v))return '—';v=Math.round(v);return `${Math.floor(v/60)}:${String(v%60).padStart(2,'0')}`;};
 const duration=s=>`${Math.floor((s||0)/3600)?Math.floor(s/3600)+'h ':''}${Math.floor((s||0)%3600/60)}m`;
-export default function Activity({acts=[],gear=[],initialId=null}){
- const [hover,setHover]=useState(null),[day,setDay]=useState(null);
+const clock=s=>{s=Math.round(s||0);const h=Math.floor(s/3600),m=Math.floor(s%3600/60),x=s%60;return h?`${h}:${String(m).padStart(2,'0')}:${String(x).padStart(2,'0')}`:`${m}:${String(x).padStart(2,'0')}`;};
+const day=a=>(a.start_date_local||a.start_date||'').slice(0,10);
+const when=a=>new Date(a.start_date_local||a.start_date);
+const typeName=a=>run(a)?(a.workout_type===1?'Race':'Run'):(a.sport_type||a.type||'Session').replace(/([a-z])([A-Z])/g,'$1 $2');
+const longDate=key=>new Date(key+'T12:00:00').toLocaleDateString('en-GB',{weekday:'long',day:'numeric',month:'long'});
+const shortDate=key=>new Date(key+'T12:00:00').toLocaleDateString('en-GB',{weekday:'short',day:'numeric',month:'short'});
+
+export default function Activity({acts=[],gear=[],initialId=null,restHr=null}){
+ const [hover,setHover]=useState(null),[picked,setPicked]=useState(null);
  const [type,setType]=useState('all'),[query,setQuery]=useState(''),[period,setPeriod]=useState('all'),[selected,setSelected]=useState(()=>acts.find(a=>a.id===initialId)||null);
- const start=new Date();start.setDate(start.getDate()-Number(period));
- const filtered=acts.filter(a=>(type==='all'||(type==='run'?run(a):!run(a)))&&(period==='all'||new Date(a.start_date_local||a.start_date)>=start)&&(!query||a.name?.toLowerCase().includes(query.toLowerCase()))).sort((a,b)=>new Date(b.start_date_local||b.start_date)-new Date(a.start_date_local||a.start_date));
+ useEffect(()=>{if(initialId){const a=acts.find(x=>x.id===initialId);if(a)setSelected(a);}},[initialId,acts]);
+ const today=localDate(new Date()),start=addDays(mondayOf(today),-77);
+ const since=new Date();since.setDate(since.getDate()-Number(period));
+ const filtered=acts.filter(a=>(type==='all'||(type==='run'?run(a):!run(a)))&&(period==='all'||when(a)>=since)&&(!query||a.name?.toLowerCase().includes(query.toLowerCase()))).sort((a,b)=>when(b)-when(a));
  const total=filtered.reduce((s,a)=>s+(a.distance||0),0)/1000,time=filtered.reduce((s,a)=>s+(a.moving_time||0),0);
- const grid=Array.from({length:84},(_,i)=>{const d=new Date();d.setDate(d.getDate()-83+i);const key=localDate(d),items=acts.filter(a=>(a.start_date_local||a.start_date||'').slice(0,10)===key);return {key,items,mins:items.reduce((s,a)=>s+(a.moving_time||0)/60,0),count:items.length};});
- return <div className="activity-page"><section className="movement-studio"><div><span className="eyebrow">CONSISTENCY LEAVES A TRACE</span><h2>Small efforts.<br/>Lasting momentum.</h2><p>Your last 12 weeks of movement.</p><div className="movement-legend"><span>Less</span>{[0,1,2,3].map(i=><i key={i} className={'intensity-'+i}/>)}<span>More time</span></div></div><div className="mosaic-wrap"><div className="mosaic-label" aria-live="polite">{(hover||day)?(()=>{const d=hover||day;return <><b>{new Date(d.key+'T12:00:00').toLocaleDateString('en-GB',{weekday:'short',day:'numeric',month:'short'})}</b><span>{d.count?`${Math.round(d.mins)} min · ${d.count} ${d.count>1?'sessions':'session'}`:'Rest day'}</span></>;})():<span>Tap a day to see what you did</span>}</div><div className="movement-mosaic" aria-label="Activity minutes by day, last 12 weeks" onMouseLeave={()=>setHover(null)}>{grid.map(d=><button key={d.key} className={`intensity-${d.mins===0?0:d.mins<40?1:d.mins<80?2:3}${(day&&day.key===d.key)?' is-picked':''}${d.key===localDate(new Date())?' is-now':''}`} aria-label={`${new Date(d.key+'T12:00:00').toLocaleDateString('en-GB',{weekday:'long',day:'numeric',month:'long'})}: ${d.count?Math.round(d.mins)+' minutes, '+d.count+' activities':'rest day'}`} onMouseEnter={()=>setHover(d)} onFocus={()=>setHover(d)} onBlur={()=>setHover(null)} onClick={()=>{setHover(null);if(!d.count){setDay(d);return;}if(d.count===1){setDay(null);setSelected(d.items[0]);}else setDay(d);}}/>)}</div></div></section>
- {day?.count>1&&<section className="day-panel"><div className="card-head"><h2>{new Date(day.key+'T12:00:00').toLocaleDateString('en-GB',{weekday:'long',day:'numeric',month:'long'})}</h2><button className="text-button" onClick={()=>setDay(null)}>Close</button></div>{day.items.map(a=><button key={a.id} className="day-item" onClick={()=>setSelected(a)}><span className="day-swatch" data-run={run(a)}/><span><b>{a.name}</b><small>{run(a)?`${((a.distance||0)/1000).toFixed(1)} km · ${pace(a.average_speed)} /km`:duration(a.moving_time)}</small></span><Icon name="arrow" size={16}/></button>)}</section>}
- <div className="activity-controls"><div className="apex-segments">{[['all','Everything'],['run','Running'],['other','Other training']].map(([id,l])=><button key={id} aria-pressed={type===id} onClick={()=>setType(id)}>{l}</button>)}</div><div className="activity-search"><input aria-label="Search activities" placeholder="Find an activity…" value={query} onChange={e=>setQuery(e.target.value)}/><select aria-label="Activity period" value={period} onChange={e=>setPeriod(e.target.value)}><option value="all">All loaded</option><option value="30">Last 30 days</option><option value="7">Last 7 days</option></select></div></div>
- <div className="activity-totals"><div><span>Activities</span><strong>{filtered.length}</strong></div><div><span>Distance</span><strong>{total.toFixed(1)}<small> km</small></strong></div><div><span>Time moving</span><strong>{duration(time)}</strong></div></div>
- <div className="activity-gallery">{filtered.map((a,i)=><button className={`activity-story ${run(a)?'running-story':'strength-story'}`} key={a.id} onClick={()=>setSelected(a)}><div className="story-top"><span>{new Date(a.start_date_local||a.start_date).toLocaleDateString('en-GB',{weekday:'short',day:'numeric',month:'short'})}</span><Icon name={run(a)?'activity':'gym'} size={20}/></div><div className="story-art" aria-hidden="true">{run(a)?<RouteLine encoded={a.map?.summary_polyline}/>:<div className="dumbbell-art"><i/><i/><i/></div>}</div><div className="story-content"><span>{run(a)?'RUNNING':(a.type||'ACTIVITY').replace(/([a-z])([A-Z])/g,'$1 $2').toUpperCase()}</span><h3>{a.name}</h3><div className="story-stats"><div><strong>{a.distance?(a.distance/1000).toFixed(1):Math.round((a.moving_time||0)/60)}</strong><span>{a.distance?'km':'min'}</span></div><div><strong>{run(a)?pace(a.average_speed):duration(a.moving_time)}</strong><span>{run(a)?'/km':'duration'}</span></div><span className="story-arrow"><Icon name="arrow" size={18}/></span></div></div></button>)}</div>{filtered.length===0&&<div className="training-empty"><h2>No matching movement.</h2><p>Try another search or time range.</p></div>}
- {gear.length>0&&<section className="gear-shelf"><div className="section-label"><div><span className="eyebrow">THE KIT THAT CARRIES YOU</span><h2>In your rotation.</h2></div></div><div>{gear.map(g=><div key={g.id}><Icon name="activity"/><h3>{g.name||g.nickname}</h3><strong>{Math.round((g.distance||0)/1000)}<small> km</small></strong></div>)}</div></section>}
- <p className="form-note">Based on the activities loaded from your existing Strava connection. This may be a subset of your full history.</p>
- {selected&&<ActivityDetail summary={selected} onClose={()=>setSelected(null)}/>}
+ // Twelve Monday-to-Sunday weeks ending this week: columns are weeks, rows are weekdays.
+ const grid=useMemo(()=>Array.from({length:84},(_,i)=>{const key=addDays(start,i),items=acts.filter(a=>day(a)===key);const mins=items.reduce((s,a)=>s+(a.moving_time||0)/60,0);
+  return {key,items,mins,count:items.length,future:key>today,race:items.some(a=>run(a)&&a.workout_type===1),km:items.filter(run).reduce((s,a)=>s+(a.distance||0)/1000,0)};}),[acts,start,today]);
+ const weeks=Array.from({length:12},(_,w)=>grid.slice(w*7,w*7+7).reduce((s,d)=>s+d.km,0));
+ const runKm=weeks.reduce((a,b)=>a+b,0),sessions=grid.reduce((n,d)=>n+d.count,0),hours=grid.reduce((n,d)=>n+d.mins,0)/60;
+ const level=d=>d.future?'future':d.race?4:d.mins===0?0:d.mins<40?1:d.mins<80?2:3;
+ const maxHr=Math.max(0,...acts.map(a=>a.max_heartrate||0))||null;
+ const label=hover||picked;
+ const vmax=Math.max(10,...weeks);
+ const ridge=smooth([[0,58],...weeks.map((v,i)=>[(i+.5)/12*400,58-v/vmax*52]),[400,58]])+' L400,64 L0,64Z';
+ return <div className="activity-page">
+  <section className="volume" aria-label="Last 12 weeks">
+   <p className="meta">Last 12 weeks · {sessions} sessions · {Math.round(hours)} h</p>
+   <p className="hero-figure"><span>{Math.round(runKm)}</span><small>km run</small></p>
+   <div className="grid-wrap">
+    <svg className="volume-ridge" viewBox="0 0 400 64" preserveAspectRatio="none" aria-hidden="true"><path d={ridge}/></svg>
+    <div className="movement-mosaic" aria-label="Activity minutes by day, last 12 weeks" onMouseLeave={()=>setHover(null)}>
+     {grid.map(d=>{const l=level(d);return <button key={d.key} disabled={d.future} className={`tile lvl-${l}${picked?.key===d.key?' is-picked':''}${d.key===today?' is-now':''}`}
+      aria-label={`${longDate(d.key)}: ${d.future?'still to come':d.count?Math.round(d.mins)+' minutes, '+d.count+' activities':'rest day'}`}
+      onMouseEnter={()=>setHover(d)} onFocus={()=>setHover(d)} onBlur={()=>setHover(null)}
+      onClick={()=>{setHover(null);if(d.count===1){setPicked(d);setSelected(d.items[0]);}else setPicked(d);}}/>;})}
+    </div>
+   </div>
+   <div className="mosaic-label" aria-live="polite">{label?<><small>{shortDate(label.key)}</small><b>{label.count===0?(label.future?'Still to come':'Rest day'):label.count===1?`${label.items[0].name}${label.items[0].distance?` · ${(label.items[0].distance/1000).toFixed(2)} km`:''} · ${clock(label.items[0].moving_time)}`:`${label.count} sessions · ${Math.round(label.mins)} min`}</b></>:<><small>Tap a day</small><b>Darker squares are longer days. The sun is today.</b></>}</div>
+  </section>
+
+  {picked?.count>1&&<section className="day-panel"><div className="section-head"><h2>{longDate(picked.key)}</h2><button className="text-button" onClick={()=>setPicked(null)}>Close</button></div>{picked.items.map(a=><button key={a.id} className="list-row" onClick={()=>setSelected(a)}><span className="row-copy"><small>{typeName(a)}</small><b>{a.name}</b></span><span className="row-figure">{run(a)?((a.distance||0)/1000).toFixed(1):Math.round((a.moving_time||0)/60)}<small>{run(a)?'km':'min'}</small></span><Icon name="chevron" size={16}/></button>)}</section>}
+
+  <div className="activity-controls">
+   <div className="apex-segments">{[['all','Everything'],['run','Running'],['other','Other']].map(([id,l])=><button key={id} aria-pressed={type===id} onClick={()=>setType(id)}>{l}</button>)}</div>
+   <div className="activity-search"><input aria-label="Search activities" placeholder="Find an activity" value={query} onChange={e=>setQuery(e.target.value)}/><select aria-label="Activity period" value={period} onChange={e=>setPeriod(e.target.value)}><option value="all">All loaded</option><option value="30">Last 30 days</option><option value="7">Last 7 days</option></select></div>
+   <p className="meta">{filtered.length} activities · {total.toFixed(1)} km · {duration(time)} moving</p>
+  </div>
+
+  <div className="activity-list">{filtered.map(a=><button className="activity-row" key={a.id} onClick={()=>setSelected(a)}>
+   <span className="activity-art" aria-hidden="true">{run(a)?<RouteLine encoded={a.map?.summary_polyline} small/>:<Icon name="gym" size={22}/>}</span>
+   <span className="row-copy"><small>{when(a).toLocaleDateString('en-GB',{weekday:'short',day:'numeric',month:'short'})} · {typeName(a)}</small><b>{a.name}</b></span>
+   <span className="row-figure">{a.distance?(a.distance/1000).toFixed(2):Math.round((a.moving_time||0)/60)}<small>{a.distance?'km':'min'}</small><em>{run(a)?`${pace(a.average_speed)} /km`:clock(a.moving_time)}</em></span>
+  </button>)}</div>
+  {filtered.length===0&&<div className="empty-block"><h2>Nothing matches.</h2><p>Try another search or time range.</p></div>}
+
+  {gear.length>0&&<section className="gear-shelf"><div className="section-head"><h2>Shoes</h2></div>{gear.map(g=><div className="list-row" key={g.id}><span className="row-copy"><small>{g.brand_name||'In your rotation'}</small><b>{g.name||g.nickname}</b></span><span className="row-figure">{Math.round((g.distance||0)/1000)}<small>km</small></span></div>)}</section>}
+  <p className="form-note">From the activities loaded from Strava. This may be a subset of your full history.</p>
+  {selected&&<ActivityDetail summary={selected} maxHr={maxHr} restHr={restHr} onClose={()=>setSelected(null)}/>}
  </div>;
 }
-function decode(encoded){if(!encoded)return [];let index=0,lat=0,lng=0,out=[];try{while(index<encoded.length){let shift=0,result=0,b;do{b=encoded.charCodeAt(index++)-63;result|=(b&31)<<shift;shift+=5;}while(b>=32&&index<encoded.length);lat+=result&1?~(result>>1):result>>1;shift=0;result=0;do{b=encoded.charCodeAt(index++)-63;result|=(b&31)<<shift;shift+=5;}while(b>=32&&index<encoded.length);lng+=result&1?~(result>>1):result>>1;out.push([lng/1e5,lat/1e5]);}}catch{return [];}return out;}
-function RouteLine({encoded}){const pts=decode(encoded);if(pts.length<2)return <div className="abstract-contours"><svg viewBox="0 0 400 140" preserveAspectRatio="none">{Array.from({length:8},(_,i)=><path key={i} d={`M-15 ${105+i*6}C70 ${120+i*4},75 ${10+i*9},175 ${55+i*7}S290 ${135+i*3},420 ${20+i*12}`} fill="none" stroke="currentColor" strokeOpacity={.45-i*.025}/>)}</svg></div>;const xs=pts.map(p=>p[0]),ys=pts.map(p=>p[1]),minX=Math.min(...xs),minY=Math.min(...ys),dx=Math.max(...xs)-minX,dy=Math.max(...ys)-minY,scale=110/Math.max(dx,dy,.0001);const path=pts.map(([x,y],i)=>`${i?'L':'M'}${200+(x-minX-dx/2)*scale},${75-(y-minY-dy/2)*scale}`).join(' ');return <svg viewBox="0 0 400 150" role="img" aria-label="Activity route outline"><path d={path} fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"/></svg>;}
-function ActivityDetail({summary,onClose}){
+
+function decode(encoded){if(!encoded)return [];let index=0,lat=0,lng=0,out=[];try{while(index<encoded.length){let shift=0,result=0,b;do{b=encoded.charCodeAt(index++)-63;result|=(b&31)<<shift;shift+=5;}while(b>=32&&index<encoded.length);lat+=result&1?~(result>>1):result>>1;shift=0;result=0;do{b=encoded.charCodeAt(index++)-63;result|=(b&31)<<shift;shift+=5;}while(b>=32&&index<encoded.length);lng+=result&1?~(result>>1):result>>1;out.push([lat/1e5,lng/1e5]);}}catch{return [];}return out;}
+
+// Projects [lat,lng] points into a box, keeping the route's real proportions.
+function project(points,w,h,pad){
+ const ys=points.map(p=>p[0]),xs=points.map(p=>p[1]*Math.cos((ys[0]||0)*Math.PI/180));
+ const minX=Math.min(...xs),maxX=Math.max(...xs),minY=Math.min(...ys),maxY=Math.max(...ys);
+ const s=Math.min((w-2*pad)/Math.max(maxX-minX,1e-6),(h-2*pad)/Math.max(maxY-minY,1e-6));
+ const ox=(w-(maxX-minX)*s)/2,oy=(h-(maxY-minY)*s)/2;
+ return points.map((_,i)=>[ox+(xs[i]-minX)*s,h-(oy+(ys[i]-minY)*s)]);
+}
+
+function RouteLine({encoded,points,small=false,markers=[]}){
+ const pts=points||decode(encoded);
+ if(pts.length<2)return small?<Icon name="activity" size={22}/>:null;
+ const W=small?48:400,H=small?48:240,xy=project(pts,W,H,small?6:28);
+ const d=xy.filter((_,i)=>i%Math.max(1,Math.floor(xy.length/400))===0||i===xy.length-1).map(([x,y],i)=>`${i?'L':'M'}${x.toFixed(1)},${y.toFixed(1)}`).join(' ');
+ if(small)return <svg viewBox={`0 0 ${W} ${H}`} width="48" height="48"><path d={d} fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"/></svg>;
+ const [sx,sy]=xy[0],[ex,ey]=xy[xy.length-1];
+ return <svg viewBox={`0 0 ${W} ${H}`} className="route-svg" role="img" aria-label="Route">
+  {Array.from({length:9},(_,i)=><path key={i} className="route-contour" d={`M-20 ${24+i*26} C80 ${8+i*27} 160 ${50+i*22} 230 ${30+i*26} S330 ${60+i*20} 420 ${40+i*24}`}/>)}
+  <path d={d} className="route-path"/>
+  {markers.map(m=>{const [x,y]=xy[Math.min(xy.length-1,m.index)];return <g key={m.label} className="route-km"><circle cx={x} cy={y} r="10"/><text x={x} y={y+3.8} textAnchor="middle">{m.label}</text></g>;})}
+  <circle cx={ex} cy={ey} r="6.5" className="route-end"/><circle cx={sx} cy={sy} r="7" className="route-start"/><circle cx={sx} cy={sy} r="2.8" className="route-start-in"/>
+ </svg>;
+}
+
+// Splits per whole kilometre, worked out from the streams when Strava has none.
+function streamSplits(st){
+ const dist=st.distance?.data,time=st.time?.data;if(!dist?.length||!time?.length)return [];
+ const hr=st.heartrate?.data,alt=st.altitude?.data,out=[];let from=0,mark=1000;
+ for(let i=1;i<dist.length;i++){if(dist[i]>=mark||i===dist.length-1){const dd=dist[i]-dist[from],tt=time[i]-time[from];if(dd>50){const hrs=hr?hr.slice(from,i+1).filter(Number.isFinite):[];out.push({distance:dd,moving_time:tt,average_speed:dd/tt,average_heartrate:hrs.length?hrs.reduce((a,b)=>a+b,0)/hrs.length:null,elevation_difference:alt?alt[i]-alt[from]:null});}from=i;mark+=1000;}}
+ return out;
+}
+
+const ZONES=[['Z1','Recovery',.5,.6],['Z2','Endurance',.6,.7],['Z3','Tempo',.7,.8],['Z4','Threshold',.8,.9],['Z5','Max',.9,1.01]];
+// Heart-rate reserve (Karvonen) when a resting HR is known from WHOOP, else % of max.
+function zoneTimes(st,maxHr,restHr){
+ const hr=st.heartrate?.data,time=st.time?.data;if(!hr?.length||!time?.length||!maxHr)return null;
+ const secs=ZONES.map(()=>0);
+ for(let i=1;i<hr.length;i++){const dt=Math.min(30,time[i]-time[i-1]),r=restHr&&restHr<maxHr?(hr[i]-restHr)/(maxHr-restHr):hr[i]/maxHr;const z=ZONES.findIndex(([, ,lo,hi])=>r>=lo&&r<hi);if(z>=0)secs[z]+=dt;}
+ const total=secs.reduce((a,b)=>a+b,0);return total?secs.map(s=>({secs:s,pct:s/total*100})):null;
+}
+
+function insights(a,st,splits){
+ const out=[],dist=st.distance?.data,time=st.time?.data,hr=st.heartrate?.data,vel=st.velocity_smooth?.data;
+ if(splits.length>=4){
+  const full=splits.filter(s=>s.distance>900),half=Math.floor(full.length/2),p=s=>1000/s.average_speed;
+  const first=full.slice(0,half).reduce((n,s)=>n+p(s),0)/half,second=full.slice(half).reduce((n,s)=>n+p(s),0)/(full.length-half);
+  const diff=Math.round(first-second);
+  if(Math.abs(diff)<=3)out.push(['Even pacing.',`Both halves within ${Math.max(1,Math.abs(diff))} s/km of each other.`]);
+  else if(diff>0)out.push(['Negative split.',`The second half was ${diff} s/km faster than the first.`]);
+  else out.push(['Positive split.',`The second half was ${-diff} s/km slower. Worth a look if it was meant to be steady.`]);
+  const paces=full.map(p),mean=paces.reduce((a,b)=>a+b,0)/paces.length,sd=Math.sqrt(paces.reduce((n,x)=>n+(x-mean)**2,0)/paces.length);
+  const fast=paces.indexOf(Math.min(...paces));
+  out.push([`Fastest km: ${fast+1}.`,`${secPace(paces[fast])} /km. Your kilometres varied by about ±${Math.round(sd)} s.`]);
+ }
+ if(hr?.length&&vel?.length&&time?.length&&time[time.length-1]>1500){
+  const mid=time[time.length-1]/2,ratio=(lo,hi)=>{let v=0,h=0;for(let i=0;i<time.length;i++)if(time[i]>=lo&&time[i]<hi&&hr[i]>0&&vel[i]>.5){v+=vel[i];h+=hr[i];}return h?v/h:null;};
+  const r1=ratio(300,mid),r2=ratio(mid,Infinity);
+  if(r1&&r2){const drift=(r1-r2)/r1*100;out.push([`${drift.toFixed(1)}% heart-rate drift.`,drift<5?'Below 5%, so your aerobic base held for the whole run.':'Above 5%. Heat, fuelling or fatigue made the same pace cost more late on.']);}
+ }
+ if(a.total_elevation_gain&&a.distance){const perKm=a.total_elevation_gain/(a.distance/1000);if(perKm>=15)out.push(['Hilly.',`${Math.round(perKm)} m of climbing per km. Judge it by effort, not pace.`]);}
+ return out;
+}
+
+const skyOf=a=>{const h=a.start_date_local?when(a).getUTCHours():when(a).getHours();return h<5||h>=21?'dark':h<9?'dawn':h<17?'day':'dusk';};
+
+function ActivityDetail({summary,onClose,maxHr,restHr}){
  useDialog(true,onClose);
- const [activity,setActivity]=useState(summary),[streams,setStreams]=useState({}),[loading,setLoading]=useState(!PREVIEW),[error,setError]=useState(''),[metric,setMetric]=useState('heartrate');
- useEffect(()=>{let active=true;if(PREVIEW)return;Promise.all([getActivity(summary.id),getStreams(summary.id)]).then(([a,s])=>{if(active){setActivity(a);setStreams(s||{});}}).catch(()=>{if(active)setError('Detailed streams could not be loaded. Your activity summary is shown.');}).finally(()=>{if(active)setLoading(false);});return()=>{active=false;};},[summary.id]);
- const source=streams[metric]?.data||[],dist=streams.distance?.data||[],chart=source.map((v,i)=>({distance:dist[i]!=null?+(dist[i]/1000).toFixed(2):i,value:v})).filter((_,i)=>i%Math.max(1,Math.floor(source.length/350))===0);
- return <div className="apex-modal-backdrop activity-detail-backdrop"><section className="activity-detail" role="dialog" aria-modal="true" aria-labelledby="activity-detail-title"><div className={'detail-cover'+(run(activity)?'':' is-strength')}><button className="detail-close" onClick={onClose}>Close ×</button><span className="eyebrow">{new Date(activity.start_date_local||activity.start_date).toLocaleDateString('en-GB',{weekday:'long',day:'numeric',month:'long'})}</span><h2 id="activity-detail-title">{activity.name}</h2><RouteLine encoded={activity.map?.polyline||activity.map?.summary_polyline}/><div className="detail-headline">{activity.distance>0?<><strong>{((activity.distance||0)/1000).toFixed(2)}<small> km</small></strong><span>{duration(activity.moving_time)} moving time</span></>:<><strong>{duration(activity.moving_time)}</strong><span>{(activity.type||'Session').replace(/([a-z])([A-Z])/g,'$1 $2')}</span></>}</div></div><div className="detail-body"><div className="detail-metrics">{[activity.distance>0&&['Average pace',pace(activity.average_speed),'/km'],['Average heart rate',activity.average_heartrate?Math.round(activity.average_heartrate):'—','bpm'],activity.max_heartrate&&['Max heart rate',Math.round(activity.max_heartrate),'bpm'],activity.distance>0&&['Elevation gain',activity.total_elevation_gain??'—','m'],activity.average_cadence&&['Cadence',Math.round(activity.average_cadence*(run(activity)?2:1)),run(activity)?'spm':'rpm'],activity.calories&&['Calories',Math.round(activity.calories),'kcal'],!activity.distance&&activity.elapsed_time&&['Elapsed',duration(activity.elapsed_time),'']].filter(Boolean).map(([l,v,u])=><div key={l}><span>{l}</span><strong>{v}<small> {u}</small></strong></div>)}</div>{error&&<p className="form-error">{error}</p>}<div className="section-label"><h2>Inside the effort.</h2><div className="apex-segments">{[['heartrate','Heart rate'],...(activity.distance>0?[['altitude','Elevation']]:[])].map(([id,l])=><button key={id} aria-pressed={metric===id} onClick={()=>setMetric(id)}>{l}</button>)}</div></div><div className="effort-chart">{chart.length?<ResponsiveContainer width="100%" height="100%"><AreaChart data={chart}><XAxis dataKey="distance" minTickGap={40} tick={{fontSize:10,fill:'#8b8196'}} axisLine={false} tickLine={false}/><YAxis domain={['auto','auto']} tick={{fontSize:10,fill:'#8b8196'}} axisLine={false} tickLine={false} width={35}/><Tooltip formatter={v=>[Math.round(v),metric==='heartrate'?'bpm':'m']}/><Area dataKey="value" type="monotone" stroke="#a287b6" fill="#e9e1ef" strokeWidth={2} isAnimationActive={false}/></AreaChart></ResponsiveContainer>:<p className="form-note">{loading?'Loading your activity streams…':PREVIEW?'Detailed streams appear with your real activities.':'No detailed stream is available for this activity.'}</p>}</div>{activity.laps?.length>0&&activity.distance>0&&<div className="split-list"><h2>Lap by lap.</h2>{activity.laps.map((l,i)=><div key={i}><span>{String(i+1).padStart(2,'0')}</span><strong>{(l.distance/1000).toFixed(2)} km</strong><span>{pace(l.average_speed)} /km</span><span>{l.average_heartrate?Math.round(l.average_heartrate)+' bpm':'—'}</span></div>)}</div>}{activity.best_efforts?.length>0&&<div className="split-list"><h2>Best efforts.</h2>{activity.best_efforts.map((e,i)=><div key={i}><strong>{e.name}</strong><span>{duration(e.moving_time||e.elapsed_time)}</span></div>)}</div>}</div></section></div>;
+ const [scrolled,setScrolled]=useState(false),[activity,setActivity]=useState(summary),[st,setSt]=useState({}),[loading,setLoading]=useState(true),[error,setError]=useState(''),[metric,setMetric]=useState('heartrate');
+ useEffect(()=>{let active=true;
+  if(PREVIEW){const p=previewDetail(summary);setActivity(p.activity);setSt(p.streams);setLoading(false);return;}
+  Promise.all([getActivity(summary.id),getStreams(summary.id).catch(()=>({}))]).then(([a,s])=>{if(active){setActivity(a);setSt(s||{});}}).catch(()=>{if(active)setError('Detailed data could not be loaded. Your activity summary is shown.');}).finally(()=>{if(active)setLoading(false);});
+  return()=>{active=false;};},[summary.id,summary]);
+ const a=activity,isRun=run(a),hasDist=a.distance>0;
+ const dist=st.distance?.data||[],alt=st.altitude?.data||[],hr=st.heartrate?.data||[],vel=st.velocity_smooth?.data||[],cad=st.cadence?.data||[],watts=st.watts?.data||[];
+ const splits=(a.splits_metric?.length?a.splits_metric:streamSplits(st)).filter(s=>s.distance>0);
+ const peakHr=Math.max(maxHr||0,a.max_heartrate||0)||null,zones=zoneTimes(st,peakHr,restHr);
+ const notes=isRun?insights(a,st,splits):[];
+ const metrics=[hr.length&&['heartrate','Heart rate'],vel.length&&hasDist&&['pace','Pace'],cad.length&&['cadence','Cadence'],watts.length&&['watts','Power']].filter(Boolean);
+ const m=metrics.find(x=>x[0]===metric)?metric:metrics[0]?.[0];
+ const series=m==='heartrate'?hr:m==='pace'?vel.map(v=>v>.6?v:NaN):m==='cadence'?cad.map(c=>c*(isRun?2:1)):m==='watts'?watts:[];
+ const readout=i=>{const parts=[];if(dist[i]!=null)parts.push(`${(dist[i]/1000).toFixed(2)} km`);if(alt[i]!=null)parts.push(`${Math.round(alt[i])} m`);const v=series[i];if(Number.isFinite(v))parts.push(m==='pace'?`${pace(v)} /km`:m==='heartrate'?`${Math.round(v)} bpm`:m==='cadence'?`${Math.round(v)} spm`:`${Math.round(v)} W`);return parts.join(' · ');};
+ const kmMarks=useMemo(()=>{const ll=st.latlng?.data;if(!ll?.length||!dist.length)return [];const total=dist[dist.length-1],step=total>25000?10000:total>8000?5000:total>3000?1000:0;if(!step)return [];const out=[];for(let k=step;k<total-step*.4;k+=step){const i=dist.findIndex(x=>x>=k);if(i>0&&i<ll.length)out.push({index:i,label:String(k/1000)});}return out;},[st,dist]);
+ const routePts=st.latlng?.data?.length>1?st.latlng.data:decode(a.map?.polyline||a.map?.summary_polyline);
+ const cadence=a.average_cadence?Math.round(a.average_cadence*(isRun?2:1)):null;
+ const stride=cadence&&a.average_speed?(a.average_speed*60/cadence).toFixed(2):null;
+ const fastest=splits.length?splits.reduce((b,s,i)=>s.distance>900&&(!b||s.average_speed>b.s.average_speed)?{s,i}:b,null):null;
+ const facts=[
+  ['Moving time',clock(a.moving_time)],['Elapsed',clock(a.elapsed_time)],
+  hasDist&&['Average pace',`${pace(a.average_speed)} /km`],hasDist&&a.max_speed&&['Fastest pace',`${pace(a.max_speed)} /km`],
+  a.average_heartrate&&['Average HR',`${Math.round(a.average_heartrate)} bpm`],a.max_heartrate&&['Max HR',`${Math.round(a.max_heartrate)} bpm`],
+  hasDist&&['Elevation gain',`${Math.round(a.total_elevation_gain||0)} m`],a.elev_high!=null&&a.elev_low!=null&&['Highest point',`${Math.round(a.elev_high)} m`],
+  cadence&&['Cadence',`${cadence} ${isRun?'spm':'rpm'}`],stride&&isRun&&['Stride length',`${stride} m`],
+  a.average_watts&&['Average power',`${Math.round(a.average_watts)} W`],
+  (a.calories||a.kilojoules)&&['Energy',a.calories?`${Math.round(a.calories).toLocaleString('en-GB')} kcal`:`${Math.round(a.kilojoules)} kJ`],
+  a.suffer_score&&['Relative effort',Math.round(a.suffer_score)],
+  fastest&&isRun&&['Fastest km',`${pace(fastest.s.average_speed)} · km ${fastest.i+1}`],
+  a.average_temp!=null&&['Temperature',`${Math.round(a.average_temp)}°C`],
+  (a.pr_count>0||a.achievement_count>0)&&['Achievements',`${a.pr_count||0} PR${a.pr_count===1?'':'s'} · ${a.achievement_count||0} total`],
+  a.perceived_exertion&&['Perceived effort',`${a.perceived_exertion} / 10`],
+  a.kudos_count>0&&['Kudos',a.kudos_count],
+  a.device_name&&['Recorded on',a.device_name],
+ ].filter(Boolean);
+ const spd=splits.filter(s=>s.distance>900).map(s=>s.average_speed),sMin=Math.min(...spd),sMax=Math.max(...spd);
+ const photo=a.photos?.primary?.urls?.['600']||a.photos?.primary?.urls?.['100'];
+ const view=<div className={`detail-view${scrolled?' is-scrolled':''}`} role="dialog" aria-modal="true" aria-labelledby="activity-detail-title">
+  <div className="detail-bar"><button className="glass-button" onClick={onClose} aria-label="Back to activity"><Icon name="back" size={20}/></button><span className="detail-bar-title" aria-hidden="true">{a.name}</span>{!PREVIEW&&a.id&&<a className="glass-button" href={`https://www.strava.com/activities/${a.id}`} target="_blank" rel="noreferrer" aria-label="Open in Strava"><Icon name="external" size={18}/></a>}</div>
+  <div className="detail-scroll" onScroll={e=>{const s=e.currentTarget.scrollTop>240;if(s!==scrolled)setScrolled(s);}}>
+   <header className={`detail-sky sky-${skyOf(a)}`}>
+    <div className="detail-head">
+     <p className="detail-meta">{when(a).toLocaleDateString('en-GB',{weekday:'short',day:'numeric',month:'short',year:when(a).getFullYear()!==new Date().getFullYear()?'numeric':undefined})} · {when(a).toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit',timeZone:a.start_date_local?'UTC':undefined})} · {typeName(a)}{a.location_city?` · ${a.location_city}`:''}</p>
+     <h2 id="activity-detail-title">{a.name}</h2>
+     <p className="detail-hero">{hasDist?<><span>{(a.distance/1000).toFixed(2)}</span><small>km</small></>:<><span>{clock(a.moving_time)}</span><small>moving</small></>}</p>
+     <dl className="detail-three">
+      {hasDist&&<div><dt>Time</dt><dd>{clock(a.moving_time)}</dd></div>}
+      {hasDist&&<div><dt>Pace /km</dt><dd>{pace(a.average_speed)}</dd></div>}
+      <div><dt>Avg HR</dt><dd>{a.average_heartrate?Math.round(a.average_heartrate):'—'}</dd></div>
+      {!hasDist&&<div><dt>Max HR</dt><dd>{a.max_heartrate?Math.round(a.max_heartrate):'—'}</dd></div>}
+     </dl>
+    </div>
+    {(alt.length>1||series.length>1)?<Profile fill={alt.length>1?alt:[]} line={series} height={170} format={readout}/>:<div className="detail-horizon"/>}
+   </header>
+   <div className="detail-body">
+    {metrics.length>1&&<div className="apex-segments detail-metric" role="tablist" aria-label="Line on the profile">{metrics.map(([id,l])=><button key={id} role="tab" aria-selected={m===id} onClick={()=>setMetric(id)}>{l}</button>)}</div>}
+    {(alt.length>1||series.length>1)&&<p className="form-note">Drag across the profile to read any point.{alt.length>1&&a.total_elevation_gain?` Shape is elevation, ${Math.round(a.total_elevation_gain)} m gained.`:''}</p>}
+    {loading&&<p className="form-note">Loading the full detail from Strava…</p>}
+    {error&&<p className="form-error">{error}</p>}
+    {a.description&&<p className="detail-description">{a.description}</p>}
+    {photo&&<img className="detail-photo" src={photo} alt={`Photo from ${a.name}`}/>}
+
+    {notes.length>0&&<section className="detail-section"><h3>What the run says</h3>{notes.map(([b,t])=><p key={b} className="insight"><b>{b}</b> {t}</p>)}</section>}
+
+    <section className="detail-section"><h3>Details</h3><dl className="facts">{facts.map(([k,v])=><div key={k}><dt>{k}</dt><dd>{v}</dd></div>)}{a.gear?.name&&<div className="fact-wide"><dt>Shoe</dt><dd>{a.gear.name}{a.gear.distance?` · ${Math.round(a.gear.distance/1000)} km`:''}</dd></div>}</dl></section>
+
+    {splits.length>1&&hasDist&&<section className="detail-section"><h3>Splits</h3>
+     <div className="splits"><div className="split split-head" aria-hidden="true"><span>Km</span><span/><span>Pace</span><span>HR</span><span>Elev</span></div>
+      {splits.map((s,i)=>{const t=s.distance>900&&sMax>sMin?(s.average_speed-sMin)/(sMax-sMin):.5,best=fastest&&fastest.i===i;return <div className={`split${best?' is-best':''}`} key={i}>
+       <span>{s.distance>900?i+1:(s.distance/1000).toFixed(2)}</span>
+       <span className="split-bar"><i style={{width:`${36+t*64}%`,'--t':t}}/></span>
+       <span>{pace(s.average_speed)}</span><span>{s.average_heartrate?Math.round(s.average_heartrate):'—'}</span><span>{s.elevation_difference!=null?`${s.elevation_difference>0?'+':''}${Math.round(s.elevation_difference)}`:'—'}</span></div>;})}
+     </div><p className="form-note">Bars are speed: longer and darker is faster. Elevation in metres.</p></section>}
+
+    {zones&&<section className="detail-section"><h3>Heart-rate zones</h3>
+     <div className="zone-bar" aria-hidden="true">{zones.map((z,i)=>z.pct>0&&<i key={i} className={`z${i+1}`} style={{flex:z.pct}}/>)}</div>
+     <dl className="facts single">{zones.map((z,i)=><div key={i}><dt><i className={`zone-key z${i+1}`}/>{ZONES[i][0]} · {ZONES[i][1]}</dt><dd>{Math.round(z.secs/60)} min · {Math.round(z.pct)}%</dd></div>)}</dl>
+     <p className="form-note">{restHr?`Zones use your heart-rate reserve: resting ${Math.round(restHr)} bpm from WHOOP, max ${peakHr} bpm from your loaded activities.`:`Zones are percentages of the highest heart rate in your loaded activities (${peakHr} bpm).`}</p></section>}
+
+    {a.laps?.length>1&&<section className="detail-section"><h3>Laps</h3><div className="splits laps"><div className="split split-head" aria-hidden="true"><span>Lap</span><span>Distance</span><span>Time</span><span>Pace</span><span>HR</span></div>{a.laps.map((l,i)=><div className="split" key={i}><span>{i+1}</span><span>{(l.distance/1000).toFixed(2)} km</span><span>{clock(l.moving_time)}</span><span>{pace(l.average_speed)}</span><span>{l.average_heartrate?Math.round(l.average_heartrate):'—'}</span></div>)}</div></section>}
+
+    {routePts.length>1&&<section className="detail-section"><h3>Route</h3><div className="route-box"><RouteLine points={routePts} markers={kmMarks}/></div><p className="form-note">{kmMarks.length?'Markers every '+(kmMarks[0].label)+' km. ':''}The filled dot is the start.</p></section>}
+
+    {a.best_efforts?.length>0&&<section className="detail-section"><h3>Best efforts</h3><dl className="facts single">{a.best_efforts.map((e,i)=><div key={i}><dt>{e.name}{e.pr_rank===1&&<span className="pr-tag">PR</span>}{e.pr_rank>1&&<span className="pr-tag is-quiet">{e.pr_rank===2?'2nd':'3rd'} best</span>}</dt><dd>{clock(e.moving_time||e.elapsed_time)}</dd></div>)}</dl></section>}
+
+    {a.segment_efforts?.length>0&&<section className="detail-section"><h3>Segments</h3><dl className="facts single">{a.segment_efforts.slice(0,8).map((e,i)=><div key={i}><dt>{e.name}{e.pr_rank===1&&<span className="pr-tag">PR</span>}</dt><dd>{clock(e.moving_time||e.elapsed_time)}{e.distance?` · ${(e.distance/1000).toFixed(2)} km`:''}</dd></div>)}</dl></section>}
+   </div>
+  </div>
+ </div>;
+ const host=document.querySelector('.apex-app')||document.body;
+ return createPortal(view,host);
 }

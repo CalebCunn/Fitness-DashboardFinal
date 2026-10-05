@@ -1,20 +1,22 @@
 import {useDialog} from './ApexInteractions';
 import {Fragment,useEffect,useRef,useState} from 'react';
-import RecoverySculpture,{bandOf} from './RecoverySculpture';
-import {localDate,addDays,mondayOf,prettyDate,surfaceFor,parseDay} from './apexDates';
+import {localDate,addDays,mondayOf,prettyDate,surfaceFor} from './apexDates';
+import {SkyHero} from './ApexRidge';
+import {focusRace,raceDate} from './ApexGoals';
 import './ApexUI.css';
 
 const paths={
- home:'M4 11.5 12 5l8 6.5V20H4z M9.5 20v-5h5v5',
+ home:'M3 19h18 M5 19l5.5-9 3.5 5 2.5-3.5L20 19',
  activity:'M3 12h4l3-7 4 14 3-7h4',
- plan:'M4 6h16 M4 12h16 M4 18h10 M18 16v4 M16 18h4',
+ plan:'M5 5h14v15H5z M5 10h14 M9 3v4 M15 3v4',
  nutrition:'M7 3v8a3 3 0 0 0 6 0V3 M10 3v18 M17 3c-2.5 2-2.5 9 0 10v8',
- recovery:'M3 12h4l2-4 3 8 2-4h7',
+ recovery:'M3 17h18 M7 17a5 5 0 0 1 10 0 M12 6V4 M5.6 9.6 4.2 8.2 M18.4 9.6l1.4-1.4',
  gym:'M2 12h2 M20 12h2 M5 8v8 M19 8v8 M8 6v12 M16 6v12 M8 12h8',
  coach:'M5 18V8a3 3 0 0 1 3-3h8a3 3 0 0 1 3 3v6a3 3 0 0 1-3 3H9l-4 3z M9 10.5h6 M9 13.5h4',
  profile:'M12 12a4 4 0 1 0 0-8 4 4 0 0 0 0 8z M4 20a8 8 0 0 1 16 0',
  races:'M5 21V4 M5 4h11l-2 4 2 4H5',
  arrow:'M5 12h14 M13 6l6 6-6 6',
+ back:'M15 5l-7 7 7 7',
  plus:'M12 5v14 M5 12h14',
  more:'M5 12h.01 M12 12h.01 M19 12h.01',
  close:'M6 6l12 12 M18 6 6 18',
@@ -22,51 +24,54 @@ const paths={
  moon:'M20 14.5A8 8 0 1 1 9.5 4a6.5 6.5 0 0 0 10.5 10.5z',
  coros:'M12 3a9 9 0 1 0 0 18 9 9 0 0 0 0-18z M12 7v5l3 2',
  check:'M5 12.5 10 17 19 7',
+ external:'M14 4h6v6 M20 4l-9 9 M18 14v5a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V7a1 1 0 0 1 1-1h5',
+ chevron:'M9 5l7 7-7 7',
 };
 export function Icon({name,size=22}){return <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d={paths[name]||paths.activity}/></svg>;}
-export function Mark({size=26}){return <svg width={size} height={size} viewBox="0 0 64 64" aria-hidden="true"><g fill="currentColor"><path d="M8 52 29 13c1.4-2.7 5.3-2.7 6.8 0l2.7 5L20 52Z"/><path d="m39 25 15 27H42.5L33.4 35Z"/></g></svg>;}
+// The mark: a summit with the sun resting beside it.
+export function Mark({size=26}){return <svg width={size} height={size} viewBox="0 0 64 64" aria-hidden="true"><path d="M5 54 27.6 18.4c2-3.2 6.7-3.2 8.8 0L59 54Z" fill="currentColor"/><circle cx="48" cy="17" r="7.5" fill="#FFC23A"/></svg>;}
 
-const NAV=[['home','Today'],['plan','Training'],['coach','Coach'],['nutrition','Fuel']];
-const MORE=[['recovery','Recovery','Readiness, sleep and HRV'],['activity','Activities','Every run and session, results-board style'],['gym','Strength','Live workouts, rest timer, history'],['races','Races','Your calendar and primary goal'],['profile','You','Profile, connections, appearance']];
-const TITLES={plan:['Training','Your week, lane by lane'],activity:['Activities','The results board'],recovery:['Recovery','How ready you are'],nutrition:['Fuel','What goes in'],gym:['Strength','Live sessions, rest timer, history'],coach:['Coach',''],profile:['You','Profile and connections'],races:['Races','Something to chase']};
+const NAV=[['home','Today'],['plan','Training'],['activity','Activity'],['coach','Coach']];
+const MORE=[['recovery','Recovery','Sleep, HRV and the last 30 mornings'],['nutrition','Fuel','Meals, targets and body weight'],['gym','Strength','Live workouts, rest timer, history'],['races','Races','Your calendar and primary goal'],['profile','You','Profile, connections, appearance']];
+const TITLES={plan:['Training',''],activity:['Activity',''],recovery:['Recovery',''],nutrition:['Fuel',''],gym:['Strength',''],coach:['Coach',''],profile:['You',''],races:['Races','']};
 
 export function Frame({page,nav,athlete,dark,setDark,preview,children}){
- const positions=useRef({}),previous=useRef(page),scroll=useRef(null),[menu,setMenu]=useState(false);
+ const positions=useRef({}),previous=useRef(page),scroll=useRef(null),[menu,setMenu]=useState(false),[solid,setSolid]=useState(false);
  useDialog(menu,()=>setMenu(false));
- useEffect(()=>{previous.current=page;if(scroll.current)scroll.current.scrollTop=positions.current[page]||0;setMenu(false);},[page]);
+ useEffect(()=>{previous.current=page;if(scroll.current)scroll.current.scrollTop=positions.current[page]||0;setMenu(false);setSolid((positions.current[page]||0)>8);},[page]);
  const inMore=MORE.some(([id])=>id===page);
- const title=TITLES[page];
- return <div className={`apex-app${dark?' apex-dark':''}`}>
+ const title=TITLES[page],home=page==='home';
+ const onScroll=e=>{const t=e.currentTarget.scrollTop;positions.current[previous.current]=t;const s=home?t>window.innerHeight*.42:t>8;if(s!==solid)setSolid(s);};
+ return <div className={`apex-app${dark?' apex-dark':''}${home?' is-home':''}`}>
   <a className="skip-link" href="#main-content">Skip to content</a>
   <aside className="rail" aria-label="Main navigation">
    <button className="rail-brand" onClick={()=>nav('home')} aria-label="APEX home"><Mark size={28}/><span>APEX</span></button>
-   <nav>{[...NAV,...MORE.map(([id,l])=>[id,l])].map(([id,label],i)=><Fragment key={id}>{i===NAV.length&&<hr/>}<button className={page===id?'is-on':''} aria-current={page===id?'page':undefined} onClick={()=>nav(id)}><span className="nav-ring"><Icon name={id} size={20}/></span><span>{label}</span></button></Fragment>)}</nav>
+   <nav>{[...NAV,...MORE.map(([id,l])=>[id,l])].map(([id,label],i)=><Fragment key={id}>{i===NAV.length&&<hr/>}<button className={page===id?'is-on':''} aria-current={page===id?'page':undefined} onClick={()=>nav(id)}><Icon name={id} size={20}/><span>{label}</span></button></Fragment>)}</nav>
    <button className="rail-theme" onClick={()=>setDark(!dark)} aria-label={dark?'Use light appearance':'Use dark appearance'}><Icon name={dark?'sun':'moon'} size={18}/>{dark?'Light':'Dark'}</button>
   </aside>
-  <div className="workspace" ref={scroll} onScroll={e=>{positions.current[previous.current]=e.currentTarget.scrollTop;}}>
-   <header className="topbar">
+  <div className="workspace" ref={scroll} onScroll={onScroll}>
+   <header className={`topbar${solid?' is-solid':''}`}>
     <button className="brand" onClick={()=>nav('home')} aria-label="APEX home"><Mark size={22}/><span>APEX</span></button>
+    {!home&&title&&<span className="topbar-title" aria-hidden="true">{title[0]}</span>}
     <div className="topbar-actions">
-     {preview&&<span className="preview-chip">Preview · sample data</span>}
-     <button className="round-button" onClick={()=>setDark(!dark)} aria-label={dark?'Use light appearance':'Use dark appearance'}><Icon name={dark?'sun':'moon'} size={18}/></button>
-     <button className="avatar" onClick={()=>nav('profile')} aria-label="Your profile">{athlete?.firstname?.[0]||'A'}</button>
+     {preview&&<span className="preview-chip">Sample data</span>}
+     <button className="glass-button avatar" onClick={()=>nav('profile')} aria-label="Your profile">{athlete?.firstname?.[0]||'A'}</button>
     </div>
    </header>
    <main className={`content screen-${page}`} id="main-content">
     {title&&page!=='coach'&&<div className="page-head"><h1>{title[0]}</h1>{title[1]&&<p>{title[1]}</p>}</div>}
     {children}
    </main>
-   <footer className="foot"><Mark size={14}/><span>Progress is personal.</span></footer>
   </div>
   <nav className="dock" aria-label="Main navigation">
-   {NAV.map(([id,label])=><button key={id} className={page===id?'is-on':''} aria-current={page===id?'page':undefined} onClick={()=>nav(id)}><span className="nav-ring"><Icon name={id} size={21}/></span><span>{label}</span></button>)}
-   <button className={inMore||menu?'is-on':''} aria-expanded={menu} aria-haspopup="dialog" onClick={()=>setMenu(!menu)}><span className="nav-ring"><Icon name="more" size={24}/></span><span>More</span></button>
+   {NAV.map(([id,label])=><button key={id} className={page===id?'is-on':''} aria-current={page===id?'page':undefined} onClick={()=>nav(id)}><Icon name={id} size={23}/><span>{label}</span></button>)}
+   <button className={inMore||menu?'is-on':''} aria-expanded={menu} aria-haspopup="dialog" onClick={()=>setMenu(!menu)}><Icon name="more" size={25}/><span>More</span></button>
   </nav>
   {menu&&<div className="sheet-backdrop" onClick={e=>{if(e.target===e.currentTarget)setMenu(false);}}>
    <section className="sheet" role="dialog" aria-modal="true" aria-labelledby="more-title">
     <div className="sheet-grip"/>
-    <div className="sheet-head"><h2 id="more-title">More</h2><button className="round-button" onClick={()=>setMenu(false)} aria-label="Close"><Icon name="close" size={18}/></button></div>
-    <div className="sheet-lanes">{MORE.map(([id,label,sub],i)=><button key={id} className={page===id?'is-on':''} onClick={()=>{nav(id);setMenu(false);}}><span className="lane-no">{i+1}</span><span className="sheet-icon"><Icon name={id} size={20}/></span><span className="sheet-copy"><strong>{label}</strong><small>{sub}</small></span><Icon name="arrow" size={18}/></button>)}</div>
+    <div className="sheet-head"><h2 id="more-title">More</h2><button className="glass-button" onClick={()=>setMenu(false)} aria-label="Close"><Icon name="close" size={18}/></button></div>
+    <div className="sheet-list">{MORE.map(([id,label,sub])=><button key={id} className={page===id?'is-on':''} onClick={()=>{nav(id);setMenu(false);}}><Icon name={id} size={22}/><span><strong>{label}</strong><small>{sub}</small></span><Icon name="chevron" size={17}/></button>)}</div>
    </section>
   </div>}
  </div>;
@@ -76,132 +81,84 @@ const num=(n,d=0)=>Number.isFinite(Number(n))?Number(n).toLocaleString('en-GB',{
 const isRun=a=>a.type==='Run'||a.sport_type==='Run'||a.sport_type==='TrailRun';
 const actDay=a=>(a.start_date_local||a.start_date||'').slice(0,10);
 const pace=s=>{if(!s)return '—';const v=Math.round(1000/s);return `${Math.floor(v/60)}:${String(v%60).padStart(2,'0')}`;};
-
-function useCountUp(value,ms=900){
- const [v,setV]=useState(value);
- useEffect(()=>{
-  if(!Number.isFinite(value)||window.matchMedia('(prefers-reduced-motion: reduce)').matches){setV(value);return;}
-  let raf,start;const from=0;
-  const step=t=>{if(!start)start=t;const k=Math.min(1,(t-start)/ms);setV(from+(value-from)*(1-Math.pow(1-k,3)));if(k<1)raf=requestAnimationFrame(step);};
-  raf=requestAnimationFrame(step);return()=>cancelAnimationFrame(raf);
- },[value,ms]);
- return v;
-}
+const hm=ms=>ms==null?null:`${Math.floor(ms/3600000)} h ${Math.round(ms%3600000/60000)} m`;
 
 function datedPlan(plan){return (plan?.sessions||[]).map((s,i)=>{let d=s.date;if(!d&&plan?.startDate)d=addDays(plan.startDate,i);return {...s,date:d,index:i};});}
 
-function TodayHero({session,plan,weekDays,today,nav,planUnavailable}){
- const type=planUnavailable?null:session?.type;
- const sf=surfaceFor(type||(plan?'Rest':'Long Run'));
- const km=parseFloat(session?.dist)||0;
- const counted=useCountUp(km);
- const lane=(parseDay(today).getDay()+6)%7+1;
- let label,big,unit,line,cta,ctaGo;
- if(planUnavailable){label='Plan unavailable';big='—';line='Your saved plan could not load. Retry saved data at the top of the page. Nothing has been overwritten.';}
- else if(!plan){label='No plan yet';big='Build';unit='your week';line='Ask your coach for a week built around your recovery, your races and your life.';cta='Build with Coach';ctaGo='coach';}
- else if(!session){label='Nothing scheduled';big='Free';unit='day';line='No session on the plan today. Move easy, or add something yourself.';cta='Open training';ctaGo='plan';}
- else if(type==='Rest'){label='Rest day';big='Rest';line=session.notes||'Recovery is part of the work. Sleep, eat well, stay loose.';cta='Open training';ctaGo='plan';}
- else if(type==='Gym'){label='Strength';big='Lift';unit='day';line=session.notes||'Strength work to support your running.';cta='Start workout';ctaGo='gym';}
- else{label=sf.name;big=km>=10?Math.round(counted):counted.toFixed(km%1?1:0);unit='km';line=[session.pace&&session.pace!=='N/A'?`${session.pace.replace(/\/?km$/,'')} /km`:'',session.notes].filter(Boolean).join('. ');cta='Open session';ctaGo='plan';}
- const isWord=typeof big==='string'&&!/^[\d.]+$/.test(big);
- return <section className="hero" style={{'--surface':sf.bg,'--surface-ink':sf.ink}} aria-label={`Today: ${label}`}>
-  <svg className="hero-lines" viewBox="0 0 420 340" preserveAspectRatio="xMaxYMid slice" aria-hidden="true">{[0,1,2,3,4,5].map(i=>{const t=20+i*20,b=320-i*20,r=(b-t)/2;return <path key={i} d={`M-10 ${b} H${280} A${r} ${r} 0 0 0 ${280} ${t} H-10`}/>;})}</svg>
-  <div className="hero-top"><span className="lane-tag">Lane {lane}</span><span>{prettyDate(today,{weekday:'long',day:'numeric',month:'long'})}</span>{session?.done&&<span className="hero-done"><Icon name="check" size={14}/>Done</span>}</div>
-  <div className="hero-body">
-   <p className="hero-label">{label}</p>
-   <p className={`hero-figure${isWord?' is-word':''}`}><span>{big}</span>{unit&&<small>{unit}</small>}</p>
-   {line&&<p className="hero-line">{line}</p>}
-   {session?.shoe&&session.shoe!=='N/A'&&<p className="hero-shoe">In the {session.shoe}</p>}
-  </div>
-  <div className="hero-foot">
-   <div className="hero-ruler" aria-label="This week">{weekDays.map(d=><span key={d.key} className={`${d.key===today?'is-today':''} ${d.done?'is-done':d.planned?'is-planned':''}`} title={`${d.label}: ${d.type||'nothing planned'}`}><i/><b>{d.label[0]}</b></span>)}</div>
-   {cta&&<button className="hero-cta" onClick={()=>nav(ctaGo)}>{cta}<Icon name="arrow" size={18}/></button>}
-  </div>
- </section>;
+function sessionHeadline(session,plan,planUnavailable){
+ if(planUnavailable)return {meta:'Plan unavailable',big:'Plan not loaded',line:'Your saved plan could not load. Retry saved data at the top of the page. Nothing has been overwritten.'};
+ if(!plan)return {meta:'No plan yet',big:'Build your week',line:'Ask your coach for a week built around your recovery, your races and your life.',cta:['Build with Coach','coach']};
+ if(!session)return {meta:'Nothing scheduled',big:'Free day',line:'No session on the plan today. Move easy, or add something yourself.',cta:['Open training','plan']};
+ const type=session.type,km=parseFloat(session.dist)||0;
+ if(type==='Rest')return {meta:'Rest day',big:'Rest',line:session.notes||'Recovery is part of the work. Sleep, eat well, stay loose.',cta:['Open training','plan']};
+ if(type==='Gym')return {meta:'Strength',big:'Strength',line:session.notes||'Strength work to support your running.',cta:['Start workout','gym']};
+ const paceTxt=session.pace&&session.pace!=='N/A'?`${session.pace.replace(/\/?km$/,'')} /km`:'';
+ return {meta:['Today',paceTxt,session.shoe&&session.shoe!=='N/A'?session.shoe:''].filter(Boolean).join(' · '),big:`${num(km,km%1?1:0)} km ${surfaceFor(type).name.toLowerCase()}`,line:session.notes,cta:['Open session','plan']};
 }
 
-export function RecoveryHero({whoop,whoopOk,connectWhoop,nav}){
- const record=whoop?.recoveries?.records?.[0],raw=record?.score?.recovery_score,score=raw==null?null:Math.round(raw);
- const sleep=whoop?.sleeps?.records?.[0]?.score,band=bandOf(score);
- const count=useCountUp(score??0,1300);
- return <section className={`card lap-card band-${band.tone}`}>
-  <div className="card-head"><h2>Readiness</h2><span className="source"><i/>{whoopOk?'WHOOP':'Not connected'}</span></div>
-  <div className="lap-stage"><RecoverySculpture score={score}/><div className="lap-score"><strong>{score==null?'—':Math.round(count)}<sup>{score==null?'':'%'}</sup></strong><span>{band.label}</span></div></div>
-  <dl className="stat-row">
-   <div><dt>HRV</dt><dd>{record?.score?.hrv_rmssd_milli==null?'—':num(record.score.hrv_rmssd_milli)}<small>ms</small></dd></div>
-   <div><dt>Resting HR</dt><dd>{record?.score?.resting_heart_rate??'—'}<small>bpm</small></dd></div>
-   <div><dt>Sleep</dt><dd>{sleep?.sleep_performance_percentage==null?'—':Math.round(sleep.sleep_performance_percentage)}<small>%</small></dd></div>
-  </dl>
-  <button className="card-link" onClick={whoopOk?()=>nav('recovery'):connectWhoop}>{whoopOk?'Recovery detail':'Connect WHOOP'}<Icon name="arrow" size={17}/></button>
- </section>;
-}
-
-function WeekLanes({days,today,nav}){
- const max=Math.max(...days.map(d=>Math.max(d.plannedKm,d.km)),5);
- const done=days.reduce((n,d)=>n+d.km,0),planned=days.reduce((n,d)=>n+d.plannedKm,0);
- return <section className="card lanes-card">
-  <div className="card-head"><h2>This week</h2><button className="text-button" onClick={()=>nav('plan')}>Training<Icon name="arrow" size={15}/></button></div>
-  <p className="lanes-total"><strong>{num(done,1)}</strong><span>of {num(planned,1)} km planned</span></p>
-  <ol className="lanes">{days.map((d,i)=><li key={d.key} className={`${d.key===today?'is-today':''}${d.key>today?' is-future':''}`}>
-   <span className="lane-no">{i+1}</span>
-   <span className="lane-day"><b>{d.label}</b>{parseDay(d.key).getDate()}</span>
-   <span className="lane-track" style={{'--lane':d.color}}>
-    {d.plannedKm>0&&<i className="lane-plan" style={{width:`${d.plannedKm/max*100}%`}}/>}
-    {d.km>0&&<i className="lane-run" style={{width:`${Math.max(3,d.km/max*100)}%`}}/>}
-    {!d.plannedKm&&!d.km&&<em>{d.type||'—'}</em>}
-    {d.type&&(d.plannedKm||d.km)?<em className="lane-type">{d.type}</em>:null}
-   </span>
-   <span className="lane-km">{d.km>0?num(d.km,1):d.plannedKm>0?num(d.plannedKm,1):''}<small>{d.km>0||d.plannedKm>0?'km':''}</small></span>
-  </li>)}</ol>
-  <div className="lanes-key"><span><i className="k-run"/>Ran (Strava)</span><span><i className="k-plan"/>Planned</span></div>
- </section>;
-}
-
-export function Home({acts=[],whoop,whoopOk,connectWhoop,athlete,plan,nav,userPrefs,prefsUnavailable=false,planUnavailable=false}){
+export function Home({acts=[],whoop,whoopOk,connectWhoop,plan,nav,userPrefs,prefsUnavailable=false,planUnavailable=false}){
  const now=new Date(),today=localDate(now),monday=mondayOf(today);
  const sessions=datedPlan(plan);
  const session=sessions.find(s=>s.date===today&&s.type!=='Rest'&&!s.done)||sessions.find(s=>s.date===today);
  const days=Array.from({length:7},(_,i)=>{const key=addDays(monday,i),ds=sessions.filter(s=>s.date===key),main=ds.find(s=>s.type!=='Rest')||ds[0];
   const km=acts.filter(a=>isRun(a)&&actDay(a)===key).reduce((s,a)=>s+(a.distance||0)/1000,0);
-  return {key,label:prettyDate(key,{weekday:'short'}),type:main?.type,color:surfaceFor(main?.type).bg,plannedKm:ds.filter(s=>!['Rest','Gym'].includes(s.type)).reduce((n,s)=>n+(parseFloat(s.dist)||0),0),km,planned:!!main&&main.type!=='Rest',done:ds.length>0&&ds.filter(s=>s.type!=='Rest').every(s=>s.done)&&ds.some(s=>s.type!=='Rest')};});
+  return {key,label:prettyDate(key,{weekday:'short'}),type:main?.type,plannedKm:ds.filter(s=>!['Rest','Gym'].includes(s.type)).reduce((n,s)=>n+(parseFloat(s.dist)||0),0),km};});
+ const todayIndex=days.findIndex(d=>d.key===today);
+ const ran=days.reduce((n,d)=>n+d.km,0),planned=days.reduce((n,d)=>n+d.plannedKm,0);
  const food=userPrefs?.nutrition?.[today]||{},targets={kcal:3000,protein:140,carbs:300,...userPrefs?.nutritionTargets};
- const recent=[...acts].sort((a,b)=>new Date(b.start_date_local||b.start_date)-new Date(a.start_date_local||a.start_date)).slice(0,4);
- const h=now.getHours(),greet=h<5?'Late one':h<12?'Morning':h<18?'Afternoon':'Evening';
- const rec=whoop?.recoveries?.records?.[0]?.score?.recovery_score;
- const summary=[session?(session.type==='Rest'?'Rest day on the plan':`${surfaceFor(session.type).name} on the plan`):plan?'Nothing on the plan today':null,rec!=null?`recovery ${Math.round(rec)}%`:null].filter(Boolean).join(' · ');
+ const recent=[...acts].sort((a,b)=>new Date(b.start_date_local||b.start_date)-new Date(a.start_date_local||a.start_date)).slice(0,3);
+ const recs=whoop?.recoveries?.records||[],rec=recs[0]?.score,score=rec?.recovery_score==null?null:Math.round(rec.recovery_score);
+ const sleep=whoop?.sleeps?.records?.[0]?.score,stage=sleep?.stage_summary;
+ const asleep=stage?(stage.total_in_bed_time_milli||0)-(stage.total_awake_time_milli||0):null;
+ const prevHrv=recs.slice(1,8).map(r=>r.score?.hrv_rmssd_milli).filter(Number.isFinite),hrvBase=prevHrv.length?prevHrv.reduce((a,b)=>a+b,0)/prevHrv.length:null;
+ const hrvDelta=hrvBase&&Number.isFinite(rec?.hrv_rmssd_milli)?Math.round((rec.hrv_rmssd_milli/hrvBase-1)*100):null;
+ const signals=[asleep?`${hm(asleep)} asleep`:null,Number.isFinite(rec?.hrv_rmssd_milli)?`HRV ${Math.round(rec.hrv_rmssd_milli)} ms${hrvDelta!=null?`, ${Math.abs(hrvDelta)}% ${hrvDelta>=0?'above':'below'} your week`:''}`:null,rec?.resting_heart_rate!=null?`RHR ${Math.round(rec.resting_heart_rate)}`:null].filter(Boolean).join(' · ');
+ const todayRun=acts.filter(a=>isRun(a)&&actDay(a)===today).sort((a,b)=>new Date(b.start_date_local||b.start_date)-new Date(a.start_date_local||a.start_date))[0];
+ const runTime=a=>new Date(a.start_date_local||a.start_date).toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit',timeZone:a.start_date_local?'UTC':undefined});
+ // Once today's run is on Strava, Today shows what you did rather than what was planned.
+ const head=todayRun?{meta:`Done at ${runTime(todayRun)} · ${session&&!['Rest','Gym'].includes(session.type)?`planned ${num(parseFloat(session.dist)||0,1)} km`:'from Strava'}`,big:`${num(todayRun.distance/1000,2)} km`,line:`${todayRun.name} at ${pace(todayRun.average_speed)} /km${todayRun.average_heartrate?`, ${Math.round(todayRun.average_heartrate)} bpm`:''}.`,cta:['View run','run']}:sessionHeadline(session,plan,planUnavailable);
+ const goal=focusRace(userPrefs?.races),goalDays=goal&&raceDate(goal)?Math.ceil((new Date(goal.date+'T12:00:00')-new Date(today+'T12:00:00'))/86400000):null;
+ const checkIn=()=>{window.dispatchEvent(new CustomEvent('apex-checkin'));setTimeout(()=>document.getElementById('checkin')?.scrollIntoView({behavior:window.matchMedia('(prefers-reduced-motion: reduce)').matches?'auto':'smooth',block:'start'}),60);};
+ const checkedIn=!!userPrefs?.journal?.[today];
  return <div className="today">
-  <div className="today-top"><h1>{greet}{athlete?.firstname?`, ${athlete.firstname}`:''}.</h1>{summary&&<p>{summary.charAt(0).toUpperCase()+summary.slice(1)}.</p>}</div>
-  <div className="today-grid">
-   <TodayHero session={session} plan={plan} weekDays={days} today={today} nav={nav} planUnavailable={planUnavailable}/>
-   <RecoveryHero {...{whoop,whoopOk,connectWhoop,nav}}/>
-   <WeekLanes days={days} today={today} nav={nav}/>
-   {!prefsUnavailable&&<section className="card fuel-card">
-    <div className="card-head"><h2>Fuel</h2><button className="text-button" onClick={()=>nav('nutrition')}>Log a meal<Icon name="plus" size={15}/></button></div>
-    <p className="fuel-big"><strong>{num(Number(food.kcal||0))}</strong><span>of {num(targets.kcal)} kcal</span></p>
-    {[['kcal','Energy','kcal'],['protein','Protein','g'],['carbs','Carbs','g']].map(([k,l,u])=>{const v=Number(food[k]||0),pct=Math.min(110,v/targets[k]*100);return <div className={`fuel-lane fuel-${k}`} key={k}><span>{l}</span><span className="fuel-bar"><i style={{width:`${Math.min(100,pct)}%`}}/><b aria-hidden="true"/></span><span className="fuel-val">{num(v)}<small>/{num(targets[k])}{u}</small></span></div>;})}
-   </section>}
-   <section className="card results-card">
-    <div className="card-head"><h2>Results</h2><button className="text-button" onClick={()=>nav('activity')}>All<Icon name="arrow" size={15}/></button></div>
-    {recent.length?<ol className="results">{recent.map((a,i)=><li key={a.id||i}><button onClick={()=>nav('activity',a.id)}>
-     <span className="res-pos">{String(i+1).padStart(2,'0')}</span>
-     <span className="res-name"><b>{a.name}</b><small>{new Date(a.start_date_local||a.start_date).toLocaleDateString('en-GB',{weekday:'short',day:'numeric',month:'short'})} · {isRun(a)?'Run':(a.type||'Session').replace(/([a-z])([A-Z])/g,'$1 $2')}</small></span>
-     <span className="res-num">{a.distance?num(a.distance/1000,1):Math.round((a.moving_time||0)/60)}<small>{a.distance?'km':'min'}</small></span>
-     <span className="res-pace">{isRun(a)?pace(a.average_speed):''}<small>{isRun(a)?'/km':''}</small></span>
-    </button></li>)}</ol>:<p className="empty-note">Your synced activities will appear here.</p>}
-   </section>
-  </div>
+  <SkyHero score={whoopOk?score:null} days={days} todayIndex={todayIndex} onScore={whoopOk?()=>nav('recovery'):undefined} dateLabel={prettyDate(today,{weekday:'short',day:'numeric',month:'short'})}>
+   {whoopOk?(signals&&<p className="sky-signals">{signals}</p>):<button className="sky-connect" onClick={connectWhoop}>Connect WHOOP<Icon name="arrow" size={17}/></button>}
+  </SkyHero>
+  <section className="today-session" aria-label="Today’s session">
+   <p className="meta">{head.meta}{session?.done&&<span className="done-mark"><Icon name="check" size={14}/>Done</span>}</p>
+   <h2 className="display today-big">{head.big}</h2>
+   {head.line&&<p className="today-note">{head.line}</p>}
+   <div className="today-actions">
+    {!prefsUnavailable&&<button className="primary-action" onClick={checkIn}><span className={`sun-dot${checkedIn?' is-done':''}`}/>{checkedIn?'Checked in':'Check in'}</button>}
+    {head.cta?.[1]!=='run'&&<button className="secondary-action" onClick={()=>nav('coach')}>Ask coach</button>}
+    {head.cta&&head.cta[1]==='run'&&<button className="secondary-action" onClick={()=>nav('activity',todayRun.id)}>{head.cta[0]}</button>}
+    {head.cta&&head.cta[1]==='gym'&&<button className="secondary-action" onClick={()=>nav('gym')}>{head.cta[0]}</button>}
+   </div>
+  </section>
+  <section className="today-rows" aria-label="Your day">
+   <button className="list-row" onClick={()=>nav('plan')}><span className="row-copy"><small>This week</small><b>{num(ran,1)} of {num(planned,1)} km</b></span><span className="row-figure">{planned?Math.round(ran/planned*100):0}<small>%</small></span><Icon name="chevron" size={16}/></button>
+   {goal&&<button className="list-row" onClick={()=>nav('races')}><span className="row-copy"><small>{goal.name}{goal.target?` · ${goal.target}`:''}</small><b>{raceDate(goal)?prettyDate(goal.date,{day:'numeric',month:'long'}):goal.date||'Date to be decided'}</b></span>{goalDays!=null&&<span className="row-figure">{goalDays}<small>days</small></span>}<Icon name="chevron" size={16}/></button>}
+   {!prefsUnavailable&&<button className="list-row" onClick={()=>nav('nutrition')}><span className="row-copy"><small>Fuel today</small><b>{num(Number(food.kcal||0))} of {num(targets.kcal)} kcal</b></span><span className="row-figure">{num(Number(food.protein||0))}<small>g protein</small></span><Icon name="chevron" size={16}/></button>}
+  </section>
+  <section className="today-recent" aria-labelledby="recent-title">
+   <div className="section-head"><h2 id="recent-title">Recent</h2><button className="text-button" onClick={()=>nav('activity')}>All activity<Icon name="arrow" size={15}/></button></div>
+   {recent.length?recent.map((a,i)=><button key={a.id||i} className="list-row" onClick={()=>nav('activity',a.id)}>
+    <span className="row-copy"><small>{new Date(a.start_date_local||a.start_date).toLocaleDateString('en-GB',{weekday:'short',day:'numeric',month:'short'})} · {isRun(a)?'Run':(a.type||'Session').replace(/([a-z])([A-Z])/g,'$1 $2')}</small><b>{a.name}</b></span>
+    <span className="row-figure">{a.distance?num(a.distance/1000,2):Math.round((a.moving_time||0)/60)}<small>{a.distance?'km':'min'}</small>{isRun(a)&&<em>{pace(a.average_speed)} /km</em>}</span>
+   </button>):<p className="empty-note">Your synced activities will appear here.</p>}
+  </section>
  </div>;
 }
 
 export function Welcome({url}){
  return <div className="welcome">
-  <svg className="welcome-lines" viewBox="0 0 400 800" preserveAspectRatio="xMidYMid slice" aria-hidden="true">{[0,1,2,3,4,5,6,7].map(i=>{const t=140+i*24,b=620-i*24,r=(b-t)/2;return <path key={i} d={`M-40 ${b} H${230} A${r} ${r} 0 0 0 ${230} ${t} H-40`}/>;})}</svg>
+  <SkyHero decor score={78} days={[{plannedKm:8},{plannedKm:4},{plannedKm:11},{plannedKm:7},{plannedKm:3},{plannedKm:16},{plannedKm:6}]} todayIndex={5}/>
   <div className="welcome-inner">
-   <div className="welcome-brand"><Mark size={40}/><span>APEX</span></div>
-   <h1>Progress<br/>is personal.</h1>
-   <p>Training, recovery, strength and fuel. One place, built around how you actually train.</p>
+   <div className="welcome-brand"><Mark size={34}/><span>APEX</span></div>
+   <h1>Read the morning. Then run.</h1>
+   <p>Recovery, sleep, your plan and every run, with a coach who knows all of it.</p>
    <a className="welcome-cta" href={url}>Connect with Strava<Icon name="arrow"/></a>
-   <small>Your existing Strava account. Read-only.</small>
+   <small>Your existing Strava account, read-only. WHOOP and COROS connect later.</small>
   </div>
  </div>;
 }
