@@ -9,6 +9,7 @@ import {addDays,mondayOf} from './apexDates';
 import {smooth,Profile} from './ApexTrack';
 import {rememberEfforts} from './ApexPerformance';
 import {PosterSheet} from './ApexPoster';
+import {ShoePicker} from './ApexShoes';
 import {dist as distU,paceOf,perUnit,unitsOf} from './ApexSettings';
 
 const run=a=>a.type==='Run'||a.sport_type==='Run'||a.sport_type==='TrailRun';
@@ -22,7 +23,7 @@ const typeName=a=>run(a)?(a.workout_type===1?'Race':'Run'):(a.sport_type||a.type
 const longDate=key=>new Date(key+'T12:00:00').toLocaleDateString('en-GB',{weekday:'long',day:'numeric',month:'long'});
 const shortDate=key=>new Date(key+'T12:00:00').toLocaleDateString('en-GB',{weekday:'short',day:'numeric',month:'short'});
 
-export default function Activity({acts=[],gear=[],initialId=null,restHr=null,nav,settings,hr}){
+export default function Activity({acts=[],gear=[],initialId=null,restHr=null,nav,settings,hr,userPrefs,onSavePrefs}){
  const [hover,setHover]=useState(null),[picked,setPicked]=useState(null);
  const [type,setType]=useState('all'),[query,setQuery]=useState(''),[period,setPeriod]=useState('all'),[selected,setSelected]=useState(()=>acts.find(a=>a.id===initialId)||null);
  useEffect(()=>{if(initialId){const a=acts.find(x=>x.id===initialId);if(a)setSelected(a);}},[initialId,acts]);
@@ -75,7 +76,7 @@ export default function Activity({acts=[],gear=[],initialId=null,restHr=null,nav
 
   {gear.length>0&&<section className="gear-shelf"><div className="section-head"><h2>Shoes</h2></div>{gear.map(g=><div className="list-row" key={g.id}><span className="row-copy"><small>{g.brand_name||'In your rotation'}</small><b>{g.name||g.nickname}</b></span><span className="row-figure">{Math.round((g.distance||0)/1000)}<small>km</small></span></div>)}</section>}
   <p className="form-note">From the activities loaded from Strava. This may be a subset of your full history.</p>
-  {selected&&<ActivityDetail summary={selected} maxHr={maxHr} restHr={rest} settings={settings} onClose={()=>setSelected(null)}/>}
+  {selected&&<ActivityDetail summary={selected} maxHr={maxHr} restHr={rest} settings={settings} gear={gear} userPrefs={userPrefs} onSavePrefs={onSavePrefs} onClose={()=>setSelected(null)}/>}
  </div>;
 }
 
@@ -178,7 +179,7 @@ function RunReplay({points,time,vel,dist,markers}){
  </div>;
 }
 
-function ActivityDetail({summary,onClose,maxHr,restHr,settings}){
+function ActivityDetail({summary,onClose,maxHr,restHr,settings,gear,userPrefs,onSavePrefs}){
  const [poster,setPoster]=useState(false);
  useDialog(true,onClose);
  const [scrolled,setScrolled]=useState(false),[activity,setActivity]=useState(summary),[st,setSt]=useState({}),[loading,setLoading]=useState(true),[error,setError]=useState(''),[metric,setMetric]=useState('heartrate');
@@ -248,7 +249,7 @@ function ActivityDetail({summary,onClose,maxHr,restHr,settings}){
 
     {notes.length>0&&<section className="detail-section"><h3>What the run says</h3>{notes.map(([b,t])=><p key={b} className="insight"><b>{b}</b> {t}</p>)}</section>}
 
-    <section className="detail-section"><h3>Details</h3><dl className="facts">{facts.map(([k,v])=><div key={k}><dt>{k}</dt><dd>{v}</dd></div>)}{a.gear?.name&&<div className="fact-wide"><dt>Shoe</dt><dd>{a.gear.name}{a.gear.distance?` · ${Math.round(a.gear.distance/1000)} km`:''}</dd></div>}</dl></section>
+    <section className="detail-section"><h3>Details</h3><dl className="facts">{facts.map(([k,v])=><div key={k}><dt>{k}</dt><dd>{v}</dd></div>)}{a.gear?.name&&<div className="fact-wide"><dt>Shoe on Strava</dt><dd>{a.gear.name}{a.gear.distance?` · ${Math.round(a.gear.distance/1000)} km`:''}</dd></div>}</dl>{isRun&&<ShoePicker activity={a} gear={gear} userPrefs={userPrefs} onSavePrefs={onSavePrefs}/>}</section>
 
     {splits.length>1&&hasDist&&<section className="detail-section"><h3>Splits</h3>
      <div className="splits"><div className="split split-head" aria-hidden="true"><span>{mi?'Mi':'Km'}</span><span/><span>Pace</span><span>HR</span><span>Elev</span></div>

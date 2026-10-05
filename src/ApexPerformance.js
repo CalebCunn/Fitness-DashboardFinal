@@ -10,6 +10,7 @@ import {focusRace,raceDate} from './ApexGoals';
 import {localDate,addDays,mondayOf} from './apexDates';
 import {readSettings,heartRate,PB_DISTANCES} from './ApexSettings';
 import {PaceBand} from './ApexPoster';
+import {allShoes,shoeStats} from './ApexShoes';
 
 export const isRun=a=>a.type==='Run'||a.sport_type==='Run'||a.sport_type==='TrailRun';
 const day=a=>(a.start_date_local||a.start_date||'').slice(0,10);
@@ -161,7 +162,7 @@ export default function Performance({acts=[],gear=[],whoop,userPrefs,nav}){
  const goalPred=pred.now.Marathon&&goal?pred.now.Marathon*Math.pow(goalDist/42195,1.06):null;
  const gap=goalSecs&&goalPred?goalPred-goalSecs:null;
  const wall=pbWall(efforts,settings.pbs);
- const shoes=[...gear].sort((a,b)=>(b.distance||0)-(a.distance||0));
+ const shoeList=shoeStats(allShoes(gear,settings),acts,settings).filter(s=>!s.retired).sort((a,b)=>b.km-a.km);
  const runs=acts.filter(isRun).sort((a,b)=>new Date(b.start_date_local||b.start_date)-new Date(a.start_date_local||a.start_date));
  const unscanned=runs.filter(a=>!efforts[a.id]&&a.distance>=1000);
  const runScan=async()=>{
@@ -204,9 +205,9 @@ export default function Performance({acts=[],gear=[],whoop,userPrefs,nav}){
 
   <PaceBand goal={goal} goals={settings.goals} accent={accent}/>
 
-  {shoes.length>0&&<section className="perf-shoes" aria-labelledby="shoe-title">
-   <div className="section-head"><h2 id="shoe-title">Shoes</h2><span className="meta">Retire limits in Customise</span></div>
-   {shoes.map(g=>{const km=Math.round((g.distance||0)/1000),limit=settings.shoes[g.id]?.retire||800,[label,tone]=shoeState(km,limit);return <div className={`shoe-row shoe-${tone}`} key={g.id}><div className="shoe-top"><span><b>{g.name||g.nickname}</b><small>{g.retired?'Retired':g.primary?'Default shoe':label}</small></span><strong>{km}<small>km</small></strong></div><div className="shoe-bar"><i style={{width:`${Math.min(100,km/limit*100)}%`}}/></div></div>;})}
+  {shoeList.length>0&&<section className="perf-shoes" aria-labelledby="shoe-title">
+   <div className="section-head"><h2 id="shoe-title">Shoes</h2><button className="text-button" onClick={()=>nav('shoes')}>All shoes<Icon name="arrow" size={15}/></button></div>
+   {shoeList.slice(0,3).map(g=>{const [label,tone]=shoeState(g.km,g.limit);return <button className={`shoe-row shoe-${tone}`} key={g.id} onClick={()=>nav('shoes')}><div className="shoe-top"><span><b>{g.name}</b><small>{g.role||label}</small></span><strong>{Math.round(g.km)}<small>km</small></strong></div><div className="shoe-bar"><i style={{width:`${Math.min(100,g.km/g.limit*100)}%`}}/></div></button>;})}
   </section>}
 
   <section className="perf-recap"><div><span className="eyebrow">This week</span><h2>Share your week</h2><p>A recap card with your kilometres, time, longest run, form and marathon prediction.</p></div><button className="primary-action" onClick={share}><Icon name="external" size={18}/>Share card</button>{shareNote&&<p className="form-note">{shareNote}</p>}</section>

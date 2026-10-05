@@ -1,4 +1,4 @@
-import {useState,useEffect,useRef,useMemo} from 'react';
+import {useState,useEffect,useLayoutEffect,useRef,useMemo} from 'react';
 import {Icon} from './ApexUI';
 import * as persistence from './supabase';
 import {PREVIEW,previewStore} from './ApexPreview';
@@ -42,7 +42,9 @@ export default function CoachScreen({whoop,userPrefs,onPlanSaved,onGymSaved,coro
  useEffect(()=>{loadChatHistory().then(m=>{if(m?.length)setMsgs(m);setLoaded(true);}).catch(()=>setLoaded(true));},[]);
  useEffect(()=>{if(loaded&&!sending)saveChatHistory(msgs.map(({previews,api,...m})=>m).slice(-60));},[msgs,loaded,sending]);
  const logRef=useRef(null),stick=useRef(true);
- useEffect(()=>{const el=logRef.current;if(!el||!stick.current)return;try{if(typeof el.scrollTo==='function')el.scrollTo({top:el.scrollHeight,behavior:window.matchMedia('(prefers-reduced-motion: reduce)').matches?'auto':'smooth'});else el.scrollTop=el.scrollHeight;}catch{el.scrollTop=el.scrollHeight;}},[msgs,status]);
+ // Open on the latest message, instantly; while a reply streams, follow it smoothly.
+ useLayoutEffect(()=>{const el=logRef.current;if(!el)return;el.scrollTop=el.scrollHeight;const id=requestAnimationFrame(()=>{el.scrollTop=el.scrollHeight;});return()=>cancelAnimationFrame(id);},[loaded]);
+ useEffect(()=>{const el=logRef.current;if(!el||!stick.current)return;if(!sending){el.scrollTop=el.scrollHeight;return;}try{el.scrollTo({top:el.scrollHeight,behavior:window.matchMedia('(prefers-reduced-motion: reduce)').matches?'auto':'smooth'});}catch{el.scrollTop=el.scrollHeight;}},[msgs,status,sending]);
 
  const rec=whoop?.recoveries?.records?.[0];
  const recScore=rec?.score?.recovery_score!=null?Math.round(rec.score.recovery_score):null;

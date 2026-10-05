@@ -17,7 +17,7 @@ export const STATS={
  form:'Form',fitness:'Fitness',marathon:'Marathon prediction',half:'Half prediction',tenk:'10K prediction',fivek:'5K prediction',
  week:'This week',month:'This month',year:'This year',streak:'Run streak',hrv:'HRV',sleep:'Sleep',rhr:'Resting HR',shoe:'Shoe mileage',race:'Race countdown',
 };
-export const TAB_CHOICES={plan:'Training',activity:'Activity',coach:'Coach',performance:'Performance',recovery:'Recovery',nutrition:'Fuel',gym:'Strength'};
+export const TAB_CHOICES={plan:'Training',activity:'Activity',coach:'Coach',performance:'Performance',shoes:'Shoes',recovery:'Recovery',nutrition:'Fuel',gym:'Strength'};
 export const ACCENTS={
  cobalt:{name:'Cobalt',light:'#1C3BDB',dark:'#3553F5'},
  red:{name:'Signal red',light:'#D2311E',dark:'#F0533E'},
@@ -60,8 +60,19 @@ export function heartRate(settings,acts=[],whoop){
  return {max:settings?.hr?.max||autoMax,rest:settings?.hr?.rest||autoRest,autoMax,autoRest,model:settings?.hr?.model||'reserve',maxSet:!!settings?.hr?.max,restSet:!!settings?.hr?.rest};
 }
 
+// Times can be typed as digits only (1843 → 18:43, 12410 → 1:24:10), so the
+// iPhone number pad works; colons or full stops are accepted too.
+export function formatDigits(text){
+ const d=String(text||'').replace(/\D/g,'').replace(/^0+(?=\d{3})/,'').slice(0,6);
+ if(d.length<=2)return d;
+ if(d.length<=4)return `${d.slice(0,-2)}:${d.slice(-2)}`;
+ return `${d.slice(0,-4)}:${d.slice(-4,-2)}:${d.slice(-2)}`;
+}
 export function parseTime(text){
- const p=String(text||'').trim().split(':').map(Number);if(!p.length||p.some(x=>!Number.isFinite(x)||x<0))return null;
+ let t=String(text||'').trim().replace(/\./g,':');
+ if(t&&!t.includes(':'))t=formatDigits(t);
+ const p=t.split(':').map(Number);if(!p.length||p.some(x=>!Number.isFinite(x)||x<0))return null;
+ if(p.slice(1).some(x=>x>=60))return null;
  if(p.length===3)return p[0]*3600+p[1]*60+p[2];if(p.length===2)return p[0]*60+p[1];return null;
 }
 export const fmtTime=s=>{if(!Number.isFinite(s))return '';s=Math.round(s);const h=Math.floor(s/3600),m=Math.floor(s%3600/60),x=s%60;return h?`${h}:${String(m).padStart(2,'0')}:${String(x).padStart(2,'0')}`:`${m}:${String(x).padStart(2,'0')}`;};
@@ -72,9 +83,15 @@ export function useSettings(userPrefs,onSavePrefs){
  return [settings,update];
 }
 
+export function TimeInput({value,onCommit,placeholder,label}){
+ const [text,setText]=useState(Number.isFinite(value)?fmtTime(value):'');
+ return <input inputMode="numeric" pattern="[0-9:]*" autoComplete="off" aria-label={label} placeholder={placeholder} value={text}
+  onChange={e=>setText(formatDigits(e.target.value))} onBlur={()=>onCommit?.(parseTime(text))}/>;
+}
+
 function Section({title,note,children}){return <section className="set-section"><div className="set-head"><h2>{title}</h2>{note&&<p>{note}</p>}</div>{children}</section>;}
 
-export default function Settings({userPrefs,onSavePrefs,acts=[],whoop,gear=[],theme,setTheme}){
+export default function Settings({userPrefs,onSavePrefs,acts=[],whoop,theme,setTheme,nav}){
  const [s,update]=useSettings(userPrefs,onSavePrefs);
  const hr=heartRate(s,acts,whoop);
  const [pb,setPb]=useState({dist:'5K',time:'',date:'',race:''}),[pbError,setPbError]=useState('');
@@ -82,7 +99,7 @@ export default function Settings({userPrefs,onSavePrefs,acts=[],whoop,gear=[],th
  const toggle=k=>update({home:{...s.home,hidden:s.home.hidden.includes(k)?s.home.hidden.filter(x=>x!==k):[...s.home.hidden,k]}});
  const pickStat=(slot,k)=>{const next=[...s.stats];next[slot]=k;update({stats:next});};
  const pickTab=(slot,k)=>{const next=[...s.tabs];const other=next.indexOf(k);if(other>=0)next[other]=next[slot];next[slot]=k;update({tabs:next});};
- const addPb=e=>{e.preventDefault();const t=parseTime(pb.time);if(!t){setPbError('Enter a time like 18:42 or 1:24:10.');return;}setPbError('');update({pbs:[...s.pbs,{id:Date.now(),dist:pb.dist,time:t,date:pb.date||null,race:pb.race.trim()}]});setPb({...pb,time:'',race:''});};
+ const addPb=e=>{e.preventDefault();const t=parseTime(pb.time);if(!t){setPbError('Type the time as digits, for example 1842 for 18:42 or 12410 for 1:24:10.');return;}setPbError('');update({pbs:[...s.pbs,{id:Date.now(),dist:pb.dist,time:t,date:pb.date||null,race:pb.race.trim()}]});setPb({...pb,time:'',race:''});};
  return <div className="settings-page">
   <p className="lede">Make APEX yours. Every change saves straight to your account.</p>
 
@@ -113,7 +130,7 @@ export default function Settings({userPrefs,onSavePrefs,acts=[],whoop,gear=[],th
    {s.pbs.length>0&&<div className="set-pbs">{[...s.pbs].sort((a,b)=>PB_DISTANCES.findIndex(d=>d[0]===a.dist)-PB_DISTANCES.findIndex(d=>d[0]===b.dist)).map(p=><div key={p.id}><span><b>{p.dist}</b><small>{[p.race,p.date&&new Date(p.date+'T12:00:00').toLocaleDateString('en-GB',{day:'numeric',month:'short',year:'numeric'})].filter(Boolean).join(' · ')||'Your PB'}</small></span><strong>{fmtTime(p.time)}</strong><button onClick={()=>update({pbs:s.pbs.filter(x=>x.id!==p.id)})} aria-label={`Remove ${p.dist} PB`}><Icon name="close" size={16}/></button></div>)}</div>}
    <form className="set-pb-form" onSubmit={addPb}>
     <label>Distance<select value={pb.dist} onChange={e=>setPb({...pb,dist:e.target.value})}>{PB_DISTANCES.map(([k])=><option key={k}>{k}</option>)}</select></label>
-    <label>Time<input inputMode="numeric" placeholder="18:42" value={pb.time} onChange={e=>setPb({...pb,time:e.target.value})}/></label>
+    <label>Time<input inputMode="numeric" pattern="[0-9:]*" autoComplete="off" placeholder="Type 1842 for 18:42" value={pb.time} onChange={e=>setPb({...pb,time:formatDigits(e.target.value)})}/></label>
     <label>Date<input type="date" value={pb.date} onChange={e=>setPb({...pb,date:e.target.value})}/></label>
     <label>Race<input placeholder="Optional" value={pb.race} onChange={e=>setPb({...pb,race:e.target.value})}/></label>
     <button className="primary-action">Add PB</button>
@@ -122,7 +139,7 @@ export default function Settings({userPrefs,onSavePrefs,acts=[],whoop,gear=[],th
   </Section>
 
   <Section title="Goal times" note="Targets per distance. The predictor shows how far off you are.">
-   <div className="set-goals">{PB_DISTANCES.slice(2).map(([k])=><label key={k}>{k}<input inputMode="numeric" placeholder={k==='Marathon'?'2:59:59':k==='Half'?'1:24:00':k==='10K'?'38:00':'18:00'} defaultValue={fmtTime(s.goals[k])} onBlur={e=>{const t=parseTime(e.target.value);update({goals:{...s.goals,[k]:t||undefined}});}}/></label>)}</div>
+   <div className="set-goals">{PB_DISTANCES.slice(2).map(([k])=><label key={k}>{k}<TimeInput label={`${k} goal time`} value={s.goals[k]} placeholder={k==='Marathon'?'2:59:59':k==='Half'?'1:24:00':k==='10K'?'38:00':'18:00'} onCommit={t=>update({goals:{...s.goals,[k]:t||undefined}})}/></label>)}</div>
   </Section>
 
   <Section title="Heart rate" note="Worked out from your data. Override if you know a more accurate number, for example from a lab or field test.">
@@ -137,8 +154,6 @@ export default function Settings({userPrefs,onSavePrefs,acts=[],whoop,gear=[],th
    <div className="set-row"><span><b>Window</b><small>Which recent runs count.</small></span><div className="apex-segments">{[4,8,12].map(w=><button key={w} aria-pressed={s.predictor.weeks===w} onClick={()=>update({predictor:{...s.predictor,weeks:w}})}>{w} weeks</button>)}</div></div>
   </Section>
 
-  {gear.length>0&&<Section title="Shoes" note="When each pair should retire.">
-   {gear.map(g=><div className="set-row" key={g.id}><span><b>{g.name||g.nickname}</b><small>{Math.round((g.distance||0)/1000)} km so far</small></span><select className="set-small" value={s.shoes[g.id]?.retire||800} onChange={e=>update({shoes:{...s.shoes,[g.id]:{...s.shoes[g.id],retire:Number(e.target.value)}}})}>{[400,500,600,700,800,900,1000].map(k=><option key={k} value={k}>{k} km</option>)}</select></div>)}
-  </Section>}
+  <Section title="Shoes" note="Rotation, roles and retire limits live on the Shoes screen."><button className="secondary-action" onClick={()=>nav?.('shoes')}>Open Shoes<Icon name="arrow" size={17}/></button></Section>
  </div>;
 }

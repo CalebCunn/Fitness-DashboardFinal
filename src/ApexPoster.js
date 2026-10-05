@@ -4,7 +4,7 @@ import {useEffect,useState} from 'react';
 import {createPortal} from 'react-dom';
 import {useDialog} from './ApexInteractions';
 import {Icon} from './ApexUI';
-import {POSTER_STYLES,dist,paceOf,perUnit,unitsOf,fmtTime,parseTime} from './ApexSettings';
+import {POSTER_STYLES,dist,paceOf,perUnit,unitsOf,fmtTime,parseTime,formatDigits} from './ApexSettings';
 
 const W=1080,H=1350,M=72;
 const SANS='"Instrument Sans", -apple-system, Helvetica, sans-serif',SERIF='"Instrument Serif", Georgia, serif';
@@ -115,7 +115,7 @@ export function PaceBand({goal,goals={},accent}){
  const target=parseTime(text)||initial,rows=bandSplits(target,km,strategy);
  return <section className="pace-band" aria-labelledby="band-title">
   <div className="section-head"><h2 id="band-title">Pace band</h2><span className="meta">{goal?.name||'Marathon'}</span></div>
-  <div className="band-controls"><label>Target<input inputMode="numeric" value={text} onChange={e=>setText(e.target.value)}/></label><div className="apex-segments">{[['even','Even'],['negative','Negative split']].map(([k,l])=><button key={k} aria-pressed={strategy===k} onClick={()=>setStrategy(k)}>{l}</button>)}</div></div>
+  <div className="band-controls"><label>Target<input inputMode="numeric" pattern="[0-9:]*" autoComplete="off" value={text} onChange={e=>setText(formatDigits(e.target.value))}/></label><div className="apex-segments">{[['even','Even'],['negative','Negative split']].map(([k,l])=><button key={k} aria-pressed={strategy===k} onClick={()=>setStrategy(k)}>{l}</button>)}</div></div>
   <p className="band-pace"><b>{fmtTime(target/km)}</b> /km average{strategy==='negative'?` · ${fmtTime(rows[0].pace)} then ${fmtTime(rows[rows.length-1].pace)}`:''}</p>
   <ol className="band-rows">{rows.map(r=><li key={r.k}><span>{r.k%1?r.k.toFixed(1):r.k} km</span><i style={{width:`${r.k/km*100}%`}}/><b>{fmtTime(r.t)}</b></li>)}</ol>
   <button className="secondary-action" onClick={async()=>setNote(await shareImage(await drawBand({name:goal?.name||'Race day',target,km,rows,accent}),'apex-pace-band.png','Pace band'))}><Icon name="external" size={17}/>Share band</button>

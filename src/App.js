@@ -2,7 +2,7 @@ import {useState,useEffect,useCallback} from 'react';
 import {isConnected,disconnect,exchangeCode,getAthlete,getStats,getActivities,getAllGear} from './strava';
 import {isWhoopConnected,disconnectWhoop,exchangeWhoopCode,getWhoopAuthUrl,getWhoopData} from './whoop';
 import * as persistence from './supabase';
-import {Frame,Home,Welcome} from './ApexUI';
+import {Frame,Home,Welcome,SyncToast} from './ApexUI';
 import Recovery from './ApexRecovery';
 import Nutrition from './ApexNutrition';
 import Training from './ApexTraining';
@@ -13,6 +13,7 @@ import Profile from './ApexProfile';
 import Journal from './ApexJournal';
 import Performance from './ApexPerformance';
 import Settings,{readSettings,heartRate} from './ApexSettings';
+import Shoes from './ApexShoes';
 import {PREVIEW,fixture,previewStore} from './ApexPreview';
 import {isCorosConnected,isCorosCallback,finishCorosConnect,startCorosConnect,disconnectCoros} from './coros';
 const {loadUserPrefs,saveUserPrefs,loadTrainingPlan,saveTrainingPlan}=PREVIEW?previewStore:persistence;
@@ -24,7 +25,7 @@ export default function App(){
  useEffect(()=>{if(PREVIEW)return;const update=()=>setSaveStatus(persistence.getSaveStatus());window.addEventListener('apex-save-status',update);return()=>window.removeEventListener('apex-save-status',update);},[]);
  const [activityId,setActivityId]=useState(null);
  const navigate=(id,activity=null)=>{setActivityId(activity);if(window.location.hash!=='#'+id)window.history.pushState({},'', '#'+id);setPage(id);};
- useEffect(()=>{const back=()=>{const id=window.location.hash.slice(1);setPage(['home','plan','activity','performance','recovery','nutrition','gym','coach','profile','races','settings'].includes(id)?id:'home');};window.addEventListener('popstate',back);back();return()=>window.removeEventListener('popstate',back);},[]);
+ useEffect(()=>{const back=()=>{const id=window.location.hash.slice(1);setPage(['home','plan','activity','performance','recovery','nutrition','gym','coach','profile','races','settings','shoes'].includes(id)?id:'home');};window.addEventListener('popstate',back);back();return()=>window.removeEventListener('popstate',back);},[]);
  const [page,setPage]=useState('home'),[connected,setConnected]=useState(PREVIEW||isConnected()),[whoopOk,setWhoopOk]=useState(PREVIEW||isWhoopConnected());
  const [acts,setActs]=useState([]),[stats,setStats]=useState(null),[athlete,setAthlete]=useState(null),[gear,setGear]=useState([]),[whoop,setWhoop]=useState(null),[loading,setLoading]=useState(false),[whoopPending,setWhoopPending]=useState(false),[error,setError]=useState(''),[retry,setRetry]=useState(0);
  const [savedPlan,setSavedPlan]=useState(null),[savedWorkout,setSavedWorkout]=useState(null),[userPrefs,setUserPrefs]=useState(null),[prefsReady,setPrefsReady]=useState(false);
@@ -62,16 +63,17 @@ export default function App(){
  const views={
   home:<Home gear={gear} prefsUnavailable={!!loadFailure?.prefs} planUnavailable={!!loadFailure?.plan} acts={acts} whoop={whoop} whoopOk={whoopOk} connectWhoop={connectWhoop} athlete={athlete} plan={savedPlan} nav={navigate} userPrefs={userPrefs} checkin={<Journal userPrefs={userPrefs} onSavePrefs={savePrefs} plan={savedPlan} nav={navigate}/>}/>,
   recovery:<><Recovery whoop={whoop} whoopOk={whoopOk} connectWhoop={connectWhoop}/>{!loadFailure?.prefs&&<Journal userPrefs={userPrefs} onSavePrefs={savePrefs} plan={savedPlan} nav={navigate}/>}</>,
-  settings:<Settings userPrefs={userPrefs} onSavePrefs={savePrefs} acts={acts} whoop={whoop} gear={gear} theme={theme} setTheme={setTheme}/>,
+  shoes:<Shoes gear={gear} acts={acts} userPrefs={userPrefs} onSavePrefs={savePrefs}/>,
+  settings:<Settings userPrefs={userPrefs} onSavePrefs={savePrefs} acts={acts} whoop={whoop} gear={gear} theme={theme} setTheme={setTheme} nav={navigate}/>,
   performance:<Performance acts={acts} gear={gear} whoop={whoop} userPrefs={userPrefs} nav={navigate}/>,
   nutrition:<Nutrition userPrefs={userPrefs} onSavePrefs={savePrefs}/>,
   plan:<Training acts={acts} races={userPrefs?.races} openRaces={()=>navigate('races')} plan={savedPlan} onChange={savePlan} openCoach={()=>navigate('coach')}/>,
-  activity:<Activity acts={acts} gear={gear} initialId={activityId} nav={navigate} settings={readSettings(userPrefs)} hr={heartRate(readSettings(userPrefs),acts,whoop)}/>,
+  activity:<Activity acts={acts} gear={gear} initialId={activityId} nav={navigate} userPrefs={userPrefs} onSavePrefs={savePrefs} settings={readSettings(userPrefs)} hr={heartRate(readSettings(userPrefs),acts,whoop)}/>,
   gym:<Strength userPrefs={userPrefs} onSavePrefs={savePrefs} savedWorkout={savedWorkout} openCoach={()=>navigate('coach')}/>,
   coach:<Coach whoop={whoop} onPlanSaved={savePlan} onGymSaved={saveWorkout} userPrefs={{...userPrefs,currentPlan:savedPlan}} corosOk={corosOk} connectCoros={connectCoros}/>,
   profile:<Profile athlete={athlete} acts={acts} whoopOk={whoopOk} whoop={whoop} connectWhoop={connectWhoop} corosOk={corosOk} connectCoros={connectCoros} onDisconnectCoros={disconnectCorosNow} corosError={corosError} darkMode={darkMode} setDarkMode={setDarkMode} onDisconnect={()=>{if(PREVIEW)return;disconnect();setConnected(false);setActs([]);}} onDisconnectWhoop={()=>{if(PREVIEW)return;disconnectWhoop();setWhoopOk(false);setWhoop(null);}} userPrefs={userPrefs} onSavePrefs={savePrefs}/>
  };
  views.races=<Profile athlete={athlete} acts={acts} whoopOk={whoopOk} whoop={whoop} connectWhoop={connectWhoop} darkMode={darkMode} setDarkMode={setDarkMode} onDisconnect={()=>{if(!PREVIEW){disconnect();setConnected(false);}}} onDisconnectWhoop={()=>{if(!PREVIEW){disconnectWhoop();setWhoopOk(false);setWhoop(null);}}} userPrefs={userPrefs} onSavePrefs={savePrefs} racesOnly/>;
- const blocked=loadFailure&&((loadFailure.prefs&&['nutrition','gym','profile','races','settings'].includes(page))||(['plan','coach'].includes(page)&&(loadFailure.prefs||loadFailure.plan)));
- return <Frame page={page} nav={navigate} athlete={athlete} dark={darkMode} preview={PREVIEW} settings={readSettings(userPrefs)}>{loadFailure&&prefsReady&&<div className="sync-error" role="alert"><span>Some saved data is unavailable. Connected activities and recovery are still available.</span><button onClick={()=>setLoadAttempt(x=>x+1)}>Retry saved data</button></div>}{!PREVIEW&&!loadFailure&&saveStatus.message&&<div className={'persistence-status '+saveStatus.state} role="status"><span>{saveStatus.message}</span>{saveStatus.state==='pending'&&<button onClick={()=>persistence.retryPendingSaves()}>Retry cloud sync</button>}</div>}{error&&<div className="sync-error" role="alert"><span>{error}</span><button onClick={()=>setRetry(retry+1)}>Retry sync</button></div>}{loading||!prefsReady||whoopPending?<div className="app-loading" role="status"><div/><p>{whoopPending?'Connecting WHOOP…':'Bringing your day together…'}</p></div>:blocked?<section className="daily-review"><h2>Your saved records are temporarily unavailable.</h2><p>This section will reopen when its data loads. Your existing records have not been replaced.</p><button className="secondary-action" onClick={()=>navigate('activity')}>View connected activities</button></section>:(views[page]||views.home)}</Frame>;
+ const blocked=loadFailure&&((loadFailure.prefs&&['nutrition','gym','profile','races','settings','shoes'].includes(page))||(['plan','coach'].includes(page)&&(loadFailure.prefs||loadFailure.plan)));
+ return <Frame page={page} nav={navigate} athlete={athlete} dark={darkMode} preview={PREVIEW} settings={readSettings(userPrefs)}>{loadFailure&&prefsReady&&<div className="sync-error" role="alert"><span>Some saved data is unavailable. Connected activities and recovery are still available.</span><button onClick={()=>setLoadAttempt(x=>x+1)}>Retry saved data</button></div>}{!PREVIEW&&!loadFailure&&<SyncToast status={saveStatus} onRetry={()=>persistence.retryPendingSaves()}/>}{error&&<div className="sync-error" role="alert"><span>{error}</span><button onClick={()=>setRetry(retry+1)}>Retry sync</button></div>}{loading||!prefsReady||whoopPending?<div className="app-loading" role="status"><svg viewBox="0 0 120 120" aria-hidden="true">{[40,52,64,76,88].map(r=><path key={r} d={`M0,${120-r} A${r},${r} 0 0 1 ${r},120`}/>)}<path className="loading-lap" d="M0,74 A46,46 0 0 1 46,120"/></svg><p>{whoopPending?'Connecting WHOOP…':'Bringing your day together…'}</p></div>:blocked?<section className="daily-review"><h2>Your saved records are temporarily unavailable.</h2><p>This section will reopen when its data loads. Your existing records have not been replaced.</p><button className="secondary-action" onClick={()=>navigate('activity')}>View connected activities</button></section>:(views[page]||views.home)}</Frame>;
 }

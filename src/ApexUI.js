@@ -5,6 +5,7 @@ import {Bend,useLap,readyFor,WeekBars} from './ApexTrack';
 import {usePerformance,formLabel,clock,isRun as runOf} from './ApexPerformance';
 import {focusRace,raceDate} from './ApexGoals';
 import {readSettings,TAB_CHOICES,ACCENTS,STATS,dist,paceOf,perUnit,unitsOf,heartRate} from './ApexSettings';
+import {allShoes,shoeStats} from './ApexShoes';
 import './ApexUI.css';
 
 const paths={
@@ -13,7 +14,7 @@ const paths={
  activity:'M3 12h4l3-7 4 14 3-7h4',
  plan:'M5 5h14v15H5z M5 10h14 M9 3v4 M15 3v4',
  nutrition:'M7 3v8a3 3 0 0 0 6 0V3 M10 3v18 M17 3c-2.5 2-2.5 9 0 10v8',
- recovery:'M3 12h4l2-4 3 8 2-4h7',
+ recovery:'M20 14.5A8 8 0 1 1 9.5 4a6.5 6.5 0 0 0 10.5 10.5z',
  gym:'M2 12h2 M20 12h2 M5 8v8 M19 8v8 M8 6v12 M16 6v12 M8 12h8',
  coach:'M5 18V8a3 3 0 0 1 3-3h8a3 3 0 0 1 3 3v6a3 3 0 0 1-3 3H9l-4 3z M9 10.5h6 M9 13.5h4',
  profile:'M12 12a4 4 0 1 0 0-8 4 4 0 0 0 0 8z M4 20a8 8 0 0 1 16 0',
@@ -29,6 +30,7 @@ const paths={
  check:'M5 12.5 10 17 19 7',
  external:'M14 4h6v6 M20 4l-9 9 M18 14v5a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V7a1 1 0 0 1 1-1h5',
  chevron:'M9 5l7 7-7 7',
+ shoes:'M3 15.5c0-2 1-3.2 2.2-4.7L7.5 8h3l1.5 2.5c1.6.9 4 1.4 6.3 1.9 1.6.4 2.7 1.6 2.7 3.1v1H3z M3 18.5h18',
  settings:'M4 7h10 M18 7h2 M4 17h4 M12 17h8 M16 5v4 M10 15v4',
  poster:'M5 3h14v18H5z M5 15c3-4 6-4 9-1s3 2 5 0',
 };
@@ -37,8 +39,8 @@ export function Icon({name,size=22}){return <svg width={size} height={size} view
 // The mark: the bend of a track, lane 1 drawn heavy.
 export function Mark({size=26}){return <svg width={size} height={size} viewBox="0 0 64 64" aria-hidden="true"><g fill="none" stroke="currentColor"><path d="M8 18a38 38 0 0 1 38 38" strokeWidth="7"/><path d="M8 6a50 50 0 0 1 50 50" strokeWidth="2.2"/><path d="M8 30a26 26 0 0 1 26 26" strokeWidth="2.2"/></g></svg>;}
 
-const MORE_ALL=[['performance','Performance','Form, predictor, PBs, pace band, shoes'],['recovery','Recovery','Sleep, HRV and the last 30 mornings'],['nutrition','Fuel','Meals, targets and body weight'],['gym','Strength','Live workouts, rest timer, history'],['races','Races','Your calendar and primary goal'],['settings','Customise','Today, tabs, colour, units, PBs, heart rate'],['profile','You','Profile and connections'],['plan','Training','Your plan, week by week'],['activity','Activity','Every run and the 12-week grid'],['coach','Coach','Plans, questions, adjustments']];
-const TITLES={performance:'Performance',plan:'Training',activity:'Activity',recovery:'Recovery',nutrition:'Fuel',gym:'Strength',coach:'Coach',profile:'You',races:'Races',settings:'Customise'};
+const MORE_ALL=[['performance','Performance','Form, predictor, PBs, pace band'],['shoes','Shoes','Mileage, rotation and retirement'],['recovery','Recovery','Sleep, HRV and the last 30 mornings'],['nutrition','Fuel','Meals, targets and body weight'],['gym','Strength','Live workouts, rest timer, history'],['races','Races','Your calendar and primary goal'],['settings','Customise','Today, tabs, colour, units, PBs, heart rate'],['profile','You','Profile and connections'],['plan','Training','Your plan, week by week'],['activity','Activity','Every run and the 12-week grid'],['coach','Coach','Plans, questions, adjustments']];
+const TITLES={shoes:'Shoes',performance:'Performance',plan:'Training',activity:'Activity',recovery:'Recovery',nutrition:'Fuel',gym:'Strength',coach:'Coach',profile:'You',races:'Races',settings:'Customise'};
 
 export function Frame({page,nav,athlete,dark,preview,settings,children}){
  const positions=useRef({}),previous=useRef(page),scroll=useRef(null),[menu,setMenu]=useState(false),[solid,setSolid]=useState(false);
@@ -122,7 +124,7 @@ export function Home({acts=[],gear=[],whoop,whoopOk,connectWhoop,plan,nav,userPr
  const {form,pred}=usePerformance(acts,whoop,settings);
  const last=form.ready?form.series[form.series.length-1]:null,fl=last?formLabel(last.tsb):null;
  const goal=focusRace(userPrefs?.races),goalDays=goal&&raceDate(goal)?Math.ceil((new Date(goal.date+'T12:00:00')-new Date(today+'T12:00:00'))/86400000):null;
- const topShoe=[...gear].filter(g=>!g.retired).sort((a,b)=>(b.primary?1:0)-(a.primary?1:0)||(b.distance||0)-(a.distance||0))[0];
+ const topShoe=shoeStats(allShoes(gear,settings),acts,settings).filter(s=>!s.retired).sort((a,b)=>(b.last||'').localeCompare(a.last||'')||(b.primary?1:0)-(a.primary?1:0)||b.km-a.km)[0];
  const days=new Set(runs.map(actDay));let streak=0;for(let k=days.has(today)?today:addDays(today,-1);days.has(k);k=addDays(k,-1))streak++;
  const todayRun=runs.filter(a=>actDay(a)===today).sort((a,b)=>new Date(b.start_date_local||b.start_date)-new Date(a.start_date_local||a.start_date))[0];
  const runTime=a=>new Date(a.start_date_local||a.start_date).toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit',timeZone:a.start_date_local?'UTC':undefined});
@@ -144,7 +146,7 @@ export function Home({acts=[],gear=[],whoop,whoopOk,connectWhoop,plan,nav,userPr
   hrv:[Number.isFinite(rec?.hrv_rmssd_milli)?Math.round(rec.hrv_rmssd_milli):'—',hrvDelta!=null?`ms · ${hrvDelta>=0?'+':''}${hrvDelta}%`:'ms','recovery'],
   sleep:[asleep?hm(asleep):'—','asleep','recovery'],
   rhr:[rec?.resting_heart_rate!=null?Math.round(rec.resting_heart_rate):'—','bpm resting','recovery'],
-  shoe:[topShoe?dist(topShoe.distance||0,settings,0):'—',topShoe?`${u} · ${topShoe.name}`:'No shoes','performance'],
+  shoe:[topShoe?dist(topShoe.km*1000,settings,0):'—',topShoe?`${u} · ${topShoe.name}`:'No shoes','shoes'],
   race:[goalDays!=null?goalDays:'—',goal?`days to ${goal.name}`:'No race set','races'],
  };
  const weekDays=Array.from({length:7},(_,i)=>{const key=addDays(monday,i),ds=sessions.filter(s=>s.date===key),main=ds.find(s=>s.type!=='Rest')||ds[0],d=new Date(key+'T12:00:00');
@@ -199,6 +201,24 @@ export function Welcome({url}){
    <a className="welcome-cta" href={url}><span>Connect with Strava</span><Icon name="arrow"/></a>
    <small>Your existing Strava account, read-only. WHOOP and COROS connect later.</small>
   </div>
+ </div>;
+}
+
+// Cloud sync, told quietly: a small toast above the tab bar. "Saved" fades on its
+// own; a failed sync stays until you retry or dismiss it. Never pushes the page down.
+export function SyncToast({status,onRetry}){
+ const [shown,setShown]=useState(null);
+ useEffect(()=>{
+  const st=status?.state;
+  if(st==='saved'){setShown({kind:'saved',text:'Saved'});const t=setTimeout(()=>setShown(null),1600);return()=>clearTimeout(t);}
+  if(st==='pending'||st==='error'){setShown({kind:st,text:status.message||'Cloud sync needs a retry.'});return;}
+  if(st==='idle')setShown(null);
+ },[status]);
+ if(!shown)return null;
+ return <div className={`sync-toast is-${shown.kind}`} role="status" aria-live="polite">
+  {shown.kind==='saved'?<Icon name="check" size={16}/>:<span className="sync-dot"/>}
+  <span>{shown.text}</span>
+  {shown.kind!=='saved'&&<><button onClick={onRetry}>Retry</button><button aria-label="Dismiss" onClick={()=>setShown(null)}><Icon name="close" size={14}/></button></>}
  </div>;
 }
 
