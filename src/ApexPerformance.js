@@ -8,6 +8,8 @@ import {Icon} from './ApexUI';
 import {Spark,smooth} from './ApexTrack';
 import {focusRace,raceDate} from './ApexGoals';
 import {localDate,addDays,mondayOf} from './apexDates';
+import {readSettings,heartRate,PB_DISTANCES} from './ApexSettings';
+import {PaceBand} from './ApexPoster';
 
 export const isRun=a=>a.type==='Run'||a.sport_type==='Run'||a.sport_type==='TrailRun';
 const day=a=>(a.start_date_local||a.start_date||'').slice(0,10);
@@ -61,12 +63,13 @@ function effortSources(acts,efforts,fromKey,toKey){
 }
 function bestPrediction(src,target,withSource){let best=null,from=null;src.forEach(s=>{const p=riegel(s.t,s.d,target);if(!best||p<best){best=p;from=s;}});return withSource?{time:best,from}:best;}
 
-export function predictions(acts,efforts){
- const today=localDate(new Date()),from=addDays(today,-56);
- const src=effortSources(acts,efforts,from,today);
+export function predictions(acts,efforts,weeks=8,manual=[]){
+ const today=localDate(new Date()),from=addDays(today,-7*weeks);
+ const manualSrc=manual.filter(p=>p.date&&p.date>=from).map(p=>({d:(PB_DISTANCES.find(d=>d[0]===p.dist)||[])[1],t:p.time,label:`${p.dist} PB${p.race?` at ${p.race}`:''}`})).filter(x=>x.d);
+ const src=[...effortSources(acts,efforts,from,today),...manualSrc];
  const now=Object.fromEntries(DISTANCES.map(([k,d])=>[k,bestPrediction(src,d)]));
  const basis=bestPrediction(src,42195,true).from;
- const trend=Array.from({length:12},(_,i)=>{const end=addDays(today,-7*(11-i));return bestPrediction(effortSources(acts,efforts,addDays(end,-42),end),42195);});
+ const trend=Array.from({length:12},(_,i)=>{const end=addDays(today,-7*(11-i));return bestPrediction(effortSources(acts,efforts,addDays(end,-7*weeks),end),42195);});
  return {now,trend,sources:src.length,basis};
 }
 
@@ -83,31 +86,31 @@ export function rememberEfforts(a){
  try{const all=loadEfforts();all[a.id]={date:day(a),name:a.name,efforts:a.best_efforts.map(e=>({name:e.name,distance:e.distance,moving_time:e.moving_time||e.elapsed_time}))};localStorage.setItem(KEY,JSON.stringify(all));}catch{}
 }
 const WALL=[['1K',['1k','1K']],['1 mile',['1 mile']],['5K',['5k','5K']],['10K',['10k','10K']],['Half',['Half-Marathon','half-marathon']],['Marathon',['Marathon','marathon']]];
-export function pbWall(efforts){
- return WALL.map(([label,names])=>{let best=null;Object.entries(efforts).forEach(([id,e])=>(e.efforts||[]).forEach(x=>{if(names.includes(x.name)&&x.moving_time&&(!best||x.moving_time<best.time))best={time:x.moving_time,date:e.date,run:e.name,id:+id};}));return {label,best};});
+export function pbWall(efforts,manual=[]){
+ return WALL.map(([label,names])=>{let best=null;Object.entries(efforts).forEach(([id,e])=>(e.efforts||[]).forEach(x=>{if(names.includes(x.name)&&x.moving_time&&(!best||x.moving_time<best.time))best={time:x.moving_time,date:e.date,run:e.name,id:+id};}));manual.filter(p=>p.dist===label).forEach(p=>{if(!best||p.time<best.time)best={time:p.time,date:p.date,run:p.race||'Entered by you',manual:true};});return {label,best};});
 }
 
 // ── Shoes ──
-export function shoeState(km){
- if(km>=800)return ['Past 800 km','retire'];
- if(km>=600)return ['Retire soon','warn'];
+export function shoeState(km,limit=800){
+ if(km>=limit)return [`Past ${limit} km`,'retire'];
+ if(km>=limit*.8)return ['Retire soon','warn'];
  if(km>=150)return ['In its prime','prime'];
  return ['Breaking in','new'];
 }
 
 // ── Weekly recap card, drawn on a canvas so it can be shared as an image ──
-async function drawRecap(stats){
+async function drawRecap(stats,accent='#1C3BDB'){
+ const SANS='"Instrument Sans", -apple-system, Helvetica, sans-serif',SERIF='"Instrument Serif", Georgia, serif';
  const c=document.createElement('canvas');c.width=1080;c.height=1350;const g=c.getContext('2d');
- try{await document.fonts?.load('italic 900 120px "Barlow Condensed"');}catch{}
- g.fillStyle='#08090C';g.fillRect(0,0,1080,1350);
- g.save();g.translate(80,250);g.transform(1,0,-0.2,1,0,0);g.fillStyle='#7C5CFF';g.fillRect(0,0,560,300);g.restore();
- g.fillStyle='#fff';g.font='italic 900 280px "Barlow Condensed", sans-serif';g.fillText(stats.km,110,520);
- g.font='italic 800 64px "Barlow Condensed", sans-serif';g.fillText('KM THIS WEEK',90,640);
- g.fillStyle='#A7ACB8';g.font='600 40px -apple-system, Helvetica, sans-serif';g.fillText(stats.range,90,200);
- const rows=[['RUNS',stats.runs],['TIME',stats.time],['LONGEST',stats.longest],['FORM',stats.form],['MARATHON',stats.marathon]];
- rows.forEach(([k,v],i)=>{const y=760+i*96;g.fillStyle='#A7ACB8';g.font='700 34px -apple-system, Helvetica, sans-serif';g.fillText(k,90,y);g.fillStyle='#fff';g.font='italic 800 64px "Barlow Condensed", sans-serif';g.textAlign='right';g.fillText(v,990,y+8);g.textAlign='left';g.fillStyle='rgba(255,255,255,.12)';g.fillRect(90,y+34,900,2);});
- g.fillStyle='#fff';g.font='italic 900 56px "Barlow Condensed", sans-serif';g.fillText('APEX',90,1280);
- g.fillStyle='#7C5CFF';g.beginPath();g.moveTo(240,1280);g.lineTo(272,1232);g.lineTo(304,1280);g.fill();
+ try{await Promise.all([document.fonts?.load(`400 200px ${SANS}`),document.fonts?.load(`italic 400 80px ${SERIF}`)]);}catch{}
+ g.fillStyle=accent;g.fillRect(0,0,1080,1350);
+ g.strokeStyle='rgba(255,255,255,.35)';g.lineWidth=2;for(let i=0;i<9;i++){g.beginPath();g.arc(0,1350,520+i*48,-Math.PI/2,0);g.stroke();}
+ g.fillStyle='#fff';g.font=`500 28px ${SANS}`;g.fillText('THE WEEK · APEX',72,92);g.fillText(stats.range.toUpperCase(),640,92);
+ g.fillStyle='rgba(255,255,255,.6)';g.fillRect(72,52,936,2);
+ g.fillStyle='#fff';g.font=`400 330px ${SANS}`;g.fillText(stats.km,60,470);
+ g.font=`italic 400 90px ${SERIF}`;g.fillText('kilometres this week',72,580);
+ const rows=[['Runs',stats.runs],['Time',stats.time],['Longest',stats.longest],['Form',stats.form],['Marathon',stats.marathon]];
+ rows.forEach(([k,v],i)=>{const y=720+i*110;g.fillStyle='rgba(255,255,255,.6)';g.fillRect(72,y,936,2);g.fillStyle='rgba(255,255,255,.8)';g.font=`500 28px ${SANS}`;g.fillText(k.toUpperCase(),72,y+62);g.fillStyle='#fff';g.font=`400 64px ${SANS}`;g.textAlign='right';g.fillText(v,1008,y+74);g.textAlign='left';});
  return new Promise(r=>c.toBlob(r,'image/png'));
 }
 
@@ -115,16 +118,16 @@ function weekStats(acts,form,pred){
  const today=localDate(new Date()),mon=mondayOf(today),runs=acts.filter(a=>isRun(a)&&day(a)>=mon&&day(a)<=today);
  const km=runs.reduce((s,a)=>s+(a.distance||0),0)/1000,time=runs.reduce((s,a)=>s+(a.moving_time||0),0),longest=Math.max(0,...runs.map(a=>a.distance||0))/1000;
  const tsb=form.series[form.series.length-1]?.tsb;
- return {km:km.toFixed(1),runs:String(runs.length),time:clock(time),longest:`${longest.toFixed(1)} km`,form:tsb==null?'—':`${tsb>=0?'+':''}${Math.round(tsb)} ${formLabel(tsb).label.toUpperCase()}`,marathon:pred.now.Marathon?clock(pred.now.Marathon):'—',range:`${new Date(mon+'T12:00:00').toLocaleDateString('en-GB',{day:'numeric',month:'short'})} – ${new Date(today+'T12:00:00').toLocaleDateString('en-GB',{day:'numeric',month:'short'})}`};
+ return {km:km.toFixed(1),runs:String(runs.length),time:clock(time),longest:`${longest.toFixed(1)} km`,form:tsb==null||!form.ready?'—':`${tsb>=0?'+':''}${Math.round(tsb)} ${formLabel(tsb).label}`,marathon:pred.now.Marathon?clock(pred.now.Marathon):'—',range:`${new Date(mon+'T12:00:00').toLocaleDateString('en-GB',{day:'numeric',month:'short'})} – ${new Date(today+'T12:00:00').toLocaleDateString('en-GB',{day:'numeric',month:'short'})}`};
 }
 
 // Hook shared by Today and Performance so both read the same numbers.
-export function usePerformance(acts,whoop){
- const restHr=whoop?.recoveries?.records?.[0]?.score?.resting_heart_rate||null;
+export function usePerformance(acts,whoop,settings){
+ const hr=heartRate(settings,acts,whoop),restHr=hr.rest,maxHr=hr.max,weeks=settings?.predictor?.weeks||8,manual=settings?.pbs||[];
  const [efforts,setEfforts]=useState(()=>PREVIEW?previewEfforts(acts):loadEfforts());
  useEffect(()=>{const sync=()=>setEfforts(PREVIEW?previewEfforts(acts):loadEfforts());sync();window.addEventListener('apex-efforts',sync);return()=>window.removeEventListener('apex-efforts',sync);},[acts]);
- const form=useMemo(()=>formSeries(acts,{restHr}),[acts,restHr]);
- const pred=useMemo(()=>predictions(acts,efforts),[acts,efforts]);
+ const form=useMemo(()=>formSeries(acts,{restHr,maxHr}),[acts,restHr,maxHr]);
+ const pred=useMemo(()=>predictions(acts,efforts,weeks,manual),[acts,efforts,weeks,manual]);
  return {form,pred,efforts,setEfforts,restHr};
 }
 
@@ -150,13 +153,14 @@ function FormChart({series}){
 }
 
 export default function Performance({acts=[],gear=[],whoop,userPrefs,nav}){
- const {form,pred,efforts,setEfforts}=usePerformance(acts,whoop);
+ const settings=readSettings(userPrefs),accent=getComputedStyle(document.querySelector('.apex-app')||document.body).getPropertyValue('--accent').trim()||'#1C3BDB';
+ const {form,pred,efforts,setEfforts}=usePerformance(acts,whoop,settings);
  const [scan,setScan]=useState(null),[shareNote,setShareNote]=useState('');
  const last=form.ready?form.series[form.series.length-1]:null,fl=last?formLabel(last.tsb):null;
  const goal=focusRace(userPrefs?.races),goalSecs=parseTarget(goal?.target),goalDist=(parseFloat(goal?.distance)||42.195)*1000;
  const goalPred=pred.now.Marathon&&goal?pred.now.Marathon*Math.pow(goalDist/42195,1.06):null;
  const gap=goalSecs&&goalPred?goalPred-goalSecs:null;
- const wall=pbWall(efforts);
+ const wall=pbWall(efforts,settings.pbs);
  const shoes=[...gear].sort((a,b)=>(b.distance||0)-(a.distance||0));
  const runs=acts.filter(isRun).sort((a,b)=>new Date(b.start_date_local||b.start_date)-new Date(a.start_date_local||a.start_date));
  const unscanned=runs.filter(a=>!efforts[a.id]&&a.distance>=1000);
@@ -167,7 +171,7 @@ export default function Performance({acts=[],gear=[],whoop,userPrefs,nav}){
   setEfforts(loadEfforts());window.dispatchEvent(new Event('apex-efforts'));
  };
  const share=async()=>{
-  setShareNote('');const blob=await drawRecap(weekStats(acts,form,pred));if(!blob){setShareNote('The card could not be drawn on this device.');return;}
+  setShareNote('');const blob=await drawRecap(weekStats(acts,form,pred),accent);if(!blob){setShareNote('The card could not be drawn on this device.');return;}
   const file=new File([blob],'apex-week.png',{type:'image/png'});
   try{if(navigator.canShare?.({files:[file]})){await navigator.share({files:[file],title:'My week on APEX'});return;}}catch(e){if(e?.name==='AbortError')return;}
   const url=URL.createObjectURL(blob),a=document.createElement('a');a.href=url;a.download='apex-week.png';a.click();setTimeout(()=>URL.revokeObjectURL(url),1500);setShareNote('Saved as apex-week.png.');
@@ -182,8 +186,8 @@ export default function Performance({acts=[],gear=[],whoop,userPrefs,nav}){
   </section>
 
   <section className="perf-predict" aria-labelledby="pred-title">
-   <div className="section-head"><h2 id="pred-title">Race predictor</h2><span className="meta">Last 8 weeks</span></div>
-   <div className="predict-board">{DISTANCES.map(([k,d])=><div key={k} className={k==='Marathon'?'is-key':''}><small>{k}</small><b>{pred.now[k]?clock(pred.now[k]):'—'}</b><em>{pred.now[k]?`${pacePer(pred.now[k],d)} /km`:''}</em></div>)}</div>
+   <div className="section-head"><h2 id="pred-title">Race predictor</h2><span className="meta">Last {settings.predictor.weeks} weeks</span></div>
+   <div className="predict-board">{DISTANCES.map(([k,d])=>{const g=settings.goals[k],gp=g&&pred.now[k]?pred.now[k]-g:null;return <div key={k} className={k==='Marathon'?'is-key':''}><small>{k}</small><b>{pred.now[k]?clock(pred.now[k]):'—'}</b><em>{gp!=null?(gp<=0?`Goal ${clock(g)} · on track`:`Goal ${clock(g)} · ${clock(gp)} off`):pred.now[k]?`${pacePer(pred.now[k],d)} /km`:''}</em></div>;})}</div>
    {goal&&<div className="goal-strip"><div><small>{goal.name}{goal.target?` · ${goal.target}`:''}</small><b>{gap==null?'Set a target time on the race to see the gap.':gap<=0?`On track · ${clock(-gap)} inside target`:`${clock(gap)} to find · ${Math.round(gap/(goalDist/1000))} s/km`}</b></div>{raceDate(goal)&&<span>{Math.max(0,Math.ceil((new Date(goal.date+'T12:00:00')-new Date())/86400000))}<small>days</small></span>}</div>}
    <div className="predict-trend"><small>Marathon prediction, 12 weeks</small><Spark values={pred.trend} goal={goalSecs&&goalDist===42195?goalSecs:null} invert/></div>
    {pred.basis&&<p className="predict-basis">Strongest signal: <b>{pred.basis.label}</b></p>}
@@ -192,14 +196,17 @@ export default function Performance({acts=[],gear=[],whoop,userPrefs,nav}){
 
   <section className="perf-pbs" aria-labelledby="pb-title">
    <div className="section-head"><h2 id="pb-title">PB wall</h2>{!PREVIEW&&unscanned.length>0&&<button className="text-button" disabled={scan&&scan.done<scan.total&&!scan.msg} onClick={runScan}>{scan&&scan.done<scan.total&&!scan.msg?`Scanning ${scan.done}/${scan.total}`:`Scan ${Math.min(20,unscanned.length)} runs`}</button>}</div>
-   <div className="pb-wall">{wall.map(w=><button key={w.label} className={`pb-tile${w.best?'':' is-empty'}`} disabled={!w.best} onClick={()=>w.best&&nav('activity',w.best.id)}><small>{w.label}</small><b>{w.best?clock(w.best.time):'—'}</b><em>{w.best?new Date(w.best.date+'T12:00:00').toLocaleDateString('en-GB',{day:'numeric',month:'short',year:'2-digit'}):'Not yet'}</em></button>)}</div>
+   <div className="pb-wall">{wall.map(w=><button key={w.label} className={`pb-tile${w.best?'':' is-empty'}`} disabled={!w.best} onClick={()=>w.best&&(w.best.id?nav('activity',w.best.id):nav('settings'))}><small>{w.label}</small><b>{w.best?clock(w.best.time):'—'}</b><em>{w.best?(w.best.date?new Date(w.best.date+'T12:00:00').toLocaleDateString('en-GB',{day:'numeric',month:'short',year:'2-digit'}):w.best.run):'Not yet'}</em></button>)}</div>
    {scan?.msg&&<p className="form-note">{scan.msg}</p>}
-   <p className="form-note">Best efforts come from Strava’s detailed runs. Every run you open is added; scanning fetches up to 20 at a time to stay inside Strava’s limits.</p>
+   <p className="form-note">From Strava’s detailed runs plus any PBs you add in Customise. Every run you open is added; scanning fetches up to 20 at a time to stay inside Strava’s limits.</p>
+   <button className="text-button" onClick={()=>nav('settings')}>Add a PB<Icon name="plus" size={15}/></button>
   </section>
 
+  <PaceBand goal={goal} goals={settings.goals} accent={accent}/>
+
   {shoes.length>0&&<section className="perf-shoes" aria-labelledby="shoe-title">
-   <div className="section-head"><h2 id="shoe-title">Shoes</h2><span className="meta">Retire at about 800 km</span></div>
-   {shoes.map(g=>{const km=Math.round((g.distance||0)/1000),[label,tone]=shoeState(km);return <div className={`shoe-row shoe-${tone}`} key={g.id}><div className="shoe-top"><span><b>{g.name||g.nickname}</b><small>{g.retired?'Retired':g.primary?'Default shoe':label}</small></span><strong>{km}<small>km</small></strong></div><div className="shoe-bar"><i style={{width:`${Math.min(100,km/800*100)}%`}}/></div></div>;})}
+   <div className="section-head"><h2 id="shoe-title">Shoes</h2><span className="meta">Retire limits in Customise</span></div>
+   {shoes.map(g=>{const km=Math.round((g.distance||0)/1000),limit=settings.shoes[g.id]?.retire||800,[label,tone]=shoeState(km,limit);return <div className={`shoe-row shoe-${tone}`} key={g.id}><div className="shoe-top"><span><b>{g.name||g.nickname}</b><small>{g.retired?'Retired':g.primary?'Default shoe':label}</small></span><strong>{km}<small>km</small></strong></div><div className="shoe-bar"><i style={{width:`${Math.min(100,km/limit*100)}%`}}/></div></div>;})}
   </section>}
 
   <section className="perf-recap"><div><span className="eyebrow">This week</span><h2>Share your week</h2><p>A recap card with your kilometres, time, longest run, form and marathon prediction.</p></div><button className="primary-action" onClick={share}><Icon name="external" size={18}/>Share card</button>{shareNote&&<p className="form-note">{shareNote}</p>}</section>

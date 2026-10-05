@@ -1,5 +1,5 @@
-// APEX · Race day. Broadcast graphics from the track: recovery is a lap on a
-// violet tartan, the week is a split board, numbers are race-clock italics.
+// APEX · Swiss race poster. Graphics from the track: recovery is your lap round
+// the bend, the week is a bar chart on a grid, runs are profiles and posters.
 import {useEffect,useLayoutEffect,useRef,useState} from 'react';
 
 const reduced=()=>typeof window!=='undefined'&&window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
@@ -16,26 +16,14 @@ export function smooth(pts){
 }
 
 export function readyFor(score){
- if(score==null)return {key:'none',label:'No reading',line:'Connect WHOOP to read this morning’s recovery.'};
- if(score>=67)return {key:'high',label:'Ready to race'};
- if(score>=34)return {key:'mid',label:'Train steady'};
- return {key:'low',label:'Recover first'};
+ if(score==null)return {key:'none',label:'No reading',word:'Waiting.',line:'Connect WHOOP to read this morning’s recovery.'};
+ if(score>=67)return {key:'high',label:'Ready to run',word:'Ready to run.'};
+ if(score>=34)return {key:'mid',label:'Train steady',word:'Steady today.'};
+ return {key:'low',label:'Recover first',word:'Recover first.'};
 }
 
-// Stadium geometry: two straights and two bends, like a 400 m track.
-const W=360,H=220,L=170,R=84,cx=W/2,cy=H/2;
-const stadium=r=>`M${cx-L/2},${cy+r} H${cx+L/2} A${r},${r} 0 0 0 ${cx+L/2},${cy-r} H${cx-L/2} A${r},${r} 0 0 0 ${cx-L/2},${cy+r} Z`;
-function pointAt(t,r){
- const P=2*L+2*Math.PI*r;let s=((t%1)+1)%1*P;
- if(s<=L)return [cx-L/2+s,cy+r];s-=L;
- const arc=Math.PI*r;
- if(s<=arc){const a=Math.PI/2-s/r;return [cx+L/2+r*Math.cos(a),cy+r*Math.sin(a)];}s-=arc;
- if(s<=L)return [cx+L/2-s,cy-r];s-=L;
- const a=-Math.PI/2-s/r;return [cx-L/2+r*Math.cos(a),cy+r*Math.sin(a)];
-}
-
-// Signature: "the lap". On the first open of the day the runner races round the
-// track to your recovery score and the number counts up with it.
+// Signature: "first lap". On the first open of the day your lap sweeps the bend
+// to your recovery score and the number counts up with it.
 function firstLap(){
  if(reduced())return false;
  try{const k=new Date().toDateString();if(localStorage.getItem('apex-first-lap')===k)return false;localStorage.setItem('apex-first-lap',k);return true;}catch{return false;}
@@ -49,45 +37,33 @@ export function useLap(score,{animate=true}={}){
   if(decided.current||!animate){setP(target);return;}
   decided.current=true;
   if(!firstLap()){setP(target);return;}
-  setP(0);let raf,start;const dur=1500;
+  setP(0);let raf,start;const dur=1600;
   const step=t=>{if(!start)start=t;const k=Math.min(1,(t-start)/dur),e=1-Math.pow(1-k,3);setP(target*e);if(k<1)raf=requestAnimationFrame(step);};
   raf=requestAnimationFrame(step);return()=>cancelAnimationFrame(raf);
  },[score,target,animate]);
  return p;
 }
 
-export function Lap({score,progress,size='hero',children}){
- const p=progress??(score==null?0:score);
- const lanes=[R-15,R-5,R+5,R+15];
- const [x,y]=pointAt(p/100,R-10);
- const tone=readyFor(score).key;
- return <div className={`lap lap-${size} lap-${tone}`}>
-  <svg viewBox={`0 0 ${W} ${H}`} role="img" aria-label={score==null?'Recovery not available yet':`Recovery ${Math.round(score)} percent`}>
-   <path className="lap-tartan" d={stadium(R)} strokeWidth="40" fill="none"/>
-   {lanes.map(r=><path key={r} className="lap-line" d={stadium(r)} fill="none"/>)}
-   <path className="lap-progress" d={stadium(R-10)} pathLength="100" strokeDasharray={`${p} 100`} fill="none"/>
-   <line className="lap-start" x1={cx-L/2} y1={cy+R-20} x2={cx-L/2} y2={cy+R+20}/>
-   {score!=null&&<circle className="lap-runner" cx={x} cy={y} r="9"/>}
-  </svg>
-  <div className="lap-inner">{children}</div>
- </div>;
+// The bend: one curve of a running track seen from above, eight lanes of hairline.
+// Lane 1 carries your lap, drawn as far round the bend as your recovery score.
+const LANES=Array.from({length:9},(_,i)=>170+i*24);
+const arc=r=>`M0,${400-r} A${r},${r} 0 0 1 ${r},400`;
+export function Bend({progress=0,score,className=''}){
+ const r=LANES[0]+12,a=(progress/100)*Math.PI/2,x=Math.sin(a)*r,y=400-Math.cos(a)*r;
+ return <svg className={`bend ${className}`} viewBox="0 0 400 400" aria-hidden="true">
+  {LANES.map(l=><path key={l} d={arc(l)} className="bend-lane"/>)}
+  <path d={arc(r)} className="bend-lap" pathLength="100" strokeDasharray={`${progress} 100`}/>
+  <line x1="0" x2="0" y1={400-LANES[0]} y2={400-LANES[LANES.length-1]} className="bend-start"/>
+  {score!=null&&<circle cx={x} cy={y} r="10" className="bend-runner"/>}
+ </svg>;
 }
 
-// The live ticker: a broadcast strip of headline numbers. Scrolls on its own,
-// pauses under a finger, and sits still for reduced motion.
-export function Ticker({items,onPick}){
- const list=items.filter(Boolean);
- if(!list.length)return null;
- const row=k=>list.map((it,i)=><button key={k+i} className="ticker-item" onClick={()=>onPick?.(it)} tabIndex={k?-1:0} aria-hidden={k?true:undefined}><span>{it.label}</span><b>{it.value}</b></button>);
- return <div className="ticker" role="list" aria-label="Headline numbers"><div className="ticker-track">{row(0)}{row(1)}</div></div>;
-}
-
-// The week as a split board: one slanted bar per day. Solid = run, outline = planned.
+// The week as a Swiss bar chart: hairline outline = planned, solid = run.
 export function WeekBars({days,todayKey,onPick}){
  const max=Math.max(12,...days.map(d=>Math.max(d.plannedKm||0,d.km||0)));
  return <div className="week-bars" role="group" aria-label="This week, planned and run distance per day">
   {days.map(d=>{const plan=d.plannedKm||0,ran=d.km||0,v=ran||plan;return <button key={d.key} type="button" className={`wb-day wb-${d.effort||'easy'}${d.key===todayKey?' is-today':''}${ran?' is-run':''}`} onClick={()=>onPick?.(d)} aria-label={d.aria}>
-   <span className="wb-val">{v?(Math.round(v*10)/10).toString():d.strength?'GYM':'–'}</span>
+   <span className="wb-val">{v?(Math.round(v*10)/10).toString():d.strength?'Gym':'–'}</span>
    <span className="wb-col">
     {plan>0&&<i className="wb-plan" style={{height:`${plan/max*100}%`}}/>}
     {ran>0&&<i className="wb-run" style={{height:`${ran/max*100}%`}}/>}

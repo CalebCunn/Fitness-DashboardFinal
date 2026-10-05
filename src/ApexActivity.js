@@ -8,6 +8,8 @@ import {localDate} from './ApexTraining';
 import {addDays,mondayOf} from './apexDates';
 import {smooth,Profile} from './ApexTrack';
 import {rememberEfforts} from './ApexPerformance';
+import {PosterSheet} from './ApexPoster';
+import {dist as distU,paceOf,perUnit,unitsOf} from './ApexSettings';
 
 const run=a=>a.type==='Run'||a.sport_type==='Run'||a.sport_type==='TrailRun';
 const pace=s=>{if(!s||!Number.isFinite(s)||s<=0)return '—';const v=Math.round(1000/s);return `${Math.floor(v/60)}:${String(v%60).padStart(2,'0')}`;};
@@ -20,7 +22,7 @@ const typeName=a=>run(a)?(a.workout_type===1?'Race':'Run'):(a.sport_type||a.type
 const longDate=key=>new Date(key+'T12:00:00').toLocaleDateString('en-GB',{weekday:'long',day:'numeric',month:'long'});
 const shortDate=key=>new Date(key+'T12:00:00').toLocaleDateString('en-GB',{weekday:'short',day:'numeric',month:'short'});
 
-export default function Activity({acts=[],gear=[],initialId=null,restHr=null,nav}){
+export default function Activity({acts=[],gear=[],initialId=null,restHr=null,nav,settings,hr}){
  const [hover,setHover]=useState(null),[picked,setPicked]=useState(null);
  const [type,setType]=useState('all'),[query,setQuery]=useState(''),[period,setPeriod]=useState('all'),[selected,setSelected]=useState(()=>acts.find(a=>a.id===initialId)||null);
  useEffect(()=>{if(initialId){const a=acts.find(x=>x.id===initialId);if(a)setSelected(a);}},[initialId,acts]);
@@ -34,7 +36,8 @@ export default function Activity({acts=[],gear=[],initialId=null,restHr=null,nav
  const weeks=Array.from({length:12},(_,w)=>grid.slice(w*7,w*7+7).reduce((s,d)=>s+d.km,0));
  const runKm=weeks.reduce((a,b)=>a+b,0),sessions=grid.reduce((n,d)=>n+d.count,0),hours=grid.reduce((n,d)=>n+d.mins,0)/60;
  const level=d=>d.future?'future':d.race?4:d.mins===0?0:d.mins<40?1:d.mins<80?2:3;
- const maxHr=Math.max(0,...acts.map(a=>a.max_heartrate||0))||null;
+ const maxHr=hr?.max||Math.max(0,...acts.map(a=>a.max_heartrate||0))||null;
+ const rest=hr?hr.model==='max'?null:hr.rest:restHr;
  const label=hover||picked;
  const vmax=Math.max(10,...weeks);
  const ridge=smooth([[0,58],...weeks.map((v,i)=>[(i+.5)/12*400,58-v/vmax*52]),[400,58]])+' L400,64 L0,64Z';
@@ -66,13 +69,13 @@ export default function Activity({acts=[],gear=[],initialId=null,restHr=null,nav
   <div className="activity-list">{filtered.map(a=><button className="activity-row" key={a.id} onClick={()=>setSelected(a)}>
    <span className="activity-art" aria-hidden="true">{run(a)?<RouteLine encoded={a.map?.summary_polyline} small/>:<Icon name="gym" size={22}/>}</span>
    <span className="row-copy"><small>{when(a).toLocaleDateString('en-GB',{weekday:'short',day:'numeric',month:'short'})} · {typeName(a)}</small><b>{a.name}</b></span>
-   <span className="row-figure">{a.distance?(a.distance/1000).toFixed(2):Math.round((a.moving_time||0)/60)}<small>{a.distance?'km':'min'}</small><em>{run(a)?`${pace(a.average_speed)} /km`:clock(a.moving_time)}</em></span>
+   <span className="row-figure">{a.distance?distU(a.distance,settings):Math.round((a.moving_time||0)/60)}<small>{a.distance?unitsOf(settings):'min'}</small><em>{run(a)?`${paceOf(a.average_speed,settings)}${perUnit(settings)}`:clock(a.moving_time)}</em></span>
   </button>)}</div>
   {filtered.length===0&&<div className="empty-block"><h2>Nothing matches.</h2><p>Try another search or time range.</p></div>}
 
   {gear.length>0&&<section className="gear-shelf"><div className="section-head"><h2>Shoes</h2></div>{gear.map(g=><div className="list-row" key={g.id}><span className="row-copy"><small>{g.brand_name||'In your rotation'}</small><b>{g.name||g.nickname}</b></span><span className="row-figure">{Math.round((g.distance||0)/1000)}<small>km</small></span></div>)}</section>}
   <p className="form-note">From the activities loaded from Strava. This may be a subset of your full history.</p>
-  {selected&&<ActivityDetail summary={selected} maxHr={maxHr} restHr={restHr} onClose={()=>setSelected(null)}/>}
+  {selected&&<ActivityDetail summary={selected} maxHr={maxHr} restHr={rest} settings={settings} onClose={()=>setSelected(null)}/>}
  </div>;
 }
 
@@ -175,7 +178,8 @@ function RunReplay({points,time,vel,dist,markers}){
  </div>;
 }
 
-function ActivityDetail({summary,onClose,maxHr,restHr}){
+function ActivityDetail({summary,onClose,maxHr,restHr,settings}){
+ const [poster,setPoster]=useState(false);
  useDialog(true,onClose);
  const [scrolled,setScrolled]=useState(false),[activity,setActivity]=useState(summary),[st,setSt]=useState({}),[loading,setLoading]=useState(true),[error,setError]=useState(''),[metric,setMetric]=useState('heartrate');
  useEffect(()=>{let active=true;
@@ -184,7 +188,9 @@ function ActivityDetail({summary,onClose,maxHr,restHr}){
   return()=>{active=false;};},[summary.id,summary]);
  const a=activity,isRun=run(a),hasDist=a.distance>0;
  const dist=st.distance?.data||[],alt=st.altitude?.data||[],hr=st.heartrate?.data||[],vel=st.velocity_smooth?.data||[],cad=st.cadence?.data||[],watts=st.watts?.data||[];
- const splits=(a.splits_metric?.length?a.splits_metric:streamSplits(st)).filter(s=>s.distance>0);
+ const mi=unitsOf(settings)==='mi';
+ const splits=((mi?a.splits_standard:a.splits_metric)?.length?(mi?a.splits_standard:a.splits_metric):mi?[]:streamSplits(st)).filter(s=>s.distance>0);
+ const pu=v=>paceOf(v,settings),U=unitsOf(settings);
  const peakHr=Math.max(maxHr||0,a.max_heartrate||0)||null,zones=zoneTimes(st,peakHr,restHr);
  const notes=isRun?insights(a,st,splits):[];
  const metrics=[hr.length&&['heartrate','Heart rate'],vel.length&&hasDist&&['pace','Pace'],cad.length&&['cadence','Cadence'],watts.length&&['watts','Power']].filter(Boolean);
@@ -198,33 +204,34 @@ function ActivityDetail({summary,onClose,maxHr,restHr}){
  const fastest=splits.length?splits.reduce((b,s,i)=>s.distance>900&&(!b||s.average_speed>b.s.average_speed)?{s,i}:b,null):null;
  const facts=[
   ['Moving time',clock(a.moving_time)],['Elapsed',clock(a.elapsed_time)],
-  hasDist&&['Average pace',`${pace(a.average_speed)} /km`],hasDist&&a.max_speed&&['Fastest pace',`${pace(a.max_speed)} /km`],
+  hasDist&&['Average pace',`${pu(a.average_speed)} /${U}`],hasDist&&a.max_speed&&['Fastest pace',`${pu(a.max_speed)} /${U}`],
   a.average_heartrate&&['Average HR',`${Math.round(a.average_heartrate)} bpm`],a.max_heartrate&&['Max HR',`${Math.round(a.max_heartrate)} bpm`],
   hasDist&&['Elevation gain',`${Math.round(a.total_elevation_gain||0)} m`],a.elev_high!=null&&a.elev_low!=null&&['Highest point',`${Math.round(a.elev_high)} m`],
   cadence&&['Cadence',`${cadence} ${isRun?'spm':'rpm'}`],stride&&isRun&&['Stride length',`${stride} m`],
   a.average_watts&&['Average power',`${Math.round(a.average_watts)} W`],
   (a.calories||a.kilojoules)&&['Energy',a.calories?`${Math.round(a.calories).toLocaleString('en-GB')} kcal`:`${Math.round(a.kilojoules)} kJ`],
   a.suffer_score&&['Relative effort',Math.round(a.suffer_score)],
-  fastest&&isRun&&['Fastest km',`${pace(fastest.s.average_speed)} · km ${fastest.i+1}`],
+  fastest&&isRun&&[`Fastest ${U}`,`${pu(fastest.s.average_speed)} · ${U} ${fastest.i+1}`],
   a.average_temp!=null&&['Temperature',`${Math.round(a.average_temp)}°C`],
   (a.pr_count>0||a.achievement_count>0)&&['Achievements',`${a.pr_count||0} PR${a.pr_count===1?'':'s'} · ${a.achievement_count||0} total`],
   a.perceived_exertion&&['Perceived effort',`${a.perceived_exertion} / 10`],
   a.kudos_count>0&&['Kudos',a.kudos_count],
   a.device_name&&['Recorded on',a.device_name],
  ].filter(Boolean);
- const spd=splits.filter(s=>s.distance>900).map(s=>s.average_speed),sMin=Math.min(...spd),sMax=Math.max(...spd);
+ const spd=splits.filter(s=>s.distance>(mi?1500:900)).map(s=>s.average_speed),sMin=Math.min(...spd),sMax=Math.max(...spd);
  const photo=a.photos?.primary?.urls?.['600']||a.photos?.primary?.urls?.['100'];
- const view=<div className={`detail-view${scrolled?' is-scrolled':''}`} role="dialog" aria-modal="true" aria-labelledby="activity-detail-title">
-  <div className="detail-bar"><button className="glass-button" onClick={onClose} aria-label="Back to activity"><Icon name="back" size={20}/></button><span className="detail-bar-title" aria-hidden="true">{a.name}</span>{!PREVIEW&&a.id&&<a className="glass-button" href={`https://www.strava.com/activities/${a.id}`} target="_blank" rel="noreferrer" aria-label="Open in Strava"><Icon name="external" size={18}/></a>}</div>
+ const accent=getComputedStyle(document.querySelector('.apex-app')||document.body).getPropertyValue('--accent').trim()||'#1C3BDB';
+ const view=<><PosterSheet open={poster} onClose={()=>setPoster(false)} activity={a} streams={st} points={routePts} splits={splits} settings={settings} accent={accent}/><div className={`detail-view${scrolled?' is-scrolled':''}`} role="dialog" aria-modal="true" aria-labelledby="activity-detail-title">
+  <div className="detail-bar"><button className="glass-button" onClick={onClose} aria-label="Back to activity"><Icon name="back" size={20}/></button><span className="detail-bar-title" aria-hidden="true">{a.name}</span><span className="detail-actions"><button className="glass-button" onClick={()=>setPoster(true)} aria-label="Make a poster of this run"><Icon name="poster" size={19}/></button>{!PREVIEW&&a.id&&<a className="glass-button" href={`https://www.strava.com/activities/${a.id}`} target="_blank" rel="noreferrer" aria-label="Open in Strava"><Icon name="external" size={18}/></a>}</span></div>
   <div className="detail-scroll" onScroll={e=>{const s=e.currentTarget.scrollTop>240;if(s!==scrolled)setScrolled(s);}}>
    <header className={`detail-sky sky-${skyOf(a)}`}>
     <div className="detail-head">
      <p className="detail-meta">{when(a).toLocaleDateString('en-GB',{weekday:'short',day:'numeric',month:'short',year:when(a).getFullYear()!==new Date().getFullYear()?'numeric':undefined})} · {when(a).toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit',timeZone:a.start_date_local?'UTC':undefined})} · {typeName(a)}{a.location_city?` · ${a.location_city}`:''}</p>
      <h2 id="activity-detail-title">{a.name}</h2>
-     <p className="detail-hero">{hasDist?<><span>{(a.distance/1000).toFixed(2)}</span><small>km</small></>:<><span>{clock(a.moving_time)}</span><small>moving</small></>}</p>
+     <p className="detail-hero">{hasDist?<><span>{distU(a.distance,settings)}</span><small>{U}</small></>:<><span>{clock(a.moving_time)}</span><small>moving</small></>}</p>
      <dl className="detail-three">
       {hasDist&&<div><dt>Time</dt><dd>{clock(a.moving_time)}</dd></div>}
-      {hasDist&&<div><dt>Pace /km</dt><dd>{pace(a.average_speed)}</dd></div>}
+      {hasDist&&<div><dt>Pace /{U}</dt><dd>{pu(a.average_speed)}</dd></div>}
       <div><dt>Avg HR</dt><dd>{a.average_heartrate?Math.round(a.average_heartrate):'—'}</dd></div>
       {!hasDist&&<div><dt>Max HR</dt><dd>{a.max_heartrate?Math.round(a.max_heartrate):'—'}</dd></div>}
      </dl>
@@ -244,11 +251,11 @@ function ActivityDetail({summary,onClose,maxHr,restHr}){
     <section className="detail-section"><h3>Details</h3><dl className="facts">{facts.map(([k,v])=><div key={k}><dt>{k}</dt><dd>{v}</dd></div>)}{a.gear?.name&&<div className="fact-wide"><dt>Shoe</dt><dd>{a.gear.name}{a.gear.distance?` · ${Math.round(a.gear.distance/1000)} km`:''}</dd></div>}</dl></section>
 
     {splits.length>1&&hasDist&&<section className="detail-section"><h3>Splits</h3>
-     <div className="splits"><div className="split split-head" aria-hidden="true"><span>Km</span><span/><span>Pace</span><span>HR</span><span>Elev</span></div>
+     <div className="splits"><div className="split split-head" aria-hidden="true"><span>{mi?'Mi':'Km'}</span><span/><span>Pace</span><span>HR</span><span>Elev</span></div>
       {splits.map((s,i)=>{const t=s.distance>900&&sMax>sMin?(s.average_speed-sMin)/(sMax-sMin):.5,best=fastest&&fastest.i===i;return <div className={`split${best?' is-best':''}`} key={i}>
-       <span>{s.distance>900?i+1:(s.distance/1000).toFixed(2)}</span>
+       <span>{s.distance>900?i+1:distU(s.distance,settings)}</span>
        <span className="split-bar"><i style={{width:`${36+t*64}%`,'--t':t}}/></span>
-       <span>{pace(s.average_speed)}</span><span>{s.average_heartrate?Math.round(s.average_heartrate):'—'}</span><span>{s.elevation_difference!=null?`${s.elevation_difference>0?'+':''}${Math.round(s.elevation_difference)}`:'—'}</span></div>;})}
+       <span>{pu(s.average_speed)}</span><span>{s.average_heartrate?Math.round(s.average_heartrate):'—'}</span><span>{s.elevation_difference!=null?`${s.elevation_difference>0?'+':''}${Math.round(s.elevation_difference)}`:'—'}</span></div>;})}
      </div><p className="form-note">Bars are speed: longer and darker is faster. Elevation in metres.</p></section>}
 
     {zones&&<section className="detail-section"><h3>Heart-rate zones</h3>
@@ -265,7 +272,7 @@ function ActivityDetail({summary,onClose,maxHr,restHr}){
     {a.segment_efforts?.length>0&&<section className="detail-section"><h3>Segments</h3><dl className="facts single">{a.segment_efforts.slice(0,8).map((e,i)=><div key={i}><dt>{e.name}{e.pr_rank===1&&<span className="pr-tag">PR</span>}</dt><dd>{clock(e.moving_time||e.elapsed_time)}{e.distance?` · ${(e.distance/1000).toFixed(2)} km`:''}</dd></div>)}</dl></section>}
    </div>
   </div>
- </div>;
+ </div></>;
  const host=document.querySelector('.apex-app')||document.body;
  return createPortal(view,host);
 }
