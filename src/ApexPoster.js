@@ -10,6 +10,15 @@ const W=1080,H=1350,M=72;
 const SANS='"Instrument Sans", -apple-system, Helvetica, sans-serif',SERIF='"Instrument Serif", Georgia, serif';
 async function fonts(){try{await Promise.all([document.fonts?.load(`400 200px ${SANS}`),document.fonts?.load(`italic 400 80px ${SERIF}`),document.fonts?.load(`500 30px ${SANS}`)]);}catch{}}
 const toBlob=c=>new Promise(r=>c.toBlob(r,'image/png'));
+// The track end, drawn on a canvas: straights fading to the right, the bend, lanes.
+export function drawTrack(g,x,y,w,{alpha=.4,lap=null}={}){
+ const s=w/400,cx=x+150*s,cy=y+130*s;
+ const grad=g.createLinearGradient(x,0,x+w,0);grad.addColorStop(.55,`rgba(255,255,255,${alpha})`);grad.addColorStop(1,'rgba(255,255,255,0)');
+ g.save();g.strokeStyle=grad;g.lineWidth=Math.max(1.5,2*s);
+ for(let i=0;i<=6;i++){const r=(58+i*12)*s;g.beginPath();g.moveTo(x+w,cy+r);g.lineTo(cx,cy+r);g.arc(cx,cy,r,Math.PI/2,-Math.PI/2,false);g.lineTo(x+w,cy-r);g.stroke();}
+ if(lap!=null){const r=64*s;g.strokeStyle='#fff';g.lineWidth=14*s;g.beginPath();g.moveTo(x+330*s,cy+r);g.lineTo(cx,cy+r);g.arc(cx,cy,r,Math.PI/2,-Math.PI/2,false);g.lineTo(x+w,cy-r);g.setLineDash([lap*(180+Math.PI*64+250)*s/100,99999]);g.stroke();g.setLineDash([]);}
+ g.restore();
+}
 
 function gridRow(g,y,cells){
  const colW=(W-2*M-3*24)/4;
@@ -50,8 +59,8 @@ export async function drawRunPoster({activity:a,streams={},style='route',accent=
   const rowH=Math.min(46,art.h/sp.length);
   sp.forEach((s,i)=>{const y=art.y+i*rowH,t=max>min?(s.average_speed-min)/(max-min):.5,w=(art.w-200)*(.35+.65*t);g.fillStyle='#fff';g.fillRect(art.x+70,y+rowH*.2,w,rowH*.55);g.font=`500 ${Math.round(rowH*.48)}px ${SANS}`;g.fillStyle='rgba(255,255,255,.75)';g.fillText(String(i+1),art.x,y+rowH*.68);g.fillStyle='#fff';g.textAlign='right';g.fillText(paceOf(s.average_speed,settings),art.x+art.w,y+rowH*.68);g.textAlign='left';});
  }else{
-  // a fallback artwork: the bend
-  g.lineWidth=2;g.strokeStyle='rgba(255,255,255,.4)';for(let i=0;i<9;i++){const r=300+i*40;g.beginPath();g.arc(M,art.y+art.h,r,-Math.PI/2,0);g.stroke();}
+  // a fallback artwork: the track
+  drawTrack(g,art.x-40,art.y+40,art.w+40,{alpha:.5});
  }
  // the number
  const hasDist=a.distance>0;

@@ -9,7 +9,7 @@ import {Spark,smooth} from './ApexTrack';
 import {focusRace,raceDate} from './ApexGoals';
 import {localDate,addDays,mondayOf} from './apexDates';
 import {readSettings,heartRate,PB_DISTANCES} from './ApexSettings';
-import {PaceBand} from './ApexPoster';
+import {PaceBand,drawTrack} from './ApexPoster';
 import {allShoes,shoeStats} from './ApexShoes';
 
 export const isRun=a=>a.type==='Run'||a.sport_type==='Run'||a.sport_type==='TrailRun';
@@ -105,7 +105,7 @@ async function drawRecap(stats,accent='#1C3BDB'){
  const c=document.createElement('canvas');c.width=1080;c.height=1350;const g=c.getContext('2d');
  try{await Promise.all([document.fonts?.load(`400 200px ${SANS}`),document.fonts?.load(`italic 400 80px ${SERIF}`)]);}catch{}
  g.fillStyle=accent;g.fillRect(0,0,1080,1350);
- g.strokeStyle='rgba(255,255,255,.35)';g.lineWidth=2;for(let i=0;i<9;i++){g.beginPath();g.arc(0,1350,520+i*48,-Math.PI/2,0);g.stroke();}
+ drawTrack(g,0,880,1080,{alpha:.28});
  g.fillStyle='#fff';g.font=`500 28px ${SANS}`;g.fillText('THE WEEK · APEX',72,92);g.fillText(stats.range.toUpperCase(),640,92);
  g.fillStyle='rgba(255,255,255,.6)';g.fillRect(72,52,936,2);
  g.fillStyle='#fff';g.font=`400 330px ${SANS}`;g.fillText(stats.km,60,470);
@@ -137,20 +137,48 @@ function previewEfforts(acts){
  return out;
 }
 
+const ZONES_FORM=[['over','Too much',-60,-30],['build','Building',-30,-10],['neutral','Balanced',-10,5],['fresh','Fresh',5,15],['peak','Race-ready',15,40]];
+const sign=v=>`${v>=0?'+':'−'}${Math.abs(Math.round(v))}`;
+const shortDate=k=>new Date(k+'T12:00:00').toLocaleDateString('en-GB',{day:'numeric',month:'short'});
+
+// Where today's form sits, on a labelled scale from overreaching to race-ready.
+function FormScale({tsb}){
+ const lo=-45,hi=30,pos=v=>(Math.max(lo,Math.min(hi,v))-lo)/(hi-lo)*100;
+ return <div className="form-scale" aria-label={`Form ${sign(tsb)}, on a scale from overreaching to race-ready`}>
+  <div className="fs-bar">{ZONES_FORM.map(([k,l,a,b])=><span key={k} className={`fs-${k}`} style={{left:`${pos(a)}%`,width:`${pos(b)-pos(a)}%`}}/>)}<i style={{left:`${pos(tsb)}%`}}><b>{sign(tsb)}</b></i></div>
+  <div className="fs-labels">{ZONES_FORM.map(([k,l,a,b])=><span key={k} style={{left:`${(pos(a)+pos(b))/2}%`}}>{l}</span>)}</div>
+  <div className="fs-ticks">{[-30,-10,0,5,15].map(v=><span key={v} style={{left:`${pos(v)}%`}}>{v>0?`+${v}`:v}</span>)}</div>
+ </div>;
+}
+
+// Twelve weeks of fitness and fatigue, labelled where they end, with a finger
+// scrubber that reads out any day. Form is shown below as bars around zero.
 function FormChart({series}){
+ const [at,setAt]=useState(null);
  if(series.length<2)return null;
- const W=400,H=180,top=10,mid=118,lo=Math.min(0,...series.map(s=>s.ctl),...series.map(s=>s.atl)),hi=Math.max(10,...series.map(s=>s.ctl),...series.map(s=>s.atl));
- const y=v=>mid-(v-lo)/(hi-lo||1)*(mid-top);
- const x=i=>i/(series.length-1)*W;
+ const W=400,H=170,top=14,bottom=150;
+ const vals=series.flatMap(s=>[s.ctl,s.atl]),vmin=Math.min(...vals),vmax=Math.max(...vals),pad=Math.max(4,(vmax-vmin)*.15),lo=Math.max(0,vmin-pad),hi=vmax+pad;
+ const y=v=>bottom-(v-lo)/(hi-lo||1)*(bottom-top),x=i=>i/(series.length-1)*(W-56);
+ const step=(hi-lo)>60?20:(hi-lo)>24?10:5,grid=[];for(let v=Math.ceil(lo/step)*step;v<=hi;v+=step)grid.push(v);
+ const last=series[series.length-1],cur=at!=null?series[at]:last;
+ const move=e=>{const r=e.currentTarget.getBoundingClientRect();const f=Math.max(0,Math.min(1,(e.clientX-r.left)/(r.width*(W-56)/W)));setAt(Math.round(f*(series.length-1)));};
  const tsbMax=Math.max(10,...series.map(s=>Math.abs(s.tsb)));
- const base=152;
- return <svg className="form-chart" viewBox={`0 0 ${W} ${H}`} preserveAspectRatio="none" role="img" aria-label="Fitness, fatigue and form over the last 12 weeks">
-  <path className="fc-fit-area" d={smooth(series.map((s,i)=>[x(i),y(s.ctl)]))+` L${W},${mid} L0,${mid}Z`}/>
-  <path className="fc-fit" d={smooth(series.map((s,i)=>[x(i),y(s.ctl)]))} vectorEffect="non-scaling-stroke"/>
-  <path className="fc-fat" d={smooth(series.map((s,i)=>[x(i),y(s.atl)]))} vectorEffect="non-scaling-stroke"/>
-  <line x1="0" x2={W} y1={base} y2={base} className="fc-zero" vectorEffect="non-scaling-stroke"/>
-  {series.map((s,i)=>{const h=s.tsb/tsbMax*24;return <rect key={s.key} x={x(i)-1.6} width="3.2" y={h>=0?base-h:base} height={Math.abs(h)} className={h>=0?'fc-form-pos':'fc-form-neg'}/>;})}
- </svg>;
+ const ticks=[0,Math.round((series.length-1)/3),Math.round((series.length-1)*2/3),series.length-1];
+ return <div className="fc-wrap">
+  <div className="fc-grid-labels" aria-hidden="true">{grid.map(v=><span key={v} style={{top:`calc(28px + ${y(v)/H*170}px)`}}>{v}</span>)}</div>
+  <div className="fc-read" aria-live="polite"><span>{at!=null?shortDate(cur.key):'Today'}</span><span><i className="k-fit"/>Fitness <b>{Math.round(cur.ctl)}</b></span><span><i className="k-fat"/>Fatigue <b>{Math.round(cur.atl)}</b></span><span>Form <b>{sign(cur.tsb)}</b></span></div>
+  <svg className="form-chart" viewBox={`0 0 ${W} ${H}`} preserveAspectRatio="none" onPointerMove={move} onPointerDown={move} onPointerLeave={()=>setAt(null)} role="img" aria-label="Fitness and fatigue over the last 12 weeks">
+   {grid.map(v=><line key={v} x1="0" x2={W-56} y1={y(v)} y2={y(v)} className="fc-grid" vectorEffect="non-scaling-stroke"/>)}
+   <path className="fc-fat" d={smooth(series.map((s,i)=>[x(i),y(s.atl)]))} vectorEffect="non-scaling-stroke"/>
+   <path className="fc-fit" d={smooth(series.map((s,i)=>[x(i),y(s.ctl)]))} vectorEffect="non-scaling-stroke"/>
+   {at!=null&&<line x1={x(at)} x2={x(at)} y1={top} y2={bottom} className="fc-cursor" vectorEffect="non-scaling-stroke"/>}
+  </svg>
+  <div className="fc-ends" style={(()=>{let f=y(last.ctl)/H*100,t=y(last.atl)/H*100;if(Math.abs(f-t)<11){const m=(f+t)/2,d=f<=t?-5.5:5.5;f=m+d;t=m-d;}return {'--fit':`${f}%`,'--fat':`${t}%`};})()}><span className="end-fit">Fitness {Math.round(last.ctl)}</span><span className="end-fat">Fatigue {Math.round(last.atl)}</span></div>
+  <div className="fc-axis">{ticks.map(i=><span key={i} style={{left:`${x(i)/W*100}%`}}>{i===series.length-1?'Today':shortDate(series[i].key)}</span>)}</div>
+  <div className="fc-form"><span className="fc-form-label">Form<small>fresher ↑ · more tired ↓</small></span>
+   <svg viewBox={`0 0 ${W} 60`} preserveAspectRatio="none" aria-hidden="true"><line x1="0" x2={W-56} y1="30" y2="30" className="fc-zero" vectorEffect="non-scaling-stroke"/>{series.map((s,i)=>{const h=s.tsb/tsbMax*26;return <rect key={s.key} x={x(i)-1.2} width="2.4" y={h>=0?30-h:30} height={Math.abs(h)} className={h>=0?'fc-form-pos':'fc-form-neg'}/>;})}</svg>
+  </div>
+ </div>;
 }
 
 export default function Performance({acts=[],gear=[],whoop,userPrefs,nav}){
@@ -179,11 +207,20 @@ export default function Performance({acts=[],gear=[],whoop,userPrefs,nav}){
  };
  return <div className="performance-page">
   <section className="perf-form" aria-labelledby="form-title">
-   <div className="perf-head"><span className="eyebrow">Form · today</span><h2 id="form-title" className="sr-only">Fitness, fatigue and form</h2></div>
-   <div className="form-hero"><span className={`form-tag form-${fl?.key||'neutral'}`}><b>{last?`${last.tsb>=0?'+':''}${Math.round(last.tsb)}`:'—'}</b></span><div><strong>{fl?.label||'Warming up'}</strong><p>{fl?.line||'Form appears once three weeks of activities have synced.'}</p></div></div>
-   <FormChart series={form.series}/>
-   <div className="fc-key"><span><i className="k-fit"/>Fitness {last?Math.round(last.ctl):'—'}</span><span><i className="k-fat"/>Fatigue {last?Math.round(last.atl):'—'}</span><span><i className="k-form"/>Form</span></div>
-   <p className="form-note">Fitness is your 6-week training load, fatigue the last 7 days. Form is fitness minus fatigue.{form.warm?' Fewer than 6 weeks of activities are loaded, so fitness is still warming up.':''}</p>
+   <div className="section-head"><h2 id="form-title">Form</h2><span className="meta">Fitness minus fatigue</span></div>
+   {last?<>
+    <div className="form-hero"><span className={`form-tag form-${fl.key}`}><b>{sign(last.tsb)}</b></span><div><strong>{fl.label}</strong><p>{fl.line}</p></div></div>
+    <FormScale tsb={last.tsb}/>
+    <dl className="form-explain">
+     <div><dt><i className="k-fit"/>Fitness</dt><dd><b>{Math.round(last.ctl)}</b><span>Your average daily training load over the last 6 weeks. It climbs slowly with consistent training: higher means fitter.</span></dd></div>
+     <div><dt><i className="k-fat"/>Fatigue</dt><dd><b>{Math.round(last.atl)}</b><span>Your average daily load over the last 7 days. It jumps after hard days and drops quickly when you rest.</span></dd></div>
+     <div><dt>Form</dt><dd><b>{sign(last.tsb)}</b><span>{Math.round(last.ctl)} fitness − {Math.round(last.atl)} fatigue. Negative means you’re carrying more recent work than your body is used to; positive means you’re fresh.</span></dd></div>
+    </dl>
+    <h3 className="fc-title">Last 12 weeks</h3>
+    <FormChart series={form.series}/>
+    <div className="form-guide"><span className="label">How to use it</span><p><b>Race week:</b> aim for +5 to +15, fresh but still fit.</p><p><b>Training block:</b> −10 to −30 is normal; that’s productive fatigue.</p><p><b>Below −30 for more than a week:</b> ease off; injury and illness risk climb.</p></div>
+    <p className="form-note">Load for each activity comes from Strava’s relative effort, or from heart rate and time when that’s missing. One easy hour is roughly 40 to 60 load.{form.warm?' Fewer than 6 weeks of activities are loaded, so fitness is still settling.':''}</p>
+   </>:<div className="form-empty"><strong>Warming up</strong><p>Form appears once three weeks of activities have synced.</p></div>}
   </section>
 
   <section className="perf-predict" aria-labelledby="pred-title">

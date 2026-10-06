@@ -44,17 +44,33 @@ export function useLap(score,{animate=true}={}){
  return p;
 }
 
-// The bend: one curve of a running track seen from above, eight lanes of hairline.
-// Lane 1 carries your lap, drawn as far round the bend as your recovery score.
-const LANES=Array.from({length:9},(_,i)=>170+i*24);
-const arc=r=>`M0,${400-r} A${r},${r} 0 0 1 ${r},400`;
-export function Bend({progress=0,score,className=''}){
- const r=LANES[0]+12,a=(progress/100)*Math.PI/2,x=Math.sin(a)*r,y=400-Math.cos(a)*r;
- return <svg className={`bend ${className}`} viewBox="0 0 400 400" aria-hidden="true">
-  {LANES.map(l=><path key={l} d={arc(l)} className="bend-lane"/>)}
-  <path d={arc(r)} className="bend-lap" pathLength="100" strokeDasharray={`${progress} 100`}/>
-  <line x1="0" x2="0" y1={400-LANES[0]} y2={400-LANES[LANES.length-1]} className="bend-start"/>
-  {score!=null&&<circle cx={x} cy={y} r="10" className="bend-runner"/>}
+// The track: the end of a 400 m track seen from above. Two straights run in from
+// the right, round the bend, six lanes with painted numbers and a start line.
+// Lane 1 carries your lap: from the start line, down the straight, round the
+// bend, as far as your recovery score. The straights fade out, so it reads as a
+// track that carries on, not a rainbow.
+const C=[150,130],R0=58,LANE=12,LANES=6,START=330,LAP_R=R0+LANE/2;
+const laneLine=r=>`M400,${C[1]+r} H${C[0]} A${r},${r} 0 0 1 ${C[0]},${C[1]-r} H400`;
+const lapPath=`M${START},${C[1]+LAP_R} H${C[0]} A${LAP_R},${LAP_R} 0 0 1 ${C[0]},${C[1]-LAP_R} H400`;
+function lapPoint(t){
+ const a=START-C[0],arc=Math.PI*LAP_R,b=400-C[0],total=a+arc+b;let s=Math.max(0,Math.min(1,t))*total;
+ if(s<=a)return [START-s,C[1]+LAP_R];s-=a;
+ if(s<=arc){const ang=Math.PI/2+s/LAP_R;return [C[0]+LAP_R*Math.cos(ang),C[1]+LAP_R*Math.sin(ang)];}s-=arc;
+ return [C[0]+s,C[1]-LAP_R];
+}
+let trackId=0;
+export function Bend({progress=0,score,className='',numbers=true}){
+ const [x,y]=lapPoint(progress/100);
+ const [id]=useState(()=>`fade${++trackId}`);
+ return <svg className={`bend ${className}`} viewBox="0 0 400 260" aria-hidden="true">
+  <defs><linearGradient id={id} x1="0" x2="1" y1="0" y2="0"><stop offset=".55" stopColor="#fff"/><stop offset="1" stopColor="#fff" stopOpacity="0"/></linearGradient><mask id={`${id}m`}><rect width="400" height="260" fill={`url(#${id})`}/></mask></defs>
+  <g mask={`url(#${id}m)`}>
+   {Array.from({length:LANES+1},(_,i)=><path key={i} d={laneLine(R0+i*LANE)} className="bend-lane"/>)}
+   <line x1={START} x2={START} y1={C[1]+R0} y2={C[1]+R0+LANES*LANE} className="bend-start"/>
+   {numbers&&Array.from({length:LANES},(_,i)=><text key={i} x={START+18} y={C[1]+R0+i*LANE+LANE/2+3.5} className="bend-num">{i+1}</text>)}
+   <path d={lapPath} className="bend-lap" pathLength="100" strokeDasharray={`${progress} 100`}/>
+  </g>
+  {score!=null&&<circle cx={x} cy={y} r="7" className="bend-runner"/>}
  </svg>;
 }
 

@@ -2,6 +2,7 @@
 // rest of your saved data. Missing values always fall back to DEFAULTS.
 import {useMemo,useState} from 'react';
 import {Icon} from './ApexUI';
+import {historyInfo,clearHistory} from './strava';
 
 export const HOME_MODULES={
  recovery:['Recovery poster','The bend, your score, sleep and HRV'],
@@ -36,12 +37,14 @@ export const DEFAULTS={
  predictor:{weeks:8},
  pbs:[],goals:{},shoes:{},
  poster:'route',
+ hiddenTypes:['Walk'],
 };
 
 export function readSettings(userPrefs){
  const s=userPrefs?.settings||{};
  const order=[...(s.home?.order||[]).filter(k=>HOME_MODULES[k]),...Object.keys(HOME_MODULES).filter(k=>!(s.home?.order||[]).includes(k))];
  return {...DEFAULTS,...s,home:{order,hidden:s.home?.hidden||DEFAULTS.home.hidden},hr:{...DEFAULTS.hr,...s.hr},predictor:{...DEFAULTS.predictor,...s.predictor},
+  hiddenTypes:Array.isArray(s.hiddenTypes)?s.hiddenTypes:DEFAULTS.hiddenTypes,
   stats:(s.stats||DEFAULTS.stats).filter(k=>STATS[k]).slice(0,3),tabs:(s.tabs||DEFAULTS.tabs).filter(k=>TAB_CHOICES[k]).slice(0,3),pbs:s.pbs||[],goals:s.goals||{},shoes:s.shoes||{}};
 }
 
@@ -89,6 +92,12 @@ export function TimeInput({value,onCommit,placeholder,label}){
   onChange={e=>setText(formatDigits(e.target.value))} onBlur={()=>onCommit?.(parseTime(text))}/>;
 }
 
+function HistoryRow(){
+ const h=historyInfo();
+ if(!h)return null;
+ return <div className="set-row"><span><b>Strava history</b><small>{h.count.toLocaleString('en-GB')} activities{h.oldest?` back to ${new Date(h.oldest).toLocaleDateString('en-GB',{month:'short',year:'numeric'})}`:''}{h.complete?'':' · still syncing older runs'}</small></span><button className="secondary-action set-small-btn" onClick={()=>{clearHistory();window.location.reload();}}>Re-sync all</button></div>;
+}
+
 function Section({title,note,children}){return <section className="set-section"><div className="set-head"><h2>{title}</h2>{note&&<p>{note}</p>}</div>{children}</section>;}
 
 export default function Settings({userPrefs,onSavePrefs,acts=[],whoop,theme,setTheme,nav}){
@@ -124,6 +133,11 @@ export default function Settings({userPrefs,onSavePrefs,acts=[],whoop,theme,setT
    <div className="set-row"><span><b>Colour</b><small>The poster colour across the app.</small></span><div className="swatches">{Object.entries(ACCENTS).map(([k,a])=><button key={k} className={s.accent===k?'is-on':''} style={{'--sw':a.light}} onClick={()=>update({accent:k})} aria-label={a.name} aria-pressed={s.accent===k}><i/></button>)}</div></div>
    <div className="set-row"><span><b>Units</b></span><div className="apex-segments">{[['km','Kilometres'],['mi','Miles']].map(([k,l])=><button key={k} aria-pressed={s.units===k} onClick={()=>update({units:k})}>{l}</button>)}</div></div>
    <div className="set-row"><span><b>Run poster</b><small>Default layout when you make a poster.</small></span><div className="apex-segments">{Object.entries(POSTER_STYLES).map(([k,l])=><button key={k} aria-pressed={s.poster===k} onClick={()=>update({poster:k})}>{l}</button>)}</div></div>
+  </Section>
+
+  <Section title="Activities" note="WHOOP and watches log every walk. Hide the types you don’t want counted on Today, Activity, Performance and Shoes.">
+   {Object.entries(acts.reduce((m,a)=>{const t=a.sport_type||a.type||'Other';m[t]=(m[t]||0)+1;return m;},{})).sort((a,b)=>b[1]-a[1]).map(([t,n])=><div className="set-row" key={t}><span><b>{t.replace(/([a-z])([A-Z])/g,'$1 $2')}</b><small>{n} {n===1?'activity':'activities'}</small></span><button role="switch" aria-checked={!s.hiddenTypes.includes(t)} className="set-switch" aria-label={`Show ${t}`} onClick={()=>update({hiddenTypes:s.hiddenTypes.includes(t)?s.hiddenTypes.filter(x=>x!==t):[...s.hiddenTypes,t]})}><i/></button></div>)}
+   <HistoryRow/>
   </Section>
 
   <Section title="Personal bests" note="Add PBs from races or from before you used Strava. They join the PB wall and sharpen the race predictor.">

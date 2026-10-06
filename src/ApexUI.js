@@ -36,8 +36,8 @@ const paths={
 };
 
 export function Icon({name,size=22}){return <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d={paths[name]||paths.activity}/></svg>;}
-// The mark: the bend of a track, lane 1 drawn heavy.
-export function Mark({size=26}){return <svg width={size} height={size} viewBox="0 0 64 64" aria-hidden="true"><g fill="none" stroke="currentColor"><path d="M8 18a38 38 0 0 1 38 38" strokeWidth="7"/><path d="M8 6a50 50 0 0 1 50 50" strokeWidth="2.2"/><path d="M8 30a26 26 0 0 1 26 26" strokeWidth="2.2"/></g></svg>;}
+// The mark: the end of a track, lane 1 drawn heavy.
+export function Mark({size=26}){return <svg width={size} height={size} viewBox="0 0 64 64" aria-hidden="true"><g fill="none" stroke="currentColor" strokeLinecap="butt"><path d="M62 46H28a14 14 0 0 1 0-28h34" strokeWidth="6"/><path d="M62 55H28a23 23 0 0 1 0-46h34" strokeWidth="2.4"/></g></svg>;}
 
 const MORE_ALL=[['performance','Performance','Form, predictor, PBs, pace band'],['shoes','Shoes','Mileage, rotation and retirement'],['recovery','Recovery','Sleep, HRV and the last 30 mornings'],['nutrition','Fuel','Meals, targets and body weight'],['gym','Strength','Live workouts, rest timer, history'],['races','Races','Your calendar and primary goal'],['settings','Customise','Today, tabs, colour, units, PBs, heart rate'],['profile','You','Profile and connections'],['plan','Training','Your plan, week by week'],['activity','Activity','Every run and the 12-week grid'],['coach','Coach','Plans, questions, adjustments']];
 const TITLES={shoes:'Shoes',performance:'Performance',plan:'Training',activity:'Activity',recovery:'Recovery',nutrition:'Fuel',gym:'Strength',coach:'Coach',profile:'You',races:'Races',settings:'Customise'};
