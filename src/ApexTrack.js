@@ -98,7 +98,7 @@ export function Profile({fill=[],line=[],height=180,format,invert=false,onScrub}
  if(n<2)return null;
  const scale=(arr,top,bottom,inv)=>{const v=arr.filter(Number.isFinite);if(!v.length)return null;const lo=Math.min(...v),hi=Math.max(...v),span=hi-lo||1;return arr.map((y,i)=>[i/(arr.length-1)*VW,Number.isFinite(y)?(inv?top+(y-lo)/span*(bottom-top):bottom-(y-lo)/span*(bottom-top)):bottom]);};
  const win=Math.max(1,Math.round(line.length/90)),avg=line.map((_,i)=>{let s=0,c=0;for(let j=Math.max(0,i-win);j<=Math.min(line.length-1,i+win);j++)if(Number.isFinite(line[j])){s+=line[j];c++;}return c?s/c:NaN;});
- const f=fill.length>1?scale(fill,VH*.4,VH-4):null,l=avg.length>1?scale(avg,VH*.08,VH*.62,invert)?.map(([x,y])=>[16+x*(VW-32)/VW,y]):null;
+ const f=fill.length>1?scale(fill,VH*.4,VH-4):null,l=avg.length>1?scale(avg,VH*.08,VH*.62,invert)?.map(([x,y])=>[20+x*(VW-40)/VW,y]):null;
  const move=e=>{const r=ref.current?.getBoundingClientRect();if(!r)return;const x=Math.max(0,Math.min(1,(e.clientX-r.left)/r.width));const i=Math.round(x*(n-1));setAt(i);onScrub?.(i);};
  return <div className="profile" ref={ref} onPointerMove={move} onPointerDown={move} onPointerLeave={()=>setAt(null)} style={{'--h':`${VH}px`}}>
   <svg viewBox={`0 0 ${VW} ${VH}`} preserveAspectRatio="none" aria-hidden="true">

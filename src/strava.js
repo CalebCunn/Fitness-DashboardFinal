@@ -105,7 +105,7 @@ const keep = a => ({
   distance: a.distance, moving_time: a.moving_time, elapsed_time: a.elapsed_time,
   average_speed: a.average_speed, max_speed: a.max_speed, average_heartrate: a.average_heartrate, max_heartrate: a.max_heartrate,
   total_elevation_gain: a.total_elevation_gain, average_cadence: a.average_cadence, average_watts: a.average_watts,
-  suffer_score: a.suffer_score, kudos_count: a.kudos_count, gear_id: a.gear_id, manual: a.manual, trainer: a.trainer,
+  start_latlng: a.start_latlng, suffer_score: a.suffer_score, kudos_count: a.kudos_count, gear_id: a.gear_id, manual: a.manual, trainer: a.trainer,
   map: a.map?.summary_polyline ? { summary_polyline: a.map.summary_polyline } : undefined,
 });
 function readHistory() { try { return JSON.parse(localStorage.getItem(HISTORY_KEY)) || null; } catch { return null; } }

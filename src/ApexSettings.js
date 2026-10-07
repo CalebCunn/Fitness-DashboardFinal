@@ -5,12 +5,12 @@ import {Icon} from './ApexUI';
 import {historyInfo,clearHistory} from './strava';
 
 export const HOME_MODULES={
- recovery:['Recovery poster','The bend, your score, sleep and HRV'],
- session:['Today’s session','What’s planned, or the run you’ve done'],
+ recovery:['Recovery poster','Score, sleep and HRV'],
+ session:['Today’s session','The plan, the call, energy'],
  stats:['Stats row','Three numbers of your choice'],
- week:['This week','Run and planned kilometres, day by day'],
+ week:['This week','Planned and run, by day'],
  race:['Next race','Countdown and goal'],
- checkin:['Check-in','How you feel, in your words'],
+ checkin:['Check-in','Soreness, stress, notes'],
  fuel:['Fuel','Today’s calories and protein'],
  results:['Results','Your last three activities'],
 };
@@ -53,7 +53,7 @@ const MI=1609.34;
 export const unitsOf=settings=>settings?.units==='mi'?'mi':'km';
 export function dist(m,settings,d=2){if(!Number.isFinite(m))return '—';const v=unitsOf(settings)==='mi'?m/MI:m/1000;return v.toFixed(d);}
 export function paceOf(mps,settings){if(!mps||!Number.isFinite(mps)||mps<=0)return '—';const per=unitsOf(settings)==='mi'?MI:1000;const v=Math.round(per/mps);return `${Math.floor(v/60)}:${String(v%60).padStart(2,'0')}`;}
-export const perUnit=settings=>`/${unitsOf(settings)}`;
+export const perUnit=settings=>`\u2009/${unitsOf(settings)}`;
 
 // ── Heart rate: automatic, overridable ──
 export function heartRate(settings,acts=[],whoop){

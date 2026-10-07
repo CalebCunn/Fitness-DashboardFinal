@@ -147,7 +147,7 @@ function FormScale({tsb}){
  return <div className="form-scale" aria-label={`Form ${sign(tsb)}, on a scale from overreaching to race-ready`}>
   <div className="fs-bar">{ZONES_FORM.map(([k,l,a,b])=><span key={k} className={`fs-${k}`} style={{left:`${pos(a)}%`,width:`${pos(b)-pos(a)}%`}}/>)}<i style={{left:`${pos(tsb)}%`}}><b>{sign(tsb)}</b></i></div>
   <div className="fs-labels">{ZONES_FORM.map(([k,l,a,b])=><span key={k} style={{left:`${(pos(a)+pos(b))/2}%`}}>{l}</span>)}</div>
-  <div className="fs-ticks">{[-30,-10,0,5,15].map(v=><span key={v} style={{left:`${pos(v)}%`}}>{v>0?`+${v}`:v}</span>)}</div>
+  <div className="fs-ticks">{[-30,-10,0,5,15].filter(v=>Math.abs(v-tsb)>3).map(v=><span key={v} style={{left:`${pos(v)}%`}}>{v>0?`+${v}`:v}</span>)}</div>
  </div>;
 }
 
@@ -158,25 +158,24 @@ function FormChart({series}){
  if(series.length<2)return null;
  const W=400,H=170,top=14,bottom=150;
  const vals=series.flatMap(s=>[s.ctl,s.atl]),vmin=Math.min(...vals),vmax=Math.max(...vals),pad=Math.max(4,(vmax-vmin)*.15),lo=Math.max(0,vmin-pad),hi=vmax+pad;
- const y=v=>bottom-(v-lo)/(hi-lo||1)*(bottom-top),x=i=>i/(series.length-1)*(W-56);
+ const y=v=>bottom-(v-lo)/(hi-lo||1)*(bottom-top),x=i=>i/(series.length-1)*W;
  const step=(hi-lo)>60?20:(hi-lo)>24?10:5,grid=[];for(let v=Math.ceil(lo/step)*step;v<=hi;v+=step)grid.push(v);
  const last=series[series.length-1],cur=at!=null?series[at]:last;
- const move=e=>{const r=e.currentTarget.getBoundingClientRect();const f=Math.max(0,Math.min(1,(e.clientX-r.left)/(r.width*(W-56)/W)));setAt(Math.round(f*(series.length-1)));};
+ const move=e=>{const r=e.currentTarget.getBoundingClientRect();const f=Math.max(0,Math.min(1,(e.clientX-r.left)/r.width));setAt(Math.round(f*(series.length-1)));};
  const tsbMax=Math.max(10,...series.map(s=>Math.abs(s.tsb)));
  const ticks=[0,Math.round((series.length-1)/3),Math.round((series.length-1)*2/3),series.length-1];
  return <div className="fc-wrap">
   <div className="fc-grid-labels" aria-hidden="true">{grid.map(v=><span key={v} style={{top:`calc(28px + ${y(v)/H*170}px)`}}>{v}</span>)}</div>
   <div className="fc-read" aria-live="polite"><span>{at!=null?shortDate(cur.key):'Today'}</span><span><i className="k-fit"/>Fitness <b>{Math.round(cur.ctl)}</b></span><span><i className="k-fat"/>Fatigue <b>{Math.round(cur.atl)}</b></span><span>Form <b>{sign(cur.tsb)}</b></span></div>
   <svg className="form-chart" viewBox={`0 0 ${W} ${H}`} preserveAspectRatio="none" onPointerMove={move} onPointerDown={move} onPointerLeave={()=>setAt(null)} role="img" aria-label="Fitness and fatigue over the last 12 weeks">
-   {grid.map(v=><line key={v} x1="0" x2={W-56} y1={y(v)} y2={y(v)} className="fc-grid" vectorEffect="non-scaling-stroke"/>)}
+   {grid.map(v=><line key={v} x1="0" x2={W} y1={y(v)} y2={y(v)} className="fc-grid" vectorEffect="non-scaling-stroke"/>)}
    <path className="fc-fat" d={smooth(series.map((s,i)=>[x(i),y(s.atl)]))} vectorEffect="non-scaling-stroke"/>
    <path className="fc-fit" d={smooth(series.map((s,i)=>[x(i),y(s.ctl)]))} vectorEffect="non-scaling-stroke"/>
    {at!=null&&<line x1={x(at)} x2={x(at)} y1={top} y2={bottom} className="fc-cursor" vectorEffect="non-scaling-stroke"/>}
   </svg>
-  <div className="fc-ends" style={(()=>{let f=y(last.ctl)/H*100,t=y(last.atl)/H*100;if(Math.abs(f-t)<11){const m=(f+t)/2,d=f<=t?-5.5:5.5;f=m+d;t=m-d;}return {'--fit':`${f}%`,'--fat':`${t}%`};})()}><span className="end-fit">Fitness {Math.round(last.ctl)}</span><span className="end-fat">Fatigue {Math.round(last.atl)}</span></div>
   <div className="fc-axis">{ticks.map(i=><span key={i} style={{left:`${x(i)/W*100}%`}}>{i===series.length-1?'Today':shortDate(series[i].key)}</span>)}</div>
-  <div className="fc-form"><span className="fc-form-label">Form<small>fresher ↑ · more tired ↓</small></span>
-   <svg viewBox={`0 0 ${W} 60`} preserveAspectRatio="none" aria-hidden="true"><line x1="0" x2={W-56} y1="30" y2="30" className="fc-zero" vectorEffect="non-scaling-stroke"/>{series.map((s,i)=>{const h=s.tsb/tsbMax*26;return <rect key={s.key} x={x(i)-1.2} width="2.4" y={h>=0?30-h:30} height={Math.abs(h)} className={h>=0?'fc-form-pos':'fc-form-neg'}/>;})}</svg>
+  <div className="fc-form"><span className="fc-form-label">Form<small>↑ fresher · ↓ tired</small></span>
+   <svg viewBox={`0 0 ${W} 60`} preserveAspectRatio="none" aria-hidden="true"><line x1="0" x2={W} y1="30" y2="30" className="fc-zero" vectorEffect="non-scaling-stroke"/>{series.map((s,i)=>{const h=s.tsb/tsbMax*26;return <rect key={s.key} x={x(i)-1.2} width="2.4" y={h>=0?30-h:30} height={Math.abs(h)} className={h>=0?'fc-form-pos':'fc-form-neg'}/>;})}</svg>
   </div>
  </div>;
 }
@@ -225,7 +224,7 @@ export default function Performance({acts=[],gear=[],whoop,userPrefs,nav}){
 
   <section className="perf-predict" aria-labelledby="pred-title">
    <div className="section-head"><h2 id="pred-title">Race predictor</h2><span className="meta">Last {settings.predictor.weeks} weeks</span></div>
-   <div className="predict-board">{DISTANCES.map(([k,d])=>{const g=settings.goals[k],gp=g&&pred.now[k]?pred.now[k]-g:null;return <div key={k} className={k==='Marathon'?'is-key':''}><small>{k}</small><b>{pred.now[k]?clock(pred.now[k]):'—'}</b><em>{gp!=null?(gp<=0?`Goal ${clock(g)} · on track`:`Goal ${clock(g)} · ${clock(gp)} off`):pred.now[k]?`${pacePer(pred.now[k],d)} /km`:''}</em></div>;})}</div>
+   <div className="predict-board">{DISTANCES.map(([k,d])=>{const g=settings.goals[k],gp=g&&pred.now[k]?pred.now[k]-g:null;return <div key={k} className={k==='Marathon'?'is-key':''}><small>{k}</small><b>{pred.now[k]?clock(pred.now[k]):'—'}</b><em>{gp!=null?(gp<=0?`Goal ${clock(g)} · on track`:`Goal ${clock(g)} · ${clock(gp)} off`):pred.now[k]?`${pacePer(pred.now[k],d)} /km`:''}</em></div>;})}</div>
    {goal&&<div className="goal-strip"><div><small>{goal.name}{goal.target?` · ${goal.target}`:''}</small><b>{gap==null?'Set a target time on the race to see the gap.':gap<=0?`On track · ${clock(-gap)} inside target`:`${clock(gap)} to find · ${Math.round(gap/(goalDist/1000))} s/km`}</b></div>{raceDate(goal)&&<span>{Math.max(0,Math.ceil((new Date(goal.date+'T12:00:00')-new Date())/86400000))}<small>days</small></span>}</div>}
    <div className="predict-trend"><small>Marathon prediction, 12 weeks</small><Spark values={pred.trend} goal={goalSecs&&goalDist===42195?goalSecs:null} invert/></div>
    {pred.basis&&<p className="predict-basis">Strongest signal: <b>{pred.basis.label}</b></p>}
@@ -234,7 +233,7 @@ export default function Performance({acts=[],gear=[],whoop,userPrefs,nav}){
 
   <section className="perf-pbs" aria-labelledby="pb-title">
    <div className="section-head"><h2 id="pb-title">PB wall</h2>{!PREVIEW&&unscanned.length>0&&<button className="text-button" disabled={scan&&scan.done<scan.total&&!scan.msg} onClick={runScan}>{scan&&scan.done<scan.total&&!scan.msg?`Scanning ${scan.done}/${scan.total}`:`Scan ${Math.min(20,unscanned.length)} runs`}</button>}</div>
-   <div className="pb-wall">{wall.map(w=><button key={w.label} className={`pb-tile${w.best?'':' is-empty'}`} disabled={!w.best} onClick={()=>w.best&&(w.best.id?nav('activity',w.best.id):nav('settings'))}><small>{w.label}</small><b>{w.best?clock(w.best.time):'—'}</b><em>{w.best?(w.best.date?new Date(w.best.date+'T12:00:00').toLocaleDateString('en-GB',{day:'numeric',month:'short',year:'2-digit'}):w.best.run):'Not yet'}</em></button>)}</div>
+   <div className="pb-wall">{wall.map(w=><button key={w.label} className={`pb-tile${w.best?'':' is-empty'}`} disabled={!w.best} onClick={()=>w.best&&(w.best.id?nav('activity',w.best.id):nav('settings'))}><small>{w.label}</small><b>{w.best?clock(w.best.time):'—'}</b><em>{w.best?(w.best.date?new Date(w.best.date+'T12:00:00').toLocaleDateString('en-GB',{day:'numeric',month:'short',year:'numeric'}):w.best.run):'Not yet'}</em></button>)}</div>
    {scan?.msg&&<p className="form-note">{scan.msg}</p>}
    <p className="form-note">From Strava’s detailed runs plus any PBs you add in Customise. Every run you open is added; scanning fetches up to 20 at a time to stay inside Strava’s limits.</p>
    <button className="text-button" onClick={()=>nav('settings')}>Add a PB<Icon name="plus" size={15}/></button>

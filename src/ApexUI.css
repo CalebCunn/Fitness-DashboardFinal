@@ -1006,3 +1006,157 @@
 .fc-grid-labels{position:absolute;left:calc(100% - 52px);top:0;pointer-events:none}
 .fc-grid-labels span{position:absolute;left:4px;transform:translateY(-50%);font-size:10px;color:var(--ink-3);font-variant-numeric:tabular-nums;display:none}
 .bend-tile .bend{width:70%}
+
+/* ════ Today v5: a first screen composed to end above the tab bar ════ */
+.today-poster{height:clamp(370px,47svh,440px)}
+.today-poster .bend{left:0;right:auto;bottom:3%;width:66%;max-width:420px}
+.poster-score{top:calc(var(--top-h) + 40px)}
+.poster-score b{font-size:clamp(104px,32vw,140px)}
+.poster-score em{font-size:28px;margin-top:10px}
+.poster-signals{display:grid;grid-template-columns:auto;gap:8px;top:calc(var(--top-h) + 46px);line-height:1.2}
+.poster-signals span{display:grid;grid-template-columns:42px auto auto;align-items:baseline;gap:8px;border:0;padding:0;min-width:0;font-size:17px;font-variant-numeric:tabular-nums}
+.poster-signals small{font-size:10px;font-weight:500;letter-spacing:.08em;text-transform:uppercase;opacity:.75}
+.poster-signals em{font-style:normal;font-size:12px;opacity:.8}
+
+.start-line{display:grid;gap:12px;padding-top:4px}
+.today>.start-line{margin-top:20px}
+.sl-head{display:flex;align-items:baseline;justify-content:space-between;gap:12px;flex-wrap:wrap}
+.sl-head .session-title{font-size:clamp(40px,12vw,50px);line-height:.95}
+.sl-head .label{text-align:right}
+.sl-call{font-size:15px;line-height:1.45;color:var(--ink-2);padding-left:12px;box-shadow:inset 2px 0 0 var(--accent)}
+.sl-call b{color:var(--ink);font-weight:600}
+.call-swap .sl-call{box-shadow:inset 2px 0 0 var(--bad)}
+.call-care .sl-call{box-shadow:inset 2px 0 0 var(--warn)}
+.call-done .sl-call,.call-rest .sl-call{box-shadow:inset 2px 0 0 var(--ink-2)}
+.sl-chips{display:flex;flex-wrap:wrap;gap:6px}
+.sl-chips li{display:inline-flex;align-items:center;gap:6px;min-height:30px;padding:0 10px;font-size:13px;font-weight:500;box-shadow:inset 0 0 0 1px var(--rule);white-space:nowrap}
+.sl-chips li svg{color:var(--accent)}
+.apex-dark .sl-chips li svg{color:color-mix(in srgb,var(--accent) 55%,#fff)}
+.sl-chips small{font-size:12px;font-weight:400;color:var(--ink-2)}
+.sl-energy{display:grid;grid-template-columns:auto 1fr auto;align-items:center;gap:12px;border-top:1px solid var(--rule);padding-top:12px}
+.sl-energy>div{display:grid;grid-template-columns:repeat(5,1fr);gap:4px}
+.sl-energy>div button{height:40px;font-size:15px;font-weight:500;box-shadow:inset 0 0 0 1px var(--rule);color:var(--ink-2);font-variant-numeric:tabular-nums}
+.sl-energy>div button[aria-pressed=true]{background:var(--accent);color:#fff;box-shadow:none}
+.sl-energy .label{max-width:84px;line-height:1.3}
+.sl-more{font-size:14px;font-weight:500;color:var(--accent);min-height:40px;padding:0 2px}
+.apex-dark .sl-more{color:color-mix(in srgb,var(--accent) 55%,#fff)}
+.start-line .cta-bar{margin-top:2px}
+.cta-main{background:var(--accent)!important;color:#fff!important}
+.today>.stat-row{margin-top:36px}
+@media (max-height:760px){.today-poster{height:340px}.poster-score b{font-size:104px}}
+
+/* ════ Final detail pass ════ */
+/* 1 · Nothing hides under the tab bar: more room, and paper fading in behind the glass. */
+.content{padding-bottom:calc(var(--dock-h) + 84px + env(safe-area-inset-bottom))}
+.apex-app::after{content:'';position:fixed;left:0;right:0;bottom:0;height:calc(var(--dock-h) + 40px + env(safe-area-inset-bottom));background:linear-gradient(to bottom,transparent,color-mix(in srgb,var(--bg) 92%,transparent) 55%);pointer-events:none;z-index:39}
+.dock{-webkit-backdrop-filter:blur(24px) saturate(1.8);backdrop-filter:blur(24px) saturate(1.8)}
+.apex-app:has(.screen-coach)::after{display:none}
+@media (min-width:960px){.apex-app::after{display:none}}
+
+/* 3, 4 · Poster: score anchored bottom-right against the track, inside the gutter. */
+.poster-score{top:auto;bottom:22px;right:var(--m)}
+.poster-score b{margin:6px 0 0;letter-spacing:-.055em;padding-right:2px}
+.today-poster .bend{width:64%}
+.bend-num{font-size:12px;fill:rgba(255,255,255,.6)}
+.poster-signals{top:calc(var(--top-h) + 48px)}
+@media (max-height:760px){.today-poster{height:350px}.today-poster .bend{width:50%}.poster-score b{font-size:96px}.poster-score em{font-size:24px}}
+
+/* 6 · Stats row: one-line labels so the numbers share a baseline. */
+.stat-row .label{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+
+/* 5 · Next race as a race bib: punched corners, number in the middle. */
+.race-strip{position:relative;border:1px solid var(--rule-strong);border-radius:3px;padding:16px 18px;margin-top:28px;grid-template-columns:minmax(0,1fr) auto}
+.race-strip::before,.race-strip::after{content:'';position:absolute;width:7px;height:7px;border-radius:50%;box-shadow:inset 0 0 0 1px var(--rule-strong);top:7px;left:7px}
+.race-strip::after{left:auto;right:7px}
+.race-strip>.label{display:none}
+.race-strip strong{font-size:44px}
+.today>.race-strip+.race-strip{margin-top:10px;border-top:1px solid var(--rule-strong)}
+.screen-home .daily-review .goal-link{display:none}
+
+/* 2 · Section rules draw in from the left as they scroll into view (where supported). */
+@supports (animation-timeline:view()){
+ .section-head,.set-head,.detail-section,.perf-form .section-head{border-top-color:transparent;position:relative}
+ .section-head::before,.set-head::before,.detail-section::before{content:'';position:absolute;left:0;right:0;top:-1px;height:1px;background:var(--rule-strong);transform-origin:left;animation:rule linear both;animation-timeline:view();animation-range:entry 0% entry 60%}
+ @keyframes rule{from{transform:scaleX(0)}to{transform:scaleX(1)}}
+}
+@media (prefers-reduced-motion:reduce){.section-head::before,.set-head::before,.detail-section::before{animation:none!important}}
+
+/* 8 · Units: muted, slightly smaller */
+.row-figure em,.sl-chips small{font-variant-numeric:tabular-nums}
+
+/* 11, 12, 13 · Coach alignment, chips scroller, send button */
+.coach-log{padding:22px 0 16px}
+.coach-id{align-items:baseline}
+.coach-pills{-webkit-mask-image:linear-gradient(90deg,#000 85%,transparent);mask-image:linear-gradient(90deg,#000 85%,transparent);scroll-padding:0 var(--m)}
+.coach-pills::after{content:'';flex:0 0 12px}
+.send-button:disabled{background:transparent;box-shadow:inset 0 0 0 1px var(--rule-strong);color:var(--ink-3);opacity:1}
+.compose-meta{padding-left:0}
+
+/* 16 · Selects in the system: hairline, square, custom chevron */
+.apex-app select{appearance:none;-webkit-appearance:none;background-color:transparent!important;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1.5l5 5 5-5' fill='none' stroke='%235B6070' stroke-width='1.6'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 12px center;padding-right:34px!important;border:1px solid var(--rule-strong)!important;border-radius:2px!important}
+.apex-app input:not([type=checkbox]):not([type=file]):not([type=range]),.apex-app textarea{border-radius:2px;border-color:var(--rule-strong)}
+
+/* 17 · Fastest split: bold value, same cobalt bar */
+.split.is-best .split-bar i{background:var(--accent)}
+
+/* 18, 19, 20 · Form scale, explanation rows, chart */
+.fs-labels span:first-child,.fs-labels span:last-child{transform:translateX(-50%)}
+.form-explain>div{align-items:start}
+.form-explain dt{align-self:start;padding-top:9px}
+.fc-wrap .form-chart{width:100%}
+.fc-form{grid-template-columns:84px minmax(0,1fr)}
+
+/* 21, 22, 23 · Controls share one height; segmented controls hug their content */
+.apex-segments{justify-self:start;width:max-content;max-width:100%}
+.apex-segments button,.composer-tabs button,.range-control button{min-height:44px}
+.band-controls{align-items:flex-end}
+.band-controls input{height:44px}
+.shoes-total b,.hero-figure span,.detail-hero span,.energy-summary strong{margin-left:-.06em}
+
+/* 24 · Fuel date stepper */
+.food-date{display:flex!important;align-items:center;gap:10px}
+.food-date span{min-width:120px;text-align:center;font-family:var(--serif);font-size:24px}
+.food-date .glass-button{background:transparent;box-shadow:inset 0 0 0 1px var(--rule-strong);border-radius:3px;font-size:22px}
+
+/* 25 · Races */
+.goals-app>.section-label{align-items:center}
+.race-pass>div:first-child>span:empty{display:none}
+
+/* 26, 27 · Training */
+.training-page>.view-switch{order:4}.training-page>.session-list{order:5}
+.training-page>.save-notice{order:3}
+.training-summary .fuel-track{display:none}
+.session-details h3{font-family:var(--sans);font-weight:500;font-size:19px;letter-spacing:-.01em;font-variant-numeric:tabular-nums}
+.training-banner h2{text-wrap:balance}
+.complete-button,.completed-button{border-radius:0;box-shadow:none!important;background:transparent!important}
+.complete-button::before,.completed-button::before{content:'';position:absolute;inset:8px;border-radius:2px;box-shadow:inset 0 0 0 1.5px var(--ink-2)}
+.completed-button::before{background:var(--accent);box-shadow:none}
+.completed-button::after{position:relative;z-index:1}
+
+/* 28, 29, 30, 31, 32 · Copy rhythm */
+.strength-banner .light-action{margin-top:10px}
+.lede,.checkin-summary{font-family:var(--sans);font-size:17px;line-height:1.45;color:var(--ink-2)}
+.lede{margin-top:-18px}
+.set-order small,.row-copy small,.perf-link b,.mosaic-label b,.training-banner p{text-wrap:pretty}
+.perf-link b,.mosaic-label b{text-wrap:balance}
+
+/* 33 · Today's square: ring inside the tile */
+.tile.is-now{box-shadow:inset 0 0 0 2px var(--accent),0 0 0 2px var(--bg)}
+
+/* 34 · Profile grid */
+.connection-icon{place-items:center start}
+.connection-row .text-button{align-self:start;min-height:0;padding-top:2px}
+
+/* 35 · Sticky header title on the wordmark's line; no poster smear */
+.topbar-title{top:calc(env(safe-area-inset-top) + 17px);line-height:22px}
+.topbar.is-solid{background:color-mix(in srgb,var(--bg) 92%,transparent)}
+
+/* 37 · Dark mode glare */
+.apex-dark .apex-segments button[aria-pressed=true],.apex-dark .apex-segments button[aria-selected=true],.apex-dark .composer-tabs .active,.apex-dark .range-control .active{background:var(--accent);color:#fff}
+.apex-dark .form-tag.form-neutral{background:var(--raised-2);color:var(--ink)}
+.apex-dark .fs-build{background:color-mix(in srgb,var(--accent) 60%,#fff 10%)}
+.apex-dark .fs-neutral{background:rgba(238,240,246,.18)}
+.apex-dark .apex-app select,.apex-dark select{background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1.5l5 5 5-5' fill='none' stroke='%23A2A8B8' stroke-width='1.6'/%3E%3C/svg%3E")}
+.content.screen-coach{padding-bottom:0}
+.coach-starters{margin-top:6px}
+.fc-axis span:last-child{transform:translateX(-100%)}

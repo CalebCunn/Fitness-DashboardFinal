@@ -112,7 +112,7 @@ async function drawBand({name,target,km,rows,accent}){
  g.font=`italic 400 84px ${SERIF}`;g.fillText(String(name).slice(0,24),M,M+120);
  g.font=`400 120px ${SANS}`;g.fillText(fmtTime(target),M,M+220);
  const top=360,rowH=Math.min(84,(H-top-60)/rows.length);
- rows.forEach((r,i)=>{const y=top+i*rowH;g.fillStyle='rgba(16,19,34,.16)';g.fillRect(M,y,W-2*M,2);g.fillStyle='#5B6070';g.font=`500 32px ${SANS}`;g.fillText(`${r.k%1?r.k.toFixed(1):r.k} km`,M,y+rowH*.68);g.fillStyle='#101322';g.font=`400 ${Math.round(rowH*.62)}px ${SANS}`;g.textAlign='right';g.fillText(fmtTime(r.t),W-M,y+rowH*.72);g.fillStyle='#5B6070';g.font=`500 28px ${SANS}`;g.fillText(`${fmtTime(r.pace)}/km`,W-M-300,y+rowH*.68);g.textAlign='left';});
+ rows.forEach((r,i)=>{const y=top+i*rowH;g.fillStyle='rgba(16,19,34,.16)';g.fillRect(M,y,W-2*M,2);g.fillStyle='#5B6070';g.font=`500 32px ${SANS}`;g.fillText(`${r.k%1?r.k.toFixed(1):r.k} km`,M,y+rowH*.68);g.fillStyle='#101322';g.font=`400 ${Math.round(rowH*.62)}px ${SANS}`;g.textAlign='right';g.fillText(fmtTime(r.t),W-M,y+rowH*.72);g.fillStyle='#5B6070';g.font=`500 28px ${SANS}`;g.fillText(`${fmtTime(r.pace)} /km`,W-M-300,y+rowH*.68);g.textAlign='left';});
  return toBlob(c);
 }
 
@@ -125,7 +125,7 @@ export function PaceBand({goal,goals={},accent}){
  return <section className="pace-band" aria-labelledby="band-title">
   <div className="section-head"><h2 id="band-title">Pace band</h2><span className="meta">{goal?.name||'Marathon'}</span></div>
   <div className="band-controls"><label>Target<input inputMode="numeric" pattern="[0-9:]*" autoComplete="off" value={text} onChange={e=>setText(formatDigits(e.target.value))}/></label><div className="apex-segments">{[['even','Even'],['negative','Negative split']].map(([k,l])=><button key={k} aria-pressed={strategy===k} onClick={()=>setStrategy(k)}>{l}</button>)}</div></div>
-  <p className="band-pace"><b>{fmtTime(target/km)}</b> /km average{strategy==='negative'?` · ${fmtTime(rows[0].pace)} then ${fmtTime(rows[rows.length-1].pace)}`:''}</p>
+  <p className="band-pace"><b>{fmtTime(target/km)}</b> /km average{strategy==='negative'?` · ${fmtTime(rows[0].pace)} then ${fmtTime(rows[rows.length-1].pace)}`:''}</p>
   <ol className="band-rows">{rows.map(r=><li key={r.k}><span>{r.k%1?r.k.toFixed(1):r.k} km</span><i style={{width:`${r.k/km*100}%`}}/><b>{fmtTime(r.t)}</b></li>)}</ol>
   <button className="secondary-action" onClick={async()=>setNote(await shareImage(await drawBand({name:goal?.name||'Race day',target,km,rows,accent}),'apex-pace-band.png','Pace band'))}><Icon name="external" size={17}/>Share band</button>
   {note&&<p className="form-note">{note}</p>}

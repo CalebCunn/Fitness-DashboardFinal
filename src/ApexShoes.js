@@ -73,7 +73,7 @@ export default function Shoes({gear=[],acts=[],userPrefs,onSavePrefs}){
  return <div className="shoes-page">
   <section className="poster shoes-poster">
    <div className="poster-meta"><span>Rotation</span><span>{active.length} pairs</span><span>{retired.length} retired</span></div>
-   <p className="shoes-total"><b>{Math.round(u==='mi'?totalKm/1.60934:totalKm)}</b><em>{u} on your feet right now.</em></p>
+   <p className="shoes-total"><b>{Math.round(u==='mi'?totalKm/1.60934:totalKm).toLocaleString('en-GB')}</b><em>{u} on your feet right now.</em></p>
   </section>
   <div className="shoes-bar"><div className="apex-segments">{[['active','In rotation'],['retired','Retired']].map(([k,l])=><button key={k} aria-pressed={show===k} onClick={()=>setShow(k)}>{l}</button>)}</div><button className="primary-action" onClick={()=>setAdding(!adding)}><Icon name="plus" size={18}/>Add shoe</button></div>
   {adding&&<form className="shoe-add" onSubmit={add}>

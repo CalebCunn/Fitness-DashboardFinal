@@ -56,7 +56,7 @@ export default function Activity({acts=[],gear=[],initialId=null,restHr=null,nav
       onClick={()=>{setHover(null);if(d.count===1){setPicked(d);setSelected(d.items[0]);}else setPicked(d);}}/>;})}
     </div>
    </div>
-   <div className="mosaic-label" aria-live="polite">{label?<><small>{shortDate(label.key)}</small><b>{label.count===0?(label.future?'Still to come':'Rest day'):label.count===1?`${label.items[0].name}${label.items[0].distance?` · ${(label.items[0].distance/1000).toFixed(2)} km`:''} · ${clock(label.items[0].moving_time)}`:`${label.count} sessions · ${Math.round(label.mins)} min`}</b></>:<><small>Tap a day</small><b>Stronger colour, bigger day. Ringed square is today.</b></>}</div>
+   <div className="mosaic-label" aria-live="polite">{label?<><small>{shortDate(label.key)}</small><b>{label.count===0?(label.future?'Still to come':'Rest day'):label.count===1?`${label.items[0].name}${label.items[0].distance?` · ${(label.items[0].distance/1000).toFixed(2)} km`:''} · ${clock(label.items[0].moving_time)}`:`${label.count} sessions · ${Math.round(label.mins)} min`}</b></>:<><small>Tap a day</small><b>Stronger colour, bigger day. Ringed: today.</b></>}</div>
   </section>
 
   {picked?.count>1&&<section className="day-panel"><div className="section-head"><h2>{longDate(picked.key)}</h2><button className="text-button" onClick={()=>setPicked(null)}>Close</button></div>{picked.items.map(a=><button key={a.id} className="list-row" onClick={()=>setSelected(a)}><span className="row-copy"><small>{typeName(a)}</small><b>{a.name}</b></span><span className="row-figure">{run(a)?((a.distance||0)/1000).toFixed(1):Math.round((a.moving_time||0)/60)}<small>{run(a)?'km':'min'}</small></span><Icon name="chevron" size={16}/></button>)}</section>}
@@ -134,7 +134,7 @@ function insights(a,st,splits){
   else out.push(['Positive split.',`The second half was ${-diff} s/km slower. Worth a look if it was meant to be steady.`]);
   const paces=full.map(p),mean=paces.reduce((a,b)=>a+b,0)/paces.length,sd=Math.sqrt(paces.reduce((n,x)=>n+(x-mean)**2,0)/paces.length);
   const fast=paces.indexOf(Math.min(...paces));
-  out.push([`Fastest km: ${fast+1}.`,`${secPace(paces[fast])} /km. Your kilometres varied by about ±${Math.round(sd)} s.`]);
+  out.push([`Fastest km: ${fast+1}.`,`${secPace(paces[fast])} /km. Your kilometres varied by about ±${Math.round(sd)} s.`]);
  }
  if(hr?.length&&vel?.length&&time?.length&&time[time.length-1]>1500){
   const mid=time[time.length-1]/2,ratio=(lo,hi)=>{let v=0,h=0;for(let i=0;i<time.length;i++)if(time[i]>=lo&&time[i]<hi&&hr[i]>0&&vel[i]>.5){v+=vel[i];h+=hr[i];}return h?v/h:null;};
@@ -150,7 +150,7 @@ const skyOf=a=>{const h=a.start_date_local?when(a).getUTCHours():when(a).getHour
 
 // Run replay: the route redrawn as you ran it, coloured by pace, with a runner
 // you can play or scrub. Faster kilometres burn brighter.
-function RunReplay({points,time,vel,dist,markers}){
+function RunReplay({points,time,vel,dist,markers,totals}){
  const n=points.length,[i,setI]=useState(n-1),[playing,setPlaying]=useState(false);
  const W=400,H=260,xy=useMemo(()=>project(points,W,H,26),[points]);
  const step=Math.max(1,Math.floor(n/600)),idx=useMemo(()=>Array.from({length:Math.ceil(n/step)},(_,k)=>Math.min(n-1,k*step)),[n,step]);
@@ -174,7 +174,7 @@ function RunReplay({points,time,vel,dist,markers}){
    <button className="replay-play" onClick={play} aria-label={playing?'Pause replay':'Play replay'}>{playing?<svg width="18" height="18" viewBox="0 0 24 24"><path d="M7 5h3.5v14H7zM13.5 5H17v14h-3.5z" fill="currentColor"/></svg>:<svg width="18" height="18" viewBox="0 0 24 24"><path d="M7 4.5v15l12.5-7.5z" fill="currentColor"/></svg>}</button>
    <input type="range" min="0" max={n-1} step="1" value={at} onChange={e=>{setPlaying(false);setI(+e.target.value);}} aria-label="Scrub through the run"/>
   </div>
-  <div className="replay-read"><span><small>Distance</small><b>{dist[at]!=null?(dist[at]/1000).toFixed(2):'—'}</b></span><span><small>Time</small><b>{time[at]!=null?clock(time[at]):'—'}</b></span><span><small>Pace</small><b>{vel[at]>.6?pace(vel[at]):'—'}</b></span></div>
+  <div className="replay-read">{(()=>{const end=at>=n-1&&totals;return <><span><small>Distance</small><b>{end?(totals.distance/1000).toFixed(2):dist[at]!=null?(dist[at]/1000).toFixed(2):'—'}</b></span><span><small>Time</small><b>{end?clock(totals.moving_time):time[at]!=null?clock(time[at]):'—'}</b></span><span><small>{end?'Avg pace':'Pace'}</small><b>{end?pace(totals.average_speed):vel[at]>.6?pace(vel[at]):'—'}</b></span></>;})()}</div>
   <div className="replay-key"><span>Slower</span>{[0,1,2,3,4].map(b=><i key={b} className={`rp-${b}`}/>)}<span>Faster</span></div>
  </div>;
 }
@@ -197,7 +197,7 @@ function ActivityDetail({summary,onClose,maxHr,restHr,settings,gear,userPrefs,on
  const metrics=[hr.length&&['heartrate','Heart rate'],vel.length&&hasDist&&['pace','Pace'],cad.length&&['cadence','Cadence'],watts.length&&['watts','Power']].filter(Boolean);
  const m=metrics.find(x=>x[0]===metric)?metric:metrics[0]?.[0];
  const series=m==='heartrate'?hr:m==='pace'?vel.map(v=>v>.6?v:NaN):m==='cadence'?cad.map(c=>c*(isRun?2:1)):m==='watts'?watts:[];
- const readout=i=>{const parts=[];if(dist[i]!=null)parts.push(`${(dist[i]/1000).toFixed(2)} km`);if(alt[i]!=null)parts.push(`${Math.round(alt[i])} m`);const v=series[i];if(Number.isFinite(v))parts.push(m==='pace'?`${pace(v)} /km`:m==='heartrate'?`${Math.round(v)} bpm`:m==='cadence'?`${Math.round(v)} spm`:`${Math.round(v)} W`);return parts.join(' · ');};
+ const readout=i=>{const parts=[];if(dist[i]!=null)parts.push(`${(dist[i]/1000).toFixed(2)} km`);if(alt[i]!=null)parts.push(`${Math.round(alt[i])} m`);const v=series[i];if(Number.isFinite(v))parts.push(m==='pace'?`${pace(v)} /km`:m==='heartrate'?`${Math.round(v)} bpm`:m==='cadence'?`${Math.round(v)} spm`:`${Math.round(v)} W`);return parts.join(' · ');};
  const kmMarks=useMemo(()=>{const ll=st.latlng?.data;if(!ll?.length||!dist.length)return [];const total=dist[dist.length-1],step=total>25000?10000:total>8000?5000:total>3000?1000:0;if(!step)return [];const out=[];for(let k=step;k<total-step*.4;k+=step){const i=dist.findIndex(x=>x>=k);if(i>0&&i<ll.length)out.push({index:i,label:String(k/1000)});}return out;},[st,dist]);
  const routePts=st.latlng?.data?.length>1?st.latlng.data:decode(a.map?.polyline||a.map?.summary_polyline);
  const cadence=a.average_cadence?Math.round(a.average_cadence*(isRun?2:1)):null;
@@ -249,7 +249,7 @@ function ActivityDetail({summary,onClose,maxHr,restHr,settings,gear,userPrefs,on
 
     {notes.length>0&&<section className="detail-section"><h3>What the run says</h3>{notes.map(([b,t])=><p key={b} className="insight"><b>{b}</b> {t}</p>)}</section>}
 
-    <section className="detail-section"><h3>Details</h3><dl className="facts">{facts.map(([k,v])=><div key={k}><dt>{k}</dt><dd>{v}</dd></div>)}{a.gear?.name&&<div className="fact-wide"><dt>Shoe on Strava</dt><dd>{a.gear.name}{a.gear.distance?` · ${Math.round(a.gear.distance/1000)} km`:''}</dd></div>}</dl>{isRun&&<ShoePicker activity={a} gear={gear} userPrefs={userPrefs} onSavePrefs={onSavePrefs}/>}</section>
+    <section className="detail-section"><h3>Details</h3><dl className="facts">{facts.map(([k,v])=><div key={k}><dt>{k}</dt><dd>{v}</dd></div>)}</dl>{isRun&&<ShoePicker activity={a} gear={gear} userPrefs={userPrefs} onSavePrefs={onSavePrefs}/>}</section>
 
     {splits.length>1&&hasDist&&<section className="detail-section"><h3>Splits</h3>
      <div className="splits"><div className="split split-head" aria-hidden="true"><span>{mi?'Mi':'Km'}</span><span/><span>Pace</span><span>HR</span><span>Elev</span></div>
@@ -266,11 +266,11 @@ function ActivityDetail({summary,onClose,maxHr,restHr,settings,gear,userPrefs,on
 
     {a.laps?.length>1&&<section className="detail-section"><h3>Laps</h3><div className="splits laps"><div className="split split-head" aria-hidden="true"><span>Lap</span><span>Distance</span><span>Time</span><span>Pace</span><span>HR</span></div>{a.laps.map((l,i)=><div className="split" key={i}><span>{i+1}</span><span>{(l.distance/1000).toFixed(2)} km</span><span>{clock(l.moving_time)}</span><span>{pace(l.average_speed)}</span><span>{l.average_heartrate?Math.round(l.average_heartrate):'—'}</span></div>)}</div></section>}
 
-    {routePts.length>1&&<section className="detail-section"><h3>{st.latlng?.data?.length>1&&st.time?.data?.length===st.latlng.data.length?'Replay':'Route'}</h3><div className="route-box">{st.latlng?.data?.length>1&&st.time?.data?.length===st.latlng.data.length?<RunReplay points={st.latlng.data} time={st.time.data} vel={vel.length===st.latlng.data.length?vel:st.latlng.data.map(()=>NaN)} dist={dist} markers={kmMarks}/>:<RouteLine points={routePts} markers={kmMarks}/>}</div><p className="form-note">{kmMarks.length?'Markers every '+(kmMarks[0].label)+' km. ':''}Press play to rerun it, or drag to any point.</p></section>}
+    {routePts.length>1&&<section className="detail-section"><h3>{st.latlng?.data?.length>1&&st.time?.data?.length===st.latlng.data.length?'Replay':'Route'}</h3><div className="route-box">{st.latlng?.data?.length>1&&st.time?.data?.length===st.latlng.data.length?<RunReplay points={st.latlng.data} time={st.time.data} vel={vel.length===st.latlng.data.length?vel:st.latlng.data.map(()=>NaN)} dist={dist} markers={kmMarks} totals={a}/>:<RouteLine points={routePts} markers={kmMarks}/>}</div><p className="form-note">{kmMarks.length?'Markers every '+(kmMarks[0].label)+' km. ':''}Press play to rerun it, or drag to any point.</p></section>}
 
-    {a.best_efforts?.length>0&&<section className="detail-section"><h3>Best efforts</h3><dl className="facts single">{a.best_efforts.map((e,i)=><div key={i}><dt>{e.name}{e.pr_rank===1&&<span className="pr-tag">PR</span>}{e.pr_rank>1&&<span className="pr-tag is-quiet">{e.pr_rank===2?'2nd':'3rd'} best</span>}</dt><dd>{clock(e.moving_time||e.elapsed_time)}</dd></div>)}</dl></section>}
+    {a.best_efforts?.length>0&&<section className="detail-section"><h3>Best efforts</h3><dl className="facts single">{a.best_efforts.map((e,i)=><div key={i}><dt>{String(e.name).replace(/(\d)k$/i,'$1K')}{e.pr_rank===1&&<span className="pr-tag">PR</span>}{e.pr_rank>1&&<span className="pr-tag is-quiet">{e.pr_rank===2?'2nd':'3rd'} best</span>}</dt><dd>{clock(e.moving_time||e.elapsed_time)}</dd></div>)}</dl></section>}
 
-    {a.segment_efforts?.length>0&&<section className="detail-section"><h3>Segments</h3><dl className="facts single">{a.segment_efforts.slice(0,8).map((e,i)=><div key={i}><dt>{e.name}{e.pr_rank===1&&<span className="pr-tag">PR</span>}</dt><dd>{clock(e.moving_time||e.elapsed_time)}{e.distance?` · ${(e.distance/1000).toFixed(2)} km`:''}</dd></div>)}</dl></section>}
+    {a.segment_efforts?.length>0&&<section className="detail-section"><h3>Segments</h3><dl className="facts single">{a.segment_efforts.slice(0,8).map((e,i)=><div key={i}><dt>{String(e.name).replace(/(\d)k$/i,'$1K')}{e.pr_rank===1&&<span className="pr-tag">PR</span>}</dt><dd>{clock(e.moving_time||e.elapsed_time)}{e.distance?` · ${(e.distance/1000).toFixed(2)} km`:''}</dd></div>)}</dl></section>}
    </div>
   </div>
  </div></>;
