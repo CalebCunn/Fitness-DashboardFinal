@@ -6,7 +6,10 @@ import {usePerformance,formLabel,clock,isRun as runOf} from './ApexPerformance';
 import {focusRace,raceDate} from './ApexGoals';
 import {readSettings,TAB_CHOICES,ACCENTS,STATS,dist,paceOf,perUnit,unitsOf,heartRate} from './ApexSettings';
 import {allShoes,shoeStats,shoeFor} from './ApexShoes';
-import {useWeather,heatCost,easyCap,shoeToWear,todaysCall,coachDraft} from './ApexToday';
+import {DayLap,dayStops} from './ApexDay';
+import {bodyRead} from './ApexBody';
+import {RaceDay,raceWindow} from './ApexRaceDay';
+import {usualHour,useWeather,heatCost,easyCap,shoeToWear,todaysCall,coachDraft,laneRace,LaneRace,callOptions,CallDeck} from './ApexToday';
 import './ApexUI.css';
 
 const paths={
@@ -52,17 +55,18 @@ export function Frame({page,nav,athlete,dark,preview,settings,children}){
  const more=MORE_ALL.filter(([id])=>!tabs.some(([t])=>t===id));
  const inMore=more.some(([id])=>id===page);
  const title=TITLES[page],home=page==='home';
- const accent=ACCENTS[settings?.accent]||ACCENTS.cobalt;
+ const accent=ACCENTS[settings?.accent]||ACCENTS.cobalt,look=settings?.look==='swiss'?'swiss':'apex';
+ useEffect(()=>{try{localStorage.setItem('apex-look',JSON.stringify(look));}catch{}},[look]);
  const onScroll=e=>{const t=e.currentTarget.scrollTop;positions.current[previous.current]=t;const s=home?t>window.innerHeight*.45:t>8;if(s!==solid)setSolid(s);};
- return <div className={`apex-app${dark?' apex-dark':''}${home?' is-home':''}`} style={{'--accent':dark?accent.dark:accent.light}}>
+ return <div className={`apex-app look-${look}${dark?' apex-dark':''}${home?' is-home':''}`} style={look==='swiss'?{'--accent':dark?accent.dark:accent.light}:undefined}>
   <a className="skip-link" href="#main-content">Skip to content</a>
   <aside className="rail" aria-label="Main navigation">
-   <button className="rail-brand" onClick={()=>nav('home')} aria-label="APEX home"><Mark size={26}/><span>APEX</span></button>
+   <button className="rail-brand" onClick={()=>nav('home')} aria-label="APEX home"><Mark size={26}/><span>APEX</span><em className="masthead">Apex</em></button>
    <nav>{[...tabs,...more.map(([id,l])=>[id,l])].map(([id,label],i)=><Fragment key={id}>{i===tabs.length&&<hr/>}<button className={page===id?'is-on':''} aria-current={page===id?'page':undefined} onClick={()=>nav(id)}><Icon name={id} size={20}/><span>{label}</span></button></Fragment>)}</nav>
   </aside>
   <div className="workspace" ref={scroll} onScroll={onScroll}>
    <header className={`topbar${solid?' is-solid':''}`}>
-    <button className="brand" onClick={()=>nav('home')} aria-label="APEX home"><Mark size={22}/><span>APEX</span></button>
+    <button className="brand" onClick={()=>nav('home')} aria-label="APEX home"><Mark size={22}/><span>APEX</span><em className="masthead">Apex</em></button>
     {!home&&title&&<span className="topbar-title" aria-hidden="true">{title}</span>}
     <div className="topbar-actions">
      {preview&&<span className="preview-chip">Sample</span>}
@@ -138,8 +142,17 @@ export function Home({acts=[],gear=[],whoop,whoopOk,connectWhoop,plan,nav,userPr
  const cap=easyCap(heartRate(settings,runs,whoop));
  const shoeList=shoeStats(allShoes(gear,settings),acts,settings),worn=todayRun?shoeList.find(s=>s.id===shoeFor(todayRun,settings)):null;
  const shoe=todayRun?worn:shoeToWear(shoeList,session?.type||'Easy');
- const call=todaysCall({score,tsb:last?.tsb,session,todayRun,cap,sessions,today});
- const askCoach=()=>{try{localStorage.setItem('apex-coach-draft',coachDraft({score,energy,session,call,wx}));}catch{}nav('coach');};
+ const body=bodyRead(journalToday?.body),baseCall=todaysCall({score,tsb:last?.tsb,session,todayRun,cap,sessions,today});
+ const runDay=session&&!['Rest','Gym'].includes(session.type),hardDay=['Interval','Tempo','Long Run'].includes(session?.type);
+ // The body check-in can overrule the numbers: pain means rest, a sore lower leg means no hard running.
+ const call=todayRun||!runDay||!body.level?baseCall:body.level>=3?{tone:'swap',head:'Rest it.',line:body.line}:body.level===2&&(hardDay||body.lower)?{tone:'swap',head:hardDay?'Swap it.':'Shorten it.',line:body.line}:{...baseCall,line:`${baseCall.line} ${body.line}`};
+ const raceDays=raceWindow(goal,today),tomorrow=sessions.find(s=>s.date===addDays(today,1)&&s.type!=='Rest')||null;
+ const stops=dayStops({now,score,asleep,hrvDelta,sleepEnd:sleep?whoop?.sleeps?.records?.[0]?.end:null,journal:journalToday,session,tomorrow,todayRun,wx,usual:usualHour(runs),fmt:{hm,km:m=>`${dist(m,settings)} ${unitsOf(settings)}`}});
+ const options=prefsUnavailable?[]:callOptions({session,call,score,cap,sessions,today,todayRun,hasPlan:!!plan}),chosen=journalToday?.call||null;
+ const recOpt=options.find(o=>o.recommended),chosenOpt=options.find(o=>o.key===chosen),swapped=chosenOpt&&!chosenOpt.recommended;
+ const saveCall=key=>onSavePrefs?.({...userPrefs,journal:{...(userPrefs?.journal||{}),[today]:{soreness:1,stress:3,notes:'',...journalToday,call:key,updatedAt:new Date().toISOString()}}});
+ const askCoach=()=>{try{localStorage.setItem('apex-coach-draft',swapped?`I’m going with “${chosenOpt.title}” today instead of “${recOpt?.title}”. ${score!=null?`Recovery ${score}. `:''}Can you adjust the rest of my week around that?`:coachDraft({score,energy,session,call,wx}));}catch{}nav('coach');};
+ const race=laneRace({score,asleepMs:asleep,tsb:last?.tsb,weekM,plannedKm:planned,fmt:{hm,km:m=>{const k=m/1000;return k>=10?String(Math.round(k)):k.toFixed(1);}}});
  const goalSecsM=settings.goals?.Marathon||null;
  const weekNo=Math.ceil(((now-new Date(now.getFullYear(),0,1))/86400000+new Date(now.getFullYear(),0,1).getDay()+1)/7);
  const u=unitsOf(settings);
@@ -163,7 +176,14 @@ export function Home({acts=[],gear=[],whoop,whoopOk,connectWhoop,plan,nav,userPr
  const weekDays=Array.from({length:7},(_,i)=>{const key=addDays(monday,i),ds=sessions.filter(s=>s.date===key),main=ds.find(s=>s.type!=='Rest')||ds[0],d=new Date(key+'T12:00:00');
   return {key,short:d.toLocaleDateString('en-GB',{weekday:'short'}),date:d.getDate(),plannedKm:ds.filter(s=>!['Rest','Gym'].includes(s.type)).reduce((n,s)=>n+(parseFloat(s.dist)||0),0),km:ranBetween(key,key)/1000,strength:ds.some(s=>s.type==='Gym'),effort:{'Long Run':'long',Tempo:'tempo',Interval:'int'}[main?.type]||'easy',aria:`${d.toLocaleDateString('en-GB',{weekday:'long'})}: ${main?main.type:'nothing planned'}`};});
  const modules={
-  recovery:<section key="recovery" className="poster today-poster" aria-label={score==null?'Recovery not available':`Recovery ${score}. ${ready.label}`}>
+  recovery:settings.todayPoster!=='track'?<section key="recovery" className="poster lanes-poster" aria-label={score==null?'Your morning':`Recovery ${score}. ${race.head.join(' ')}`}>
+   <div className="poster-meta"><span>{now.toLocaleDateString('en-GB',{weekday:'short'})} {dd(now.getDate())}.{dd(now.getMonth()+1)}</span><span>{wx?`${Math.round(wx.temp)}° ${wx.word}`:`Week ${weekNo}`}</span><span>{goalDays!=null?`${goal.name.split(' ')[0]} · ${goalDays} days`:`${dist(weekM,settings,1)} ${u} this week`}</span></div>
+   <div className="lp-top">
+    <div><span className="label">The morning race</span><h2 className="lp-head">{race.head[0]} <em>{race.head[1]}</em></h2></div>
+    <button className="lp-score" onClick={whoopOk?()=>nav('recovery'):connectWhoop} aria-label={whoopOk?'Open recovery detail':'Connect WHOOP'}><small>{whoopOk?'Recovery':'Connect'}</small><b>{score==null?'—':Math.round(lap)}</b></button>
+   </div>
+   <LaneRace race={race} onOpen={nav}/>
+  </section>:<section key="recovery" className="poster today-poster" aria-label={score==null?'Recovery not available':`Recovery ${score}. ${ready.label}`}>
    <div className="poster-meta"><span>{now.toLocaleDateString('en-GB',{weekday:'short'})} {dd(now.getDate())}.{dd(now.getMonth()+1)}</span><span>{wx?`${Math.round(wx.temp)}° ${wx.word}`:`Week ${weekNo}`}</span><span>{goalDays!=null?`${goal.name.split(' ')[0]} · ${goalDays} days`:`${dist(weekM,settings,1)} ${u} this week`}</span></div>
    <Bend progress={lap} score={score}/>
    <button className="poster-score" onClick={whoopOk?()=>nav('recovery'):connectWhoop} aria-label={whoopOk?'Open recovery detail':'Connect WHOOP'}>
@@ -172,8 +192,9 @@ export function Home({acts=[],gear=[],whoop,whoopOk,connectWhoop,plan,nav,userPr
    <p className="poster-signals">{whoopOk?<>{asleep&&<span><small>Sleep</small>{hm(asleep)}</span>}{Number.isFinite(rec?.hrv_rmssd_milli)&&<span><small>HRV</small>{Math.round(rec.hrv_rmssd_milli)}{hrvDelta!=null?<em>{hrvDelta>=0?'+':''}{hrvDelta}%</em>:null}</span>}{rec?.resting_heart_rate!=null&&<span><small>RHR</small>{Math.round(rec.resting_heart_rate)}</span>}</>:<span>Connect WHOOP<br/>to read recovery</span>}</p>
   </section>,
   session:<section key="session" className={`start-line call-${call.tone}`} aria-label="Today’s session">
+   {options.length>1?<CallDeck options={options} chosen={chosen} onChoose={saveCall} why={[score!=null&&`${score} recovery`,last&&`${last.tsb>=0?'+':''}${Math.round(last.tsb)} form`,energy&&`${energy}/5 energy`].filter(Boolean)}/>:<>
    <div className="sl-head"><h2 className="session-title">{head.big[0]}<em>{head.big[1]}</em></h2>{head.meta&&<span className="label">{head.meta}</span>}</div>
-   <div className="sl-call"><b>{call.head}</b> {call.line}</div>
+   <div className="sl-call"><b>{call.head}</b> {call.line}</div></>}
    <ul className="sl-chips">
     {cap&&!todayRun&&session&&!['Rest','Gym'].includes(session.type)&&<li><Icon name="recovery" size={15}/>Easy cap {cap} bpm</li>}
     {todayRun?.average_heartrate&&<li><Icon name="recovery" size={15}/>{Math.round(todayRun.average_heartrate)} bpm avg</li>}
@@ -187,10 +208,11 @@ export function Home({acts=[],gear=[],whoop,whoopOk,connectWhoop,plan,nav,userPr
    </div>}
    <div className="cta-bar">
     {todayRun?<button className="cta-main" onClick={()=>nav('activity',todayRun.id)}><span>View your run</span><Icon name="arrow" size={20}/></button>
-     :<button className="cta-main" onClick={askCoach}><span>Ask coach about today</span><Icon name="arrow" size={20}/></button>}
+     :<button className="cta-main" onClick={askCoach}><span>{swapped?'Update plan with coach':'Ask coach about today'}</span><Icon name="arrow" size={20}/></button>}
     {todayRun?<button className="cta-side" onClick={askCoach}>Coach</button>:head.cta?.[1]==='gym'?<button className="cta-side" onClick={()=>nav('gym')}>Lift</button>:<button className="cta-side" onClick={()=>nav('plan')}>Plan</button>}
    </div>
   </section>,
+  day:<DayLap key="day" stops={stops} onAction={checkIn} nav={nav}/>,
   stats:<section key="stats" className="stat-row" aria-label="Your numbers">{settings.stats.map(k=>{const [v,sub,go]=statValue[k]||['—','',null];return <button key={k} onClick={()=>go&&nav(go)}><span className="label">{STAT_SHORT[k]||STATS[k]}</span><b>{v}</b><small>{sub}</small></button>;})}</section>,
   week:<section key="week" className="today-week" aria-labelledby="week-title"><div className="section-head"><h2 id="week-title">This week</h2><button className="text-button" onClick={()=>nav('plan')}>Training<Icon name="arrow" size={15}/></button></div><WeekBars days={weekDays} todayKey={today} onPick={()=>nav('plan')}/></section>,
   race:goal?<button key="race" className="race-strip" onClick={()=>nav('races')}><span className="label">Next race</span><span><b>{goal.name}</b><small>{[goal.target,raceDate(goal)&&prettyDate(goal.date,{day:'numeric',month:'short',year:'numeric'})].filter(Boolean).join(' · ')}</small></span>{goalDays!=null&&<strong>{goalDays}<small>days</small></strong>}</button>:null,
@@ -206,6 +228,7 @@ export function Home({acts=[],gear=[],whoop,whoopOk,connectWhoop,plan,nav,userPr
   </section>,
  };
  return <div className="today">
+  {raceDays!=null&&<RaceDay goal={goal} days={raceDays} wx={wx} nav={nav}/>}
   {settings.home.order.filter(k=>!settings.home.hidden.includes(k)).map(k=>modules[k])}
   <button className="customise-link" onClick={()=>nav('settings')}><Icon name="settings" size={17}/>Customise Today</button>
  </div>;
@@ -213,7 +236,7 @@ export function Home({acts=[],gear=[],whoop,whoopOk,connectWhoop,plan,nav,userPr
 
 export function Welcome({url}){
  return <div className="welcome">
-  <div className="welcome-poster"><Bend progress={78} score={78}/><div className="welcome-meta"><span>APEX</span><span>Running</span><span>Recovery</span></div></div>
+  <div className="welcome-poster"><Bend progress={78} score={78}/><em className="welcome-mast" aria-label="APEX">Apex</em><div className="welcome-meta"><span>Running</span><span>Training</span><span>Recovery</span></div></div>
   <div className="welcome-inner">
    <h1>Every run, <em>read well.</em></h1>
    <p>Recovery, your plan, every run in detail, race predictions and posters, with a coach who knows all of it.</p>

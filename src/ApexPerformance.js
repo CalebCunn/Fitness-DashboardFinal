@@ -9,7 +9,7 @@ import {Spark,smooth} from './ApexTrack';
 import {focusRace,raceDate} from './ApexGoals';
 import {localDate,addDays,mondayOf} from './apexDates';
 import {readSettings,heartRate,PB_DISTANCES} from './ApexSettings';
-import {PaceBand,drawTrack} from './ApexPoster';
+import {PaceBand,drawTrack,posterFonts} from './ApexPoster';
 import {allShoes,shoeStats} from './ApexShoes';
 
 export const isRun=a=>a.type==='Run'||a.sport_type==='Run'||a.sport_type==='TrailRun';
@@ -99,19 +99,36 @@ export function shoeState(km,limit=800){
  return ['Breaking in','new'];
 }
 
-// ── Weekly recap card, drawn on a canvas so it can be shared as an image ──
-async function drawRecap(stats,accent='#1C3BDB'){
- const SANS='"Instrument Sans", -apple-system, Helvetica, sans-serif',SERIF='"Instrument Serif", Georgia, serif';
- const c=document.createElement('canvas');c.width=1080;c.height=1350;const g=c.getContext('2d');
- try{await Promise.all([document.fonts?.load(`400 200px ${SANS}`),document.fonts?.load(`italic 400 80px ${SERIF}`)]);}catch{}
- g.fillStyle=accent;g.fillRect(0,0,1080,1350);
- drawTrack(g,0,880,1080,{alpha:.28});
- g.fillStyle='#fff';g.font=`500 28px ${SANS}`;g.fillText('THE WEEK · APEX',72,92);g.fillText(stats.range.toUpperCase(),640,92);
- g.fillStyle='rgba(255,255,255,.6)';g.fillRect(72,52,936,2);
- g.fillStyle='#fff';g.font=`400 330px ${SANS}`;g.fillText(stats.km,60,470);
- g.font=`italic 400 90px ${SERIF}`;g.fillText('kilometres this week',72,580);
- const rows=[['Runs',stats.runs],['Time',stats.time],['Longest',stats.longest],['Form',stats.form],['Marathon',stats.marathon]];
- rows.forEach(([k,v],i)=>{const y=720+i*110;g.fillStyle='rgba(255,255,255,.6)';g.fillRect(72,y,936,2);g.fillStyle='rgba(255,255,255,.8)';g.font=`500 28px ${SANS}`;g.fillText(k.toUpperCase(),72,y+62);g.fillStyle='#fff';g.font=`400 64px ${SANS}`;g.textAlign='right';g.fillText(v,1008,y+74);g.textAlign='left';});
+// ── The weekly issue: your week as a magazine cover, drawn on a canvas so it
+// can be shared. Masthead, issue number, the run of the week as cover art.
+function decodeLine(e){if(!e)return [];let i=0,lat=0,lng=0,out=[];try{while(i<e.length){for(const k of [0,1]){let sh=0,r=0,b;do{b=e.charCodeAt(i++)-63;r|=(b&31)<<sh;sh+=5;}while(b>=32);const d=r&1?~(r>>1):r>>1;if(k)lng+=d;else lat+=d;}out.push([lat/1e5,lng/1e5]);}}catch{return [];}return out;}
+export async function drawIssue(stats,accent='#1C3BDB'){
+ const {SANS,SERIF,NUM,IT,green}=posterFonts();
+ try{await Promise.all([document.fonts?.load(`${NUM} 200px ${SANS}`),document.fonts?.load(`${IT} 80px ${SERIF}`),document.fonts?.load(`600 28px ${SANS}`)]);}catch{}
+ const W=1080,H=1350,M=64,c=document.createElement('canvas');c.width=W;c.height=H;const g=c.getContext('2d');
+ const ink=green?'#F3EDE2':'#FFFFFF',hi=green?'#FFC94A':'#FFFFFF',soft=green?'rgba(243,237,226,.55)':'rgba(255,255,255,.6)';
+ g.fillStyle=green?'#0F3D2F':accent;g.fillRect(0,0,W,H);
+ if(green){const r=g.createRadialGradient(W*.78,H*.12,0,W*.78,H*.12,W*.95);r.addColorStop(0,'#22775A');r.addColorStop(1,'rgba(15,61,47,0)');g.fillStyle=r;g.fillRect(0,0,W,H);}
+ // cover art: the run of the week's route, large and quiet
+ const pts=decodeLine(stats.route);
+ if(pts.length>2){const la=pts.map(p=>p[0]),lo=pts.map(p=>p[1]),k=Math.cos(la[0]*Math.PI/180),x0=Math.min(...lo),x1=Math.max(...lo),y0=Math.min(...la),y1=Math.max(...la),bw=700,bh=520,sc=Math.min(bw/((x1-x0)*k||1),bh/((y1-y0)||1)),ox=W-M-bw+(bw-(x1-x0)*k*sc)/2,oy=560+(bh-(y1-y0)*sc)/2;
+  g.strokeStyle=green?'rgba(243,237,226,.22)':'rgba(255,255,255,.25)';g.lineWidth=14;g.lineJoin='round';g.lineCap='round';g.beginPath();pts.forEach((p,i)=>{const x=ox+(p[1]-x0)*k*sc,y=oy+(y1-p[0])*sc;i?g.lineTo(x,y):g.moveTo(x,y);});g.stroke();}
+ // masthead
+ g.fillStyle=ink;g.textBaseline='alphabetic';
+ if(green){g.font=`italic 400 240px "DM Serif Display", Georgia, serif`;g.fillText('Apex',M-6,250);}else{g.font=`600 64px ${SANS}`;g.fillText('A P E X',M,150);}
+ g.font=`600 26px ${SANS}`;g.textAlign='right';g.fillText(`ISSUE ${stats.issue}`,W-M,104);g.fillStyle=soft;g.fillText(`WEEK OF ${stats.weekOf.toUpperCase()}`,W-M,140);g.textAlign='left';
+ g.fillStyle=soft;g.fillRect(M,292,W-2*M,2);
+ // cover lines
+ g.fillStyle=soft;g.font=`600 26px ${SANS}`;g.fillText('THIS WEEK',M,350);
+ g.fillStyle=ink;g.font=`${NUM} ${NUM>400?300:340}px ${SANS}`;g.fillText(stats.km,M-10,640);
+ g.fillStyle=hi;g.font=`${IT} 76px ${SERIF}`;g.fillText('kilometres.',M,730);
+ if(stats.runName){g.fillStyle=soft;g.font=`600 26px ${SANS}`;g.fillText('RUN OF THE WEEK',M,850);g.fillStyle=ink;g.font=`${IT} 64px ${SERIF}`;g.fillText(stats.runName.slice(0,26),M,920);g.font=`600 30px ${SANS}`;g.fillStyle=soft;g.fillText(stats.runLine,M,968);}
+ // footer strip
+ const cells=[['Runs',stats.runs],['Time',stats.time],['Form',stats.form.split(' ')[0]],['Marathon',stats.marathon]],cw=(W-2*M)/4;
+ cells.forEach(([k,v],i)=>{const x=M+i*cw;g.fillStyle=soft;g.fillRect(x,1090,cw-20,2);g.font=`600 24px ${SANS}`;g.fillText(k.toUpperCase(),x,1130);g.fillStyle=ink;g.font=`${NUM} 54px ${SANS}`;g.fillText(v,x,1196);g.fillStyle=soft;});
+ // barcode, because every issue has one
+ let seed=stats.issue*9301+49297;const rnd=()=>(seed=(seed*16807)%2147483647)/2147483647;g.fillStyle=ink;let bx=W-M-210;g.fillRect(bx-14,1236,238,72);g.fillStyle=green?'#0F3D2F':accent;for(;bx<W-M;){const w=1+Math.floor(rnd()*4);g.fillRect(bx,1244,w,48);bx+=w+1+Math.floor(rnd()*3);}
+ g.fillStyle=soft;g.font=`600 22px ${SANS}`;g.fillText('RUNNING · RECOVERY · TRAINING',M,1290);
  return new Promise(r=>c.toBlob(r,'image/png'));
 }
 
@@ -119,7 +136,8 @@ function weekStats(acts,form,pred){
  const today=localDate(new Date()),mon=mondayOf(today),runs=acts.filter(a=>isRun(a)&&day(a)>=mon&&day(a)<=today);
  const km=runs.reduce((s,a)=>s+(a.distance||0),0)/1000,time=runs.reduce((s,a)=>s+(a.moving_time||0),0),longest=Math.max(0,...runs.map(a=>a.distance||0))/1000;
  const tsb=form.series[form.series.length-1]?.tsb;
- return {km:km.toFixed(1),runs:String(runs.length),time:clock(time),longest:`${longest.toFixed(1)} km`,form:tsb==null||!form.ready?'—':`${tsb>=0?'+':''}${Math.round(tsb)} ${formLabel(tsb).label}`,marathon:pred.now.Marathon?clock(pred.now.Marathon):'—',range:`${new Date(mon+'T12:00:00').toLocaleDateString('en-GB',{day:'numeric',month:'short'})} – ${new Date(today+'T12:00:00').toLocaleDateString('en-GB',{day:'numeric',month:'short'})}`};
+ const best=[...runs].sort((x,y)=>(y.distance||0)-(x.distance||0))[0],first=acts.reduce((m,a)=>{const d=day(a);return d&&(!m||d<m)?d:m;},null);
+ return {issue:first?Math.max(1,Math.floor((new Date(mon+'T12:00:00')-new Date(mondayOf(first)+'T12:00:00'))/604800000)+1):1,weekOf:new Date(mon+'T12:00:00').toLocaleDateString('en-GB',{day:'numeric',month:'short'}),route:best?.map?.summary_polyline||null,runName:best?.name||'',runLine:best?`${((best.distance||0)/1000).toFixed(1)} km · ${clock(best.moving_time||0)}`:'',km:km.toFixed(1),runs:String(runs.length),time:clock(time),longest:`${longest.toFixed(1)} km`,form:tsb==null||!form.ready?'—':`${tsb>=0?'+':''}${Math.round(tsb)} ${formLabel(tsb).label}`,marathon:pred.now.Marathon?clock(pred.now.Marathon):'—',range:`${new Date(mon+'T12:00:00').toLocaleDateString('en-GB',{day:'numeric',month:'short'})} – ${new Date(today+'T12:00:00').toLocaleDateString('en-GB',{day:'numeric',month:'short'})}`};
 }
 
 // Hook shared by Today and Performance so both read the same numbers.
@@ -181,7 +199,7 @@ function FormChart({series}){
 }
 
 export default function Performance({acts=[],gear=[],whoop,userPrefs,nav}){
- const settings=readSettings(userPrefs),accent=getComputedStyle(document.querySelector('.apex-app')||document.body).getPropertyValue('--accent').trim()||'#1C3BDB';
+ const settings=readSettings(userPrefs),accent=getComputedStyle(document.querySelector('.apex-app')||document.body).getPropertyValue('--poster').trim()||'#1C3BDB';
  const {form,pred,efforts,setEfforts}=usePerformance(acts,whoop,settings);
  const [scan,setScan]=useState(null),[shareNote,setShareNote]=useState('');
  const last=form.ready?form.series[form.series.length-1]:null,fl=last?formLabel(last.tsb):null;
@@ -199,10 +217,10 @@ export default function Performance({acts=[],gear=[],whoop,userPrefs,nav}){
   setEfforts(loadEfforts());window.dispatchEvent(new Event('apex-efforts'));
  };
  const share=async()=>{
-  setShareNote('');const blob=await drawRecap(weekStats(acts,form,pred),accent);if(!blob){setShareNote('The card could not be drawn on this device.');return;}
-  const file=new File([blob],'apex-week.png',{type:'image/png'});
-  try{if(navigator.canShare?.({files:[file]})){await navigator.share({files:[file],title:'My week on APEX'});return;}}catch(e){if(e?.name==='AbortError')return;}
-  const url=URL.createObjectURL(blob),a=document.createElement('a');a.href=url;a.download='apex-week.png';a.click();setTimeout(()=>URL.revokeObjectURL(url),1500);setShareNote('Saved as apex-week.png.');
+  setShareNote('');const blob=await drawIssue(weekStats(acts,form,pred),accent);if(!blob){setShareNote('The card could not be drawn on this device.');return;}
+  const file=new File([blob],'apex-issue.png',{type:'image/png'});
+  try{if(navigator.canShare?.({files:[file]})){await navigator.share({files:[file],title:'This week’s APEX issue'});return;}}catch(e){if(e?.name==='AbortError')return;}
+  const url=URL.createObjectURL(blob),a=document.createElement('a');a.href=url;a.download='apex-issue.png';a.click();setTimeout(()=>URL.revokeObjectURL(url),1500);setShareNote('Saved as apex-issue.png.');
  };
  return <div className="performance-page">
   <section className="perf-form" aria-labelledby="form-title">
@@ -246,6 +264,12 @@ export default function Performance({acts=[],gear=[],whoop,userPrefs,nav}){
    {shoeList.slice(0,3).map(g=>{const [label,tone]=shoeState(g.km,g.limit);return <button className={`shoe-row shoe-${tone}`} key={g.id} onClick={()=>nav('shoes')}><div className="shoe-top"><span><b>{g.name}</b><small>{g.role||label}</small></span><strong>{Math.round(g.km)}<small>km</small></strong></div><div className="shoe-bar"><i style={{width:`${Math.min(100,g.km/g.limit*100)}%`}}/></div></button>;})}
   </section>}
 
-  <section className="perf-recap"><div><span className="eyebrow">This week</span><h2>Share your week</h2><p>A recap card with your kilometres, time, longest run, form and marathon prediction.</p></div><button className="primary-action" onClick={share}><Icon name="external" size={18}/>Share card</button>{shareNote&&<p className="form-note">{shareNote}</p>}</section>
+  <section className="perf-recap"><div><span className="eyebrow">This week · issue {weekStats(acts,form,pred).issue}</span><h2>Your weekly issue</h2><p>Your week as a magazine cover: kilometres, the run of the week, time, form and marathon prediction.</p></div><IssueCover acts={acts} form={form} pred={pred} accent={accent}/><button className="primary-action" onClick={share}><Icon name="external" size={18}/>Share issue</button>{shareNote&&<p className="form-note">{shareNote}</p>}</section>
  </div>;
+}
+
+function IssueCover({acts,form,pred,accent}){
+ const [url,setUrl]=useState(null),stats=weekStats(acts,form,pred),key=JSON.stringify(stats);
+ useEffect(()=>{let alive=true,u;drawIssue(JSON.parse(key),accent).then(b=>{if(!alive||!b)return;u=URL.createObjectURL(b);setUrl(u);});return()=>{alive=false;if(u)URL.revokeObjectURL(u);};},[key,accent]);
+ return url?<img className="issue-cover" src={url} alt={`Weekly issue ${stats.issue}: ${stats.km} kilometres`}/>:<div className="issue-cover is-loading"/>;
 }

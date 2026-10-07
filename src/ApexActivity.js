@@ -10,6 +10,8 @@ import {smooth,Profile} from './ApexTrack';
 import {rememberEfforts} from './ApexPerformance';
 import {PosterSheet} from './ApexPoster';
 import {ShoePicker} from './ApexShoes';
+import {findGhost,GhostRace,HrPulse} from './ApexGhost';
+import {easyCap} from './ApexToday';
 import {dist as distU,paceOf,perUnit,unitsOf} from './ApexSettings';
 
 const run=a=>a.type==='Run'||a.sport_type==='Run'||a.sport_type==='TrailRun';
@@ -76,7 +78,7 @@ export default function Activity({acts=[],gear=[],initialId=null,restHr=null,nav
 
   {gear.length>0&&<section className="gear-shelf"><div className="section-head"><h2>Shoes</h2></div>{gear.map(g=><div className="list-row" key={g.id}><span className="row-copy"><small>{g.brand_name||'In your rotation'}</small><b>{g.name||g.nickname}</b></span><span className="row-figure">{Math.round((g.distance||0)/1000)}<small>km</small></span></div>)}</section>}
   <p className="form-note">From the activities loaded from Strava. This may be a subset of your full history.</p>
-  {selected&&<ActivityDetail summary={selected} maxHr={maxHr} restHr={rest} settings={settings} gear={gear} userPrefs={userPrefs} onSavePrefs={onSavePrefs} onClose={()=>setSelected(null)}/>}
+  {selected&&<ActivityDetail summary={selected} acts={acts} hrSet={hr} maxHr={maxHr} restHr={rest} settings={settings} gear={gear} userPrefs={userPrefs} onSavePrefs={onSavePrefs} onClose={()=>setSelected(null)}/>}
  </div>;
 }
 
@@ -179,7 +181,7 @@ function RunReplay({points,time,vel,dist,markers,totals}){
  </div>;
 }
 
-function ActivityDetail({summary,onClose,maxHr,restHr,settings,gear,userPrefs,onSavePrefs}){
+function ActivityDetail({summary,acts=[],hrSet,onClose,maxHr,restHr,settings,gear,userPrefs,onSavePrefs}){
  const [poster,setPoster]=useState(false);
  useDialog(true,onClose);
  const [scrolled,setScrolled]=useState(false),[activity,setActivity]=useState(summary),[st,setSt]=useState({}),[loading,setLoading]=useState(true),[error,setError]=useState(''),[metric,setMetric]=useState('heartrate');
@@ -221,7 +223,7 @@ function ActivityDetail({summary,onClose,maxHr,restHr,settings,gear,userPrefs,on
  ].filter(Boolean);
  const spd=splits.filter(s=>s.distance>(mi?1500:900)).map(s=>s.average_speed),sMin=Math.min(...spd),sMax=Math.max(...spd);
  const photo=a.photos?.primary?.urls?.['600']||a.photos?.primary?.urls?.['100'];
- const accent=getComputedStyle(document.querySelector('.apex-app')||document.body).getPropertyValue('--accent').trim()||'#1C3BDB';
+ const accent=getComputedStyle(document.querySelector('.apex-app')||document.body).getPropertyValue('--poster').trim()||'#1C3BDB';
  const view=<><PosterSheet open={poster} onClose={()=>setPoster(false)} activity={a} streams={st} points={routePts} splits={splits} settings={settings} accent={accent}/><div className={`detail-view${scrolled?' is-scrolled':''}`} role="dialog" aria-modal="true" aria-labelledby="activity-detail-title">
   <div className="detail-bar"><button className="glass-button" onClick={onClose} aria-label="Back to activity"><Icon name="back" size={20}/></button><span className="detail-bar-title" aria-hidden="true">{a.name}</span><span className="detail-actions"><button className="glass-button" onClick={()=>setPoster(true)} aria-label="Make a poster of this run"><Icon name="poster" size={19}/></button>{!PREVIEW&&a.id&&<a className="glass-button" href={`https://www.strava.com/activities/${a.id}`} target="_blank" rel="noreferrer" aria-label="Open in Strava"><Icon name="external" size={18}/></a>}</span></div>
   <div className="detail-scroll" onScroll={e=>{const s=e.currentTarget.scrollTop>240;if(s!==scrolled)setScrolled(s);}}>
@@ -247,6 +249,8 @@ function ActivityDetail({summary,onClose,maxHr,restHr,settings,gear,userPrefs,on
     {a.description&&<p className="detail-description">{a.description}</p>}
     {photo&&<img className="detail-photo" src={photo} alt={`Photo from ${a.name}`}/>}
 
+    {isRun&&<GhostRace ghost={findGhost({...summary,...a,start_latlng:a.start_latlng||summary.start_latlng},acts)} a={a}/>}
+    {isRun&&<HrPulse hr={hr} time={st.time?.data||[]} cap={easyCap(hrSet)}/>}
     {notes.length>0&&<section className="detail-section"><h3>What the run says</h3>{notes.map(([b,t])=><p key={b} className="insight"><b>{b}</b> {t}</p>)}</section>}
 
     <section className="detail-section"><h3>Details</h3><dl className="facts">{facts.map(([k,v])=><div key={k}><dt>{k}</dt><dd>{v}</dd></div>)}</dl>{isRun&&<ShoePicker activity={a} gear={gear} userPrefs={userPrefs} onSavePrefs={onSavePrefs}/>}</section>

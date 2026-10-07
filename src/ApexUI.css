@@ -1160,3 +1160,297 @@
 .content.screen-coach{padding-bottom:0}
 .coach-starters{margin-top:6px}
 .fc-axis span:last-child{transform:translateX(-100%)}
+
+
+/* ══════════════════════════════════════════════════════════════════════
+   APEX green: the default look. Racing green, cream and gold.
+   Light is cream paper with green ink; dark is the green field with gold.
+   DM Serif Display Italic only for the masthead and the one headline on each screen;
+   Inter Tight for everything else. Gold is for the thing to look at.
+   The Swiss cobalt poster stays available as look-swiss.
+   ══════════════════════════════════════════════════════════════════════ */
+.look-apex{
+ --accent:#0F3D2F;--on-accent:#F3EDE2;--gold:#FFC94A;--hero:#0F3D2F;--hero-glow:#1E6B52;--poster:#0F3D2F;
+ --bg:#F3EDE2;--raised:#FBF7EF;--raised-2:#E9E1D2;--ink:#0F3D2F;--ink-2:#4B675C;--ink-3:#5E776D;--rule:rgba(15,61,47,.15);--rule-strong:rgba(15,61,47,.8);--fill:rgba(15,61,47,.05);--fill-2:rgba(15,61,47,.1);
+ --good:#1D7A4C;--warn:#A86400;--bad:#B8442A;
+ --glass:rgba(251,247,239,.8);--glass-edge:rgba(255,255,255,.9);--glass-shadow:0 8px 26px rgba(15,61,47,.14);
+ --sans:'Inter Tight',-apple-system,BlinkMacSystemFont,'Helvetica Neue',sans-serif;
+ --serif:'Inter Tight',-apple-system,BlinkMacSystemFont,'Helvetica Neue',sans-serif;
+ --display:'DM Serif Display',Georgia,serif;
+}
+.look-apex.apex-dark{
+ --accent:#FFC94A;--on-accent:#0F3D2F;--hero:#14513E;--hero-glow:#1F7356;
+ --bg:#0F3D2F;--raised:#134636;--raised-2:#18513F;--ink:#F3EDE2;--ink-2:#BCC6BB;--ink-3:#9DAEA3;--rule:rgba(243,237,226,.14);--rule-strong:rgba(243,237,226,.62);--fill:rgba(243,237,226,.06);--fill-2:rgba(243,237,226,.11);
+ --good:#7FD6A2;--warn:#FFC94A;--bad:#FF8A6B;
+ --glass:rgba(20,72,56,.76);--glass-edge:rgba(243,237,226,.12);--glass-shadow:0 8px 26px rgba(0,0,0,.35);
+}
+.look-swiss{--poster:var(--accent)}
+
+/* Type: one DM Serif headline per screen, Inter Tight for the rest. */
+.look-apex .masthead{display:none}
+.look-apex .brand .masthead,.look-apex .rail-brand .masthead{display:block;font:italic 400 28px/1 var(--display);letter-spacing:-.01em;color:var(--ink)}
+.look-apex .rail-brand .masthead{font-size:30px}
+.look-apex :is(.brand,.rail-brand) :is(svg,span){display:none}
+.look-swiss .masthead{display:none}
+.look-apex :is(.coach-id strong,.detail-head h2,.page-head h1,.poster-score em,.sheet-head h2,.topbar-title){font-family:var(--display);font-style:italic;font-weight:400;letter-spacing:-.015em}
+.look-apex .page-head h1{font-size:50px;line-height:1}
+.look-apex .poster-score em{color:var(--gold)}
+.look-apex :is(.ambition-card h2,.apex-modal h2,.app-loading p,.avatar,.checkin-summary,.coach-starters p,.connections-panel h2,.daily-review h2,.detail-bar-title,.detail-description,.detail-section h3,.empty-block h2,.empty-goals h3,.energy-summary small,.exercise-heading h3,.fc-title,.food-composer h2,.food-date span,.food-diary h2,.form-empty strong,.form-hero strong,.goal-focus h2,.goals-app h2,.hero-figure small,.history-panel h2,.mosaic-label b,.perf-link b,.perf-recap h2,.personal-settings h2,.profile-identity h2,.profile-monogram,.proposal-top strong,.race-pass h3,.recovery-connect h2,.recovery-day-picker p,.recovery-object h2,.routine-card h2,.routine-library>h2,.sculpture-score span,.section-head h2,.section-label h2,.session-details h3,.session-title,.set-head h2,.shoe-card h3,.shoes-total em,.sleep-title h2,.strength-banner h2,.strength-insight h2,.training-banner h2,.training-empty h2,.trend-studio h2,.weight-history h2,.weight-strip h2,.workout-progress h2,/* ── Customise ── */
+.lede){font-weight:800;font-style:normal;letter-spacing:-.03em}
+.look-apex :is(.ambition-card h2,.apex-modal h2,.app-loading p,.avatar,.checkin-summary,.coach-starters p,.connections-panel h2,.daily-review h2,.detail-bar-title,.detail-description,.detail-section h3,.empty-block h2,.empty-goals h3,.energy-summary small,.exercise-heading h3,.fc-title,.food-composer h2,.food-date span,.food-diary h2,.form-empty strong,.form-hero strong,.goal-focus h2,.goals-app h2,.hero-figure small,.history-panel h2,.mosaic-label b,.perf-link b,.perf-recap h2,.personal-settings h2,.profile-identity h2,.profile-monogram,.proposal-top strong,.race-pass h3,.recovery-connect h2,.recovery-day-picker p,.recovery-object h2,.routine-card h2,.routine-library>h2,.sculpture-score span,.section-head h2,.section-label h2,.session-details h3,.session-title,.set-head h2,.shoe-card h3,.shoes-total em,.sleep-title h2,.strength-banner h2,.strength-insight h2,.training-banner h2,.training-empty h2,.trend-studio h2,.weight-history h2,.weight-strip h2,.workout-progress h2,/* ── Customise ── */
+.lede) em{font-style:normal}
+.look-apex :is(.activity-totals strong,.band-pace b,.detail-three dd,.feel-selector strong,.form-explain dd b,.goal-strip>span,.history-row strong,.identity-stat strong,.macro-row strong,.pb-tile b,.predict-board b,.race-strip strong,.replay-read b,.review-metrics strong,.row-figure,.session-date strong,.set-pbs strong,.shoe-card header strong,.shoe-top strong,.signal-tile strong,.sleep-duration strong,.sleep-performance strong,.stat-row b,.training-summary strong,.trend-top strong,.workout-progress strong){font-weight:800;letter-spacing:-.04em}
+.look-apex :is(.ambition-card strong,.detail-hero span,.energy-summary strong,.form-tag b,.goal-focus>strong,.hero-figure span,.poster-score b,.routine-count strong,.sculpture-score strong,.shoes-total b,.strength-insight>div strong){font-weight:900;letter-spacing:-.055em}
+
+/* Covers: every coloured field is the green cover, in both modes. */
+.look-apex :is(.poster,.detail-sky,.perf-recap,.goal-focus,.perf-link){background:radial-gradient(120% 80% at 80% 8%,var(--hero-glow),transparent 62%),var(--hero);color:#F3EDE2}
+.look-apex .bend-lane{stroke:rgba(243,237,226,.3)}
+.look-apex :is(.bend-lap,.bend-start){stroke:#F3EDE2}
+.look-apex .bend-runner{fill:var(--gold)}
+.look-apex :is(.poster-meta span,.welcome-meta span){border-top-color:rgba(243,237,226,.45)}
+.look-apex .is-home .topbar:not(.is-solid) .masthead,.look-apex.is-home .topbar:not(.is-solid) .masthead{color:#F3EDE2}
+.look-apex .perf-recap .primary-action{background:var(--gold);color:#0F3D2F}
+
+/* Anything filled with the accent takes the accent's own ink. */
+.look-apex :is(.feel-selector [aria-pressed=true],.add-session,.completed-button,.pr-tag,.replay-play,.form-tag.form-fresh,.form-tag.form-peak,.sl-energy>div button[aria-pressed=true],.predict-board .is-key,.rest-timer,.set-done button,.pill-action,.bubble.mine,.send-button,.profile-monogram,.appearance-toggle.on,.checkin-days [aria-pressed=true],.checkin-scale [aria-pressed=true],.primary-action){color:var(--on-accent)!important}
+.look-apex .primary-action,.look-apex .secondary-action,.look-apex .pill-action{border-radius:999px}
+.look-apex:not(.apex-dark) .predict-board .is-key b{color:var(--gold)}
+.look-apex:not(.apex-dark) :is(.form-tag.form-fresh,.form-tag.form-peak) b{color:var(--gold)}
+.look-apex.apex-dark :is(.apex-segments button[aria-pressed=true],.apex-segments button[aria-selected=true],.composer-tabs .active,.range-control .active){color:var(--on-accent)}
+.look-apex :is(.feel-selector [aria-pressed=true],.checkin-days [aria-pressed=true]) :is(strong,i){color:var(--on-accent)}
+.look-apex .poster-score{color:#F3EDE2}
+/* Reading text that used the serif stays light; only headings go heavy. */
+.look-apex :is(.lede,.detail-description,.checkin-summary,.app-loading p,.recovery-day-picker p,.food-date span){font-weight:500;letter-spacing:-.01em}
+.look-apex .coach-starters p{font-weight:700;letter-spacing:-.025em}
+.look-apex .avatar{font-weight:700;font-size:20px}
+
+/* Gold = the thing to look at. Dark keeps gold in the data (the yellow grid). */
+.look-apex.apex-dark :is(.session-title em,.text-button,.pb-tile small,.wb-day.is-today .wb-day-label small,.wb-day.is-today .wb-day-label b,.wb-day.is-today .wb-val){color:var(--gold)}
+.look-apex .dock .is-on{color:var(--ink);background:rgba(255,201,74,.5)}
+.look-apex.apex-dark .dock .is-on{color:var(--gold);background:rgba(255,201,74,.14)}
+.look-apex.apex-dark .tile.is-now{box-shadow:0 0 0 2px var(--bg),0 0 0 3.5px #F3EDE2}
+.look-apex:not(.apex-dark) .session-title em{color:#1A5C46}
+.look-apex .shoes-total em{margin-top:18px}
+.look-apex .stat-row b{font-size:26px;font-weight:700;letter-spacing:-.04em}
+.look-apex :is(.ambition-card strong,.detail-hero span,.energy-summary strong,.form-tag b,.goal-focus>strong,.hero-figure span,.poster-score b,.routine-count strong,.sculpture-score strong,.shoes-total b,.strength-insight>div strong):not(.poster-score b){padding-bottom:.1em}
+
+/* Welcome, as the cover of the first issue. */
+.welcome{--accent:#FFC94A;background:#0F3D2F;color:#F3EDE2;font-family:'Inter Tight',-apple-system,sans-serif}
+.welcome-poster{background:radial-gradient(120% 80% at 80% 10%,#22775A,transparent 62%),#0F3D2F;color:#F3EDE2}
+.welcome-poster .bend-lane{stroke:rgba(243,237,226,.3)}
+.welcome-poster :is(.bend-lap,.bend-start){stroke:#F3EDE2}
+.welcome-poster .bend-runner{fill:#FFC94A}
+.welcome-mast{position:absolute;z-index:2;left:22px;top:calc(env(safe-area-inset-top) + 18px);font:italic 400 clamp(68px,21vw,100px)/1 'DM Serif Display',Georgia,serif;letter-spacing:-.035em;color:#F3EDE2}
+.welcome-meta{top:calc(env(safe-area-inset-top) + 44px + clamp(70px,21vw,104px))}
+.welcome-meta span{border-top-color:rgba(243,237,226,.45)}
+.welcome h1{font-family:'Inter Tight',-apple-system,sans-serif;font-weight:800;letter-spacing:-.04em;font-size:clamp(44px,13vw,68px)}
+.welcome h1 em{font-family:'DM Serif Display',Georgia,serif;font-style:italic;font-weight:400;letter-spacing:-.01em;color:#FFC94A}
+.welcome p,.welcome small{color:#BCC6BB}
+.welcome-cta{background:#FFC94A;color:#0F3D2F;border-radius:999px;font-weight:700}
+
+/* ── Today: the morning race (four lanes to a finish line) ── */
+.lanes-poster{margin:0 calc(-1 * var(--m));padding:calc(var(--top-h) + 52px) var(--m) 22px;display:grid;gap:18px}
+.lanes-poster .poster-meta{top:calc(var(--top-h) + 2px)}
+.lp-top{display:flex;justify-content:space-between;align-items:flex-end;gap:12px;margin-top:6px}
+.lp-top .label{color:inherit;opacity:.8}
+.lp-head{font-family:var(--serif);font-weight:400;font-size:clamp(34px,10vw,44px);line-height:.98;letter-spacing:-.01em;margin-top:6px}
+.lp-head em{font-style:italic}
+.look-apex .lp-head{font-family:var(--display);font-style:italic;font-weight:400;letter-spacing:-.015em}
+.look-apex .lp-head em{color:var(--gold)}
+.lp-score{display:grid;justify-items:end;text-align:right;color:inherit}
+.lp-score small{font-size:11px;font-weight:500;letter-spacing:.06em;text-transform:uppercase;opacity:.85}
+.lp-score b{font-weight:400;font-size:clamp(88px,26vw,116px);line-height:.8;letter-spacing:-.065em;font-variant-numeric:tabular-nums;margin:8px -.04em 0 0}
+.look-apex .lp-score b{font-weight:900;letter-spacing:-.055em}
+.lanes{position:relative;display:grid}
+.lanes-finish{position:absolute;top:0;bottom:0;right:78px;width:6px;background:repeating-linear-gradient(currentColor 0 4px,transparent 4px 8px);opacity:.75;pointer-events:none}
+.lane{display:grid;grid-template-columns:20px 72px 1fr 78px;align-items:center;min-height:44px;border-top:1px solid color-mix(in srgb,currentColor 40%,transparent);color:inherit;text-align:left;font-size:14px}
+.lane:last-child{border-bottom:1px solid color-mix(in srgb,currentColor 40%,transparent)}
+.lane-n{font-weight:600;opacity:.75;font-variant-numeric:tabular-nums}
+.lane-run{position:relative;height:100%;margin-right:10px}
+.lane-run i{position:absolute;left:0;top:50%;height:2px;width:calc(var(--t) * 100%);background:currentColor;transform:translateY(-50%);transform-origin:left;animation:lane-line 1.1s var(--spring) both}
+.lane-run b{position:absolute;top:50%;left:calc(var(--t) * 100%);width:13px;height:13px;border-radius:50%;background:currentColor;transform:translate(-50%,-50%);animation:lane-dot 1.1s var(--spring) both}
+.lane.is-lead .lane-run b{box-shadow:0 0 0 3px color-mix(in srgb,currentColor 30%,transparent)}
+.look-apex .lane.is-lead .lane-run b{background:var(--gold);box-shadow:0 0 0 3px #F3EDE2}
+.lane-v{text-align:right;font-weight:600;font-variant-numeric:tabular-nums;white-space:nowrap}
+.lane:nth-child(2) .lane-run i,.lane:nth-child(2) .lane-run b{animation-delay:.05s}
+.lane:nth-child(3) .lane-run i,.lane:nth-child(3) .lane-run b{animation-delay:.12s}
+.lane:nth-child(4) .lane-run i,.lane:nth-child(4) .lane-run b{animation-delay:.19s}
+.lane:nth-child(5) .lane-run i,.lane:nth-child(5) .lane-run b{animation-delay:.26s}
+@keyframes lane-line{from{transform:translateY(-50%) scaleX(0)}}
+@keyframes lane-dot{from{left:0}}
+
+/* ── Today: make the call (swipeable option cards) ── */
+.call-deck{display:grid;gap:10px;min-width:0}
+.call-head{display:flex;justify-content:space-between}
+.call-track{display:grid;grid-auto-flow:column;grid-auto-columns:86%;gap:12px;overflow-x:auto;scroll-snap-type:x mandatory;margin:0 calc(-1 * var(--m));padding:4px var(--m) 6px;scroll-padding:0 var(--m);scrollbar-width:none;-webkit-overflow-scrolling:touch}
+.call-track::-webkit-scrollbar{display:none}
+.call-card{scroll-snap-align:start;display:flex;flex-direction:column;gap:6px;min-height:186px;padding:16px 16px 14px;border-radius:3px;background:var(--raised);box-shadow:inset 0 0 0 1px var(--rule);color:var(--ink)}
+.look-apex .call-card{border-radius:8px}
+.call-card h3{font-family:var(--serif);font-weight:400;font-size:clamp(32px,9.5vw,40px);line-height:1;letter-spacing:-.01em;margin-top:2px}
+.look-apex .call-card h3{font-family:var(--sans);font-weight:800;letter-spacing:-.04em}
+.call-card p{font-size:15px;line-height:1.4;color:var(--ink-2)}
+.call-card footer{margin-top:auto;padding-top:8px;display:flex;align-items:center;justify-content:space-between;gap:10px}
+.call-why{display:flex;flex-wrap:wrap;gap:4px 12px;font-size:12px}
+.call-why b{font-weight:600}
+.call-pick{min-height:40px;padding:0 16px;border-radius:999px;box-shadow:inset 0 0 0 1px var(--rule-strong);font-size:14px;font-weight:600;white-space:nowrap;margin-left:auto}
+.call-card.is-rec{background:var(--accent);color:var(--on-accent);box-shadow:none}
+.look-apex:not(.apex-dark) .call-card.is-rec{background:radial-gradient(120% 120% at 90% 0%,var(--hero-glow),transparent 60%),var(--hero);color:#F3EDE2}
+.look-apex:not(.apex-dark) .call-card.is-rec>.label{color:var(--gold);opacity:1}
+.call-card.is-rec>.label,.call-card.is-rec p{color:inherit;opacity:.85}
+.call-card.is-rec .call-pick{box-shadow:inset 0 0 0 1px currentColor}
+.call-card.is-picked .call-pick{background:var(--ink);color:var(--bg);box-shadow:none}
+.call-card.is-rec.is-picked .call-pick{background:var(--on-accent);color:var(--accent)}
+.look-apex:not(.apex-dark) .call-card.is-rec.is-picked .call-pick{background:#F3EDE2;color:var(--hero)}
+.look-apex .cta-main{color:var(--on-accent)!important;font-weight:700}
+.call-dots{display:flex;justify-content:center;gap:6px}
+.call-dots i{width:6px;height:6px;border-radius:50%;background:var(--fill-2);transition:background .2s,width .2s}
+.call-dots i.on{width:18px;border-radius:3px;background:var(--ink)}
+
+/* ── Your day, one lap ── */
+.day-lap{display:grid;gap:10px}
+.day-lap .section-head h2 em{font-style:italic}
+.look-apex .day-lap .section-head h2 em{font-style:normal;color:var(--accent)}
+.look-apex:not(.apex-dark) .day-lap .section-head h2 em{color:#1A5C46}
+.dl-rail{list-style:none;margin:0;padding:0 0 0 62px;position:relative;display:grid}
+.dl-rail::before,.dl-rail::after{content:'';position:absolute;left:46px;top:14px;bottom:14px;width:2px;background:var(--rule)}
+.dl-rail::after{background:var(--accent);bottom:auto;height:calc((100% - 28px) * var(--p));transition:height .8s var(--spring)}
+.dl-stop{position:relative;padding:8px 0}
+.dl-stop time{position:absolute;left:-62px;top:12px;width:40px;font-size:12px;color:var(--ink-2);font-variant-numeric:tabular-nums}
+.dl-stop::before{content:'';position:absolute;left:-20px;top:15px;width:8px;height:8px;background:var(--bg);box-shadow:inset 0 0 0 1.5px var(--rule-strong);z-index:1}
+.dl-stop.is-done::before{background:var(--accent);box-shadow:none}
+.dl-stop.is-now::before{left:-23px;top:12px;width:14px;height:14px;border-radius:50%;background:var(--bg);box-shadow:inset 0 0 0 3px var(--accent)}
+.look-apex:not(.apex-dark) .dl-stop.is-now::before{background:var(--gold);box-shadow:inset 0 0 0 3px var(--ink)}
+.dl-copy{display:grid;grid-template-columns:1fr auto;gap:2px 8px;text-align:left;width:100%;color:var(--ink);align-items:center}
+.dl-copy:disabled{opacity:1;cursor:default}
+.dl-copy b{font-size:16px;font-weight:600}
+.dl-copy small{grid-column:1;font-size:13px;color:var(--ink-2);line-height:1.35}
+.dl-copy svg{grid-row:1/3;grid-column:2;color:var(--accent)}
+.dl-stop.is-done .dl-copy b,.dl-stop.is-done .dl-copy small{opacity:.6}
+.dl-run{display:grid;gap:4px;width:100%;text-align:left;padding:12px 14px;border-radius:3px;box-shadow:inset 0 0 0 1px var(--rule-strong);color:var(--ink)}
+.look-apex .dl-run{border-radius:8px}
+.look-apex .dl-stop.is-now .dl-run{box-shadow:inset 3px 0 0 var(--gold),inset 0 0 0 1px var(--rule-strong)}
+.dl-run b{font-size:24px;font-weight:600;letter-spacing:-.03em}
+.look-apex .dl-run b{font-weight:800}
+.dl-run small{font-size:13px;color:var(--ink-2)}
+.dl-hours{display:grid;grid-auto-flow:column;grid-auto-columns:1fr;gap:2px;align-items:end;height:34px;margin-top:6px}
+.dl-hours i{display:block;background:var(--fill-2);border-radius:1px}
+.dl-hours i.wet{background:color-mix(in srgb,var(--accent) 35%,transparent)}
+.dl-hours i.best{background:var(--accent)}
+.look-apex:not(.apex-dark) .dl-hours i.best{background:var(--gold)}
+.dl-scale{display:flex;justify-content:space-between;font-size:11px;color:var(--ink-2)}
+
+/* ── Body check-in ── */
+.body-check{display:grid;gap:8px}
+.body-map{display:grid;grid-template-columns:1fr 1fr;gap:10px;max-width:340px}
+.body-map figure{margin:0;display:grid;justify-items:center;gap:4px}
+.body-map svg{width:100%;max-width:150px;height:auto;overflow:visible}
+.body-map figcaption{font-size:11px;font-weight:500;letter-spacing:.06em;text-transform:uppercase;color:var(--ink-2)}
+.bm-figure circle,.bm-figure path{fill:var(--fill);stroke:var(--rule-strong);stroke-width:1.2}
+.bm-spine{fill:none!important;stroke-dasharray:2 3}
+.bm-spot{cursor:pointer;outline:none}
+.bm-hit{fill:transparent}
+.bm-dot{fill:var(--bg);stroke:var(--ink-2);stroke-width:1.2;transition:r .2s var(--spring)}
+.bm-spot:focus-visible .bm-hit{stroke:var(--accent);stroke-width:2}
+.bm-spot.lv-1 .bm-dot{fill:color-mix(in srgb,var(--accent) 45%,var(--bg));stroke:none}
+.bm-spot.lv-2 .bm-dot{fill:var(--accent);stroke:none}
+.bm-spot.lv-3 .bm-dot{fill:var(--bad);stroke:none}
+.body-legend{display:flex;align-items:center;gap:6px 12px;flex-wrap:wrap;font-size:12px;color:var(--ink-2)}
+.body-legend i{width:10px;height:10px;border-radius:50%;display:inline-block;margin-right:-6px}
+.body-legend .lv-1{background:color-mix(in srgb,var(--accent) 45%,var(--bg))}.body-legend .lv-2{background:var(--accent)}.body-legend .lv-3{background:var(--bad)}
+.body-coach{font-size:14px;line-height:1.4;padding:10px 12px;background:var(--fill);border-radius:3px}
+
+/* ── Race week / race day ── */
+.race-day{margin:0 calc(-1 * var(--m));padding:calc(var(--top-h) + 52px) var(--m) 22px;display:grid;gap:16px}
+.race-day .poster-meta{top:calc(var(--top-h) + 2px)}
+.rd-top{display:grid;gap:4px}
+.rd-top .label{color:inherit;opacity:.8}
+.rd-head{font-family:var(--serif);font-weight:400;font-size:clamp(32px,9.5vw,42px);line-height:1}
+.rd-head em{font-style:italic}
+.look-apex .rd-head{font-family:var(--display);font-style:italic;font-weight:400;letter-spacing:-.01em}
+.look-apex .rd-head em{color:var(--gold)}
+.race-day>*{min-width:0}
+.rd-count.is-clock{font-size:clamp(64px,19vw,96px)}
+.rd-count{font-weight:400;font-size:clamp(84px,26vw,120px);line-height:.85;letter-spacing:-.06em;font-variant-numeric:tabular-nums;margin-top:8px}
+.look-apex .rd-count{font-weight:900;letter-spacing:-.05em}
+.rd-unit{font-size:12px;font-weight:500;letter-spacing:.06em;text-transform:uppercase;opacity:.8}
+.rd-tip{border-top:1px solid color-mix(in srgb,currentColor 40%,transparent);padding-top:10px}
+.rd-tip .label{color:inherit;opacity:.8}.rd-tip p{font-size:16px;line-height:1.4;margin-top:4px}
+.rd-morning{list-style:none;margin:0;padding:0}
+.rd-morning li{display:grid;grid-template-columns:52px 1fr auto;gap:10px;padding:9px 0;border-top:1px solid color-mix(in srgb,currentColor 30%,transparent);font-size:15px}
+.rd-morning time{font-size:13px;opacity:.75;font-variant-numeric:tabular-nums}
+.rd-morning b{display:block;font-weight:600}.rd-morning small{display:block;font-size:12px;opacity:.75}
+.rd-morning em{font-style:normal;font-size:12px;opacity:.75}
+.rd-morning .is-done{opacity:.55}
+.rd-morning .is-now time,.rd-morning .is-now em{opacity:1;font-weight:700}
+.look-apex .rd-morning .is-now time,.look-apex .rd-morning .is-now em{color:var(--gold)}
+.rd-wx{font-size:13px;opacity:.8}
+.rd-band{display:grid;gap:8px;text-align:left;color:inherit;padding:12px 0 0;border-top:1px solid color-mix(in srgb,currentColor 40%,transparent)}
+.rd-band .label{color:inherit;opacity:.8}
+.rd-band-rows{display:grid;grid-template-columns:repeat(5,1fr)}
+.rd-band-rows span{border-left:1px solid color-mix(in srgb,currentColor 35%,transparent);padding-left:6px;display:grid}
+.rd-band-rows b{font-size:16px;font-weight:700;letter-spacing:-.02em;font-variant-numeric:tabular-nums}
+.look-apex .rd-band-rows b{color:var(--gold)}
+.rd-band-rows small{font-size:11px;opacity:.75}
+
+/* ── Season lap ── */
+.season-lap{margin-top:-8px}
+.season-lap svg{width:100%;height:auto;display:block;max-width:520px;margin:0 auto}
+.sl-lane{fill:none;stroke:var(--rule);stroke-width:1}
+.sl-week{fill:none;stroke:var(--rule-strong);stroke-opacity:.3;stroke-width:8}
+.sl-week.is-done{stroke:var(--accent);stroke-opacity:1}
+.sl-week.is-now{stroke:var(--accent);stroke-opacity:1;stroke-width:13}
+.look-apex:not(.apex-dark) .sl-week.is-now{stroke:var(--gold)}
+.sl-start{stroke:var(--ink);stroke-width:2}
+.sl-runner{fill:var(--bg);stroke:var(--accent);stroke-width:4}
+.look-apex:not(.apex-dark) .sl-runner{fill:var(--gold);stroke:var(--ink)}
+.sl-big{font-family:var(--sans);font-size:38px;font-weight:600;letter-spacing:-.04em;fill:var(--ink)}
+.look-apex .sl-big{font-weight:900}
+.sl-small{font-family:var(--sans);font-size:12px;fill:var(--ink-2)}
+
+/* ── Ghost and pulse (run detail) ── */
+.gr-head{display:flex;justify-content:space-between;align-items:baseline;gap:12px}
+.gr-head b{font-size:34px;font-weight:600;letter-spacing:-.04em;font-variant-numeric:tabular-nums}
+.look-apex .gr-head b{font-weight:900}
+.gr-head b.is-ahead{color:var(--accent)}
+.look-apex:not(.apex-dark) .gr-head b.is-ahead{color:#1A5C46}
+.gr-head b small{font-size:13px;font-weight:500;letter-spacing:0;color:var(--ink-2)}
+.gr-lanes{position:relative;display:grid;margin-top:10px}
+.gr-lane{display:grid;grid-template-columns:54px 1fr 70px;align-items:center;height:40px;border-top:1px solid var(--rule);font-size:13px}
+.gr-lane:last-of-type{border-bottom:1px solid var(--rule)}
+.gr-lane i{position:relative;height:100%;margin-right:14px}
+.gr-lane i::before{content:'';position:absolute;left:0;top:50%;height:4px;width:calc(var(--x) * 100%);transform:translateY(-50%);background:var(--ink)}
+.gr-lane b{position:absolute;top:50%;left:calc(var(--x) * 100%);width:14px;height:14px;border-radius:50%;transform:translate(-50%,-50%);background:var(--ink)}
+.gr-lane.is-you i::before,.gr-lane.is-you b{background:var(--accent)}
+.look-apex:not(.apex-dark) .gr-lane.is-you b{background:var(--gold);box-shadow:0 0 0 2px var(--ink)}
+.gr-lane.is-ghost i::before{background:repeating-linear-gradient(90deg,var(--ink-3) 0 8px,transparent 8px 13px)}
+.gr-lane.is-ghost b{background:var(--bg);box-shadow:inset 0 0 0 2px var(--ink-3)}
+.gr-lane small{text-align:right;font-size:13px;font-weight:600;font-variant-numeric:tabular-nums}
+.gr-finish{position:absolute;top:0;bottom:0;right:84px;width:5px;background:repeating-linear-gradient(var(--ink) 0 4px,transparent 4px 8px);opacity:.7}
+.hr-pulse svg{width:100%;height:112px;display:block;margin-top:8px}
+.hp-over{fill:color-mix(in srgb,var(--bad) 8%,transparent)}
+.hp-cap{stroke:var(--accent);stroke-width:1.5;stroke-dasharray:5 4;vector-effect:non-scaling-stroke}
+.hp-line{fill:none;stroke:var(--ink);stroke-width:2;vector-effect:non-scaling-stroke;stroke-linejoin:round}
+
+/* ── Recovery: thirty mornings ── */
+.morning-pulse{display:grid;gap:8px}
+.morning-pulse .section-label p{font-size:14px;color:var(--ink-2)}
+.morning-pulse .section-label strong{font-size:22px;color:var(--ink);font-weight:700}
+.morning-pulse svg{width:100%;height:112px;display:block}
+.mp-line{fill:none;stroke:var(--accent);stroke-width:1.8;vector-effect:non-scaling-stroke;stroke-linejoin:round}
+.mp-avg{stroke:var(--ink-3);stroke-dasharray:4 4;vector-effect:non-scaling-stroke}
+.mp-dot{fill:var(--accent)}
+.look-apex:not(.apex-dark) .mp-dot{fill:var(--gold);stroke:var(--ink);stroke-width:2}
+.mp-scale{display:flex;justify-content:space-between;gap:10px;font-size:11px;color:var(--ink-2)}
+
+/* ── Weekly issue cover ── */
+.issue-cover{display:block;width:min(100%,300px);aspect-ratio:1080/1350;border-radius:4px;box-shadow:0 10px 30px rgba(0,0,0,.28);justify-self:start}
+.issue-cover.is-loading{background:rgba(255,255,255,.08)}
+.dl-scale{display:grid;grid-auto-flow:column;grid-auto-columns:1fr;gap:2px;overflow:visible}
+.dl-scale span{white-space:nowrap}
+.dl-hours i.past{opacity:.35}
+.dl-key{font-size:11px;color:var(--ink-3)}
+
+.look-apex .detail-hero span{font-size:clamp(84px,26vw,124px)}
+.apex-app .sl-start-edit{position:relative;display:flex;justify-content:center;width:max-content;margin:-4px auto 0;font-size:13px;font-weight:500;letter-spacing:0;text-transform:none;color:var(--ink-2);min-height:44px;align-items:center}
+.sl-start-edit u{text-underline-offset:3px;color:var(--ink)}
+.apex-app .sl-start-edit input{position:absolute;inset:0;opacity:0;width:100%;min-height:0;cursor:pointer}

@@ -7,6 +7,7 @@ import {historyInfo,clearHistory} from './strava';
 export const HOME_MODULES={
  recovery:['Recovery poster','Score, sleep and HRV'],
  session:['Today’s session','The plan, the call, energy'],
+ day:['Your day','Run window, refuel and bedtime on one lap'],
  stats:['Stats row','Three numbers of your choice'],
  week:['This week','Planned and run, by day'],
  race:['Next race','Countdown and goal'],
@@ -25,6 +26,8 @@ export const ACCENTS={
  green:{name:'Racing green',light:'#17694A',dark:'#2E9C6E'},
  ink:{name:'Ink',light:'#151A2E',dark:'#2C3350'},
 };
+// The two looks: Apex (racing green, cream and gold, the default) and the original Swiss cobalt poster.
+export const LOOKS={apex:'Apex green',swiss:'Swiss poster'};
 export const POSTER_STYLES={route:'Route',elevation:'Elevation',splits:'Splits'};
 export const PB_DISTANCES=[['1K',1000],['1 mile',1609.34],['5K',5000],['10K',10000],['Half',21097.5],['Marathon',42195]];
 
@@ -32,7 +35,7 @@ export const DEFAULTS={
  home:{order:Object.keys(HOME_MODULES),hidden:['fuel']},
  stats:['form','marathon','week'],
  tabs:['plan','activity','coach'],
- accent:'cobalt',units:'km',
+ look:'apex',todayPoster:'lanes',accent:'cobalt',units:'km',
  hr:{max:null,rest:null,model:'reserve'},
  predictor:{weeks:8},
  pbs:[],goals:{},shoes:{},
@@ -42,7 +45,8 @@ export const DEFAULTS={
 
 export function readSettings(userPrefs){
  const s=userPrefs?.settings||{};
- const order=[...(s.home?.order||[]).filter(k=>HOME_MODULES[k]),...Object.keys(HOME_MODULES).filter(k=>!(s.home?.order||[]).includes(k))];
+ // New modules slot in after the module they follow by default, not at the end.
+ const order=(s.home?.order||[]).filter(k=>HOME_MODULES[k]);Object.keys(HOME_MODULES).forEach((k,i,all)=>{if(order.includes(k))return;const prev=all.slice(0,i).reverse().find(x=>order.includes(x));order.splice(prev?order.indexOf(prev)+1:0,0,k);});
  return {...DEFAULTS,...s,home:{order,hidden:s.home?.hidden||DEFAULTS.home.hidden},hr:{...DEFAULTS.hr,...s.hr},predictor:{...DEFAULTS.predictor,...s.predictor},
   hiddenTypes:Array.isArray(s.hiddenTypes)?s.hiddenTypes:DEFAULTS.hiddenTypes,
   stats:(s.stats||DEFAULTS.stats).filter(k=>STATS[k]).slice(0,3),tabs:(s.tabs||DEFAULTS.tabs).filter(k=>TAB_CHOICES[k]).slice(0,3),pbs:s.pbs||[],goals:s.goals||{},shoes:s.shoes||{}};
@@ -130,7 +134,9 @@ export default function Settings({userPrefs,onSavePrefs,acts=[],whoop,theme,setT
 
   <Section title="Look">
    <div className="set-row"><span><b>Appearance</b></span><div className="apex-segments">{[['light','Light'],['dark','Dark'],['auto','Match phone']].map(([k,l])=><button key={k} aria-pressed={theme===k} onClick={()=>setTheme(k)}>{l}</button>)}</div></div>
-   <div className="set-row"><span><b>Colour</b><small>The poster colour across the app.</small></span><div className="swatches">{Object.entries(ACCENTS).map(([k,a])=><button key={k} className={s.accent===k?'is-on':''} style={{'--sw':a.light}} onClick={()=>update({accent:k})} aria-label={a.name} aria-pressed={s.accent===k}><i/></button>)}</div></div>
+   <div className="set-row"><span><b>Style</b><small>{s.look==='swiss'?'The original cobalt race poster.':'Racing green and cream, gold for what matters.'}</small></span><div className="apex-segments">{Object.entries(LOOKS).map(([k,l])=><button key={k} aria-pressed={s.look===k} onClick={()=>update({look:k})}>{l}</button>)}</div></div>
+   {s.look==='swiss'&&<div className="set-row"><span><b>Colour</b><small>The poster colour across the app.</small></span><div className="swatches">{Object.entries(ACCENTS).map(([k,a])=><button key={k} className={s.accent===k?'is-on':''} style={{'--sw':a.light}} onClick={()=>update({accent:k})} aria-label={a.name} aria-pressed={s.accent===k}><i/></button>)}</div></div>}
+   <div className="set-row"><span><b>Today poster</b><small>{s.todayPoster==='track'?'Your recovery as a lap of the track.':'Recovery, sleep, form and week as four lanes.'}</small></span><div className="apex-segments">{[['lanes','Lane race'],['track','Track']].map(([k,l])=><button key={k} aria-pressed={s.todayPoster===k} onClick={()=>update({todayPoster:k})}>{l}</button>)}</div></div>
    <div className="set-row"><span><b>Units</b></span><div className="apex-segments">{[['km','Kilometres'],['mi','Miles']].map(([k,l])=><button key={k} aria-pressed={s.units===k} onClick={()=>update({units:k})}>{l}</button>)}</div></div>
    <div className="set-row"><span><b>Run poster</b><small>Default layout when you make a poster.</small></span><div className="apex-segments">{Object.entries(POSTER_STYLES).map(([k,l])=><button key={k} aria-pressed={s.poster===k} onClick={()=>update({poster:k})}>{l}</button>)}</div></div>
   </Section>

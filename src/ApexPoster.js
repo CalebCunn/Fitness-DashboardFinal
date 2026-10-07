@@ -7,8 +7,10 @@ import {Icon} from './ApexUI';
 import {POSTER_STYLES,dist,paceOf,perUnit,unitsOf,fmtTime,parseTime,formatDigits} from './ApexSettings';
 
 const W=1080,H=1350,M=72;
-const SANS='"Instrument Sans", -apple-system, Helvetica, sans-serif',SERIF='"Instrument Serif", Georgia, serif';
-async function fonts(){try{await Promise.all([document.fonts?.load(`400 200px ${SANS}`),document.fonts?.load(`italic 400 80px ${SERIF}`),document.fonts?.load(`500 30px ${SANS}`)]);}catch{}}
+// Fonts follow the look: Inter Tight and DM Serif Display for Apex green, Instrument for the Swiss poster.
+let SANS='"Instrument Sans", -apple-system, Helvetica, sans-serif',SERIF='"Instrument Serif", Georgia, serif',NUM=400,IT='italic 400';
+export function posterFonts(){const g=!!document.querySelector('.look-apex');SANS=g?'"Inter Tight", -apple-system, Helvetica, sans-serif':'"Instrument Sans", -apple-system, Helvetica, sans-serif';SERIF=g?'"DM Serif Display", Georgia, serif':'"Instrument Serif", Georgia, serif';NUM=g?900:400;IT='italic 400';return {SANS,SERIF,NUM,IT,green:g};}
+async function fonts(){posterFonts();try{await Promise.all([document.fonts?.load(`${NUM} 200px ${SANS}`),document.fonts?.load(`${IT} 80px ${SERIF}`),document.fonts?.load(`500 30px ${SANS}`)]);}catch{}}
 const toBlob=c=>new Promise(r=>c.toBlob(r,'image/png'));
 // The track end, drawn on a canvas: straights fading to the right, the bend, lanes.
 export function drawTrack(g,x,y,w,{alpha=.4,lap=null}={}){
@@ -22,7 +24,7 @@ export function drawTrack(g,x,y,w,{alpha=.4,lap=null}={}){
 
 function gridRow(g,y,cells){
  const colW=(W-2*M-3*24)/4;
- cells.forEach(([label,value],i)=>{const x=M+i*(colW+24);g.fillStyle='rgba(255,255,255,.6)';g.fillRect(x,y,colW,2);g.fillStyle='rgba(255,255,255,.75)';g.font=`500 26px ${SANS}`;g.fillText(label.toUpperCase(),x,y+44);g.fillStyle='#fff';g.font=`400 54px ${SANS}`;g.fillText(value,x,y+110);});
+ cells.forEach(([label,value],i)=>{const x=M+i*(colW+24);g.fillStyle='rgba(255,255,255,.6)';g.fillRect(x,y,colW,2);g.fillStyle='rgba(255,255,255,.75)';g.font=`500 26px ${SANS}`;g.fillText(label.toUpperCase(),x,y+44);g.fillStyle='#fff';g.font=`${NUM} 54px ${SANS}`;g.fillText(value,x,y+110);});
 }
 
 function fit(points,x,y,w,h){
@@ -64,11 +66,11 @@ export async function drawRunPoster({activity:a,streams={},style='route',accent=
  }
  // the number
  const hasDist=a.distance>0;
- g.fillStyle='#fff';g.font=`400 300px ${SANS}`;
+ g.fillStyle='#fff';g.font=`${NUM} ${NUM>400?250:300}px ${SANS}`;
  const big=hasDist?dist(a.distance,settings):fmtTime(a.moving_time);
  g.fillText(big,M-12,1010);
- const bw=g.measureText(big).width;g.font=`400 64px ${SANS}`;g.fillText(hasDist?unitsOf(settings):'',M+bw+4,1010);
- g.font=`italic 400 86px ${SERIF}`;g.fillText(String(a.name||'Run').slice(0,30),M,1110);
+ const bw=g.measureText(big).width;g.font=`${NUM} 64px ${SANS}`;g.fillText(hasDist?unitsOf(settings):'',M+bw+4,1010);
+ g.font=`${IT} 86px ${SERIF}`;g.fillText(String(a.name||'Run').slice(0,30),M,1110);
  gridRow(g,1170,[['Time',fmtTime(a.moving_time)],[hasDist?'Pace':'Avg HR',hasDist?`${paceOf(a.average_speed,settings)}${perUnit(settings)}`:(a.average_heartrate?String(Math.round(a.average_heartrate)):'—')],['HR',a.average_heartrate?String(Math.round(a.average_heartrate)):'—'],['Gain',`${Math.round(a.total_elevation_gain||0)} m`]]);
  return toBlob(c);
 }
@@ -107,12 +109,12 @@ export function bandSplits(target,km=42.195,strategy='even'){
 async function drawBand({name,target,km,rows,accent}){
  await fonts();
  const c=document.createElement('canvas');c.width=W;c.height=H;const g=c.getContext('2d');
- g.fillStyle='#F5F4F0';g.fillRect(0,0,W,H);g.fillStyle=accent;g.fillRect(0,0,W,300);
+ g.fillStyle=SANS.includes('Inter')?'#F3EDE2':'#F5F4F0';g.fillRect(0,0,W,H);g.fillStyle=accent;g.fillRect(0,0,W,300);
  g.fillStyle='#fff';g.font=`500 28px ${SANS}`;g.fillText('PACE BAND · APEX',M,M+20);
- g.font=`italic 400 84px ${SERIF}`;g.fillText(String(name).slice(0,24),M,M+120);
- g.font=`400 120px ${SANS}`;g.fillText(fmtTime(target),M,M+220);
+ g.font=`${IT} 84px ${SERIF}`;g.fillText(String(name).slice(0,24),M,M+120);
+ g.font=`${NUM} 120px ${SANS}`;g.fillText(fmtTime(target),M,M+220);
  const top=360,rowH=Math.min(84,(H-top-60)/rows.length);
- rows.forEach((r,i)=>{const y=top+i*rowH;g.fillStyle='rgba(16,19,34,.16)';g.fillRect(M,y,W-2*M,2);g.fillStyle='#5B6070';g.font=`500 32px ${SANS}`;g.fillText(`${r.k%1?r.k.toFixed(1):r.k} km`,M,y+rowH*.68);g.fillStyle='#101322';g.font=`400 ${Math.round(rowH*.62)}px ${SANS}`;g.textAlign='right';g.fillText(fmtTime(r.t),W-M,y+rowH*.72);g.fillStyle='#5B6070';g.font=`500 28px ${SANS}`;g.fillText(`${fmtTime(r.pace)} /km`,W-M-300,y+rowH*.68);g.textAlign='left';});
+ rows.forEach((r,i)=>{const y=top+i*rowH;g.fillStyle='rgba(16,19,34,.16)';g.fillRect(M,y,W-2*M,2);g.fillStyle='#5B6070';g.font=`500 32px ${SANS}`;g.fillText(`${r.k%1?r.k.toFixed(1):r.k} km`,M,y+rowH*.68);g.fillStyle='#101322';g.font=`${NUM} ${Math.round(rowH*.62)}px ${SANS}`;g.textAlign='right';g.fillText(fmtTime(r.t),W-M,y+rowH*.72);g.fillStyle='#5B6070';g.font=`500 28px ${SANS}`;g.fillText(`${fmtTime(r.pace)} /km`,W-M-300,y+rowH*.68);g.textAlign='left';});
  return toBlob(c);
 }
 

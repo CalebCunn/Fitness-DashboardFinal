@@ -22,3 +22,13 @@ export function previewDetail(summary){
   laps:total<16000?undefined:[{distance:5000,moving_time:1745,average_speed:2.866,average_heartrate:139},{distance:5000,moving_time:1702,average_speed:2.938,average_heartrate:147},{distance:5000,moving_time:1683,average_speed:2.971,average_heartrate:150},{distance:total-15000,moving_time:a.moving_time-5130,average_speed:(total-15000)/(a.moving_time-5130),average_heartrate:156}]},
   streams:{time:{data:time},distance:{data:distance},velocity_smooth:{data:velocity_smooth},altitude:{data:altitude},heartrate:{data:heartrate},cadence:{data:cadence},latlng:{data:latlng}}};
 }
+// Preview only: ?morning shows Today before the run (drops today's activities).
+if(PREVIEW&&typeof window!=='undefined'&&/[?&]morning/.test(window.location.search))fixture.activities=fixture.activities.filter(a=>!(a.start_date_local||a.start_date||'').startsWith(day()));
+// Preview only: ?raceweek / ?raceday move the goal race close; ?sore logs a sore calf today.
+if(PREVIEW&&typeof window!=='undefined'){const q=window.location.search,r=fixture.prefs.races?.[0];
+ if(r&&/[?&]raceweek/.test(q))Object.assign(r,{date:day(4),time:'09:00',target:'2:59:30'});
+ if(r&&/[?&]raceday/.test(q)){const t=new Date(Date.now()+75*60000);Object.assign(r,{date:day(),time:`${String(t.getHours()).padStart(2,'0')}:${String(t.getMinutes()).padStart(2,'0')}`,target:'2:59:30'});}
+ if(/[?&]sore/.test(q))fixture.prefs.journal={...(fixture.prefs.journal||{}),[day()]:{energy:4,stress:2,soreness:3,body:{'calf-L':2},notes:''}};}
+if(PREVIEW&&typeof window!=='undefined'&&/[?&]swiss/.test(window.location.search))fixture.prefs.settings={...(fixture.prefs.settings||{}),look:'swiss'};
+// Preview only: the sample block started seven weeks ago, so the season lap reads week 8.
+if(PREVIEW&&fixture.plan)fixture.plan.blockStart=day(-49);
