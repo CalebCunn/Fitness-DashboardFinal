@@ -75,6 +75,7 @@ export default function Activity({acts=[],gear=[],initialId=null,restHr=null,nav
    <span className="row-figure">{a.distance?distU(a.distance,settings):Math.round((a.moving_time||0)/60)}<small>{a.distance?unitsOf(settings):'min'}</small><em>{run(a)?`${paceOf(a.average_speed,settings)}${perUnit(settings)}`:clock(a.moving_time)}</em></span>
   </button>)}</div>
   {filtered.length===0&&<div className="empty-block"><h2>Nothing matches.</h2><p>Try another search or time range.</p></div>}
+  <p className="powered-by">Powered by Strava</p>
 
   {gear.length>0&&<section className="gear-shelf"><div className="section-head"><h2>Shoes</h2></div>{gear.map(g=><div className="list-row" key={g.id}><span className="row-copy"><small>{g.brand_name||'In your rotation'}</small><b>{g.name||g.nickname}</b></span><span className="row-figure">{Math.round((g.distance||0)/1000)}<small>km</small></span></div>)}</section>}
   <p className="form-note">From the activities loaded from Strava. This may be a subset of your full history.</p>

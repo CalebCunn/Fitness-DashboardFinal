@@ -3,6 +3,8 @@
 import {useMemo,useState} from 'react';
 import {Icon} from './ApexUI';
 import {historyInfo,clearHistory} from './strava';
+import {PUBLIC,accessCode,setAccessCode,ownKey,setOwnKey} from './apexAccess';
+import {signOut,deleteAccount} from './apexAuth';
 
 export const HOME_MODULES={
  recovery:['Recovery poster','Score, sleep and HRV'],
@@ -104,6 +106,28 @@ function HistoryRow(){
 
 function Section({title,note,children}){return <section className="set-section"><div className="set-head"><h2>{title}</h2>{note&&<p>{note}</p>}</div>{children}</section>;}
 
+// Coach access: an access code (owner site) and/or the user's own Anthropic key (stays on this device).
+function CoachAccess(){
+ const [code,setCode]=useState(accessCode()),[key,setKey]=useState(ownKey()),[saved,setSaved]=useState('');
+ const save=()=>{setAccessCode(code);setOwnKey(key);setSaved('Saved on this device.');};
+ return <Section title="Coach and AI" note={PUBLIC?'The coach includes a monthly allowance. Add your own Anthropic key for unlimited use, billed to your Anthropic account. It stays on this device and is sent only to Anthropic.':'Your coach is locked with an access code. Enter it once on each device. Or add your own Anthropic key, which is sent only to Anthropic.'}>
+  {!PUBLIC&&<label className="set-field">Access code<input type="password" autoComplete="off" value={code} onChange={e=>{setCode(e.target.value);setSaved('');}} placeholder="Set as APEX_ACCESS_CODE on Netlify"/></label>}
+  <label className="set-field">Your Anthropic API key <small>optional</small><input type="password" autoComplete="off" value={key} onChange={e=>{setKey(e.target.value);setSaved('');}} placeholder="sk-ant-…"/></label>
+  <div className="set-row" style={{borderBottom:0}}><button className="secondary-action" onClick={save}>Save</button>{saved&&<small role="status">{saved}</small>}</div>
+ </Section>;
+}
+
+function Account(){
+ const [busy,setBusy]=useState(false),[err,setErr]=useState(''),[confirm,setConfirm]=useState(false);
+ return <Section title="Account">
+  <div className="set-row"><span><b>Sign out</b><small>Removes your data and connections from this device.</small></span><button className="secondary-action" onClick={()=>signOut()}>Sign out</button></div>
+  <div className="set-row"><span><b>Privacy and terms</b></span><span style={{display:'flex',gap:14}}><a className="text-button" href="#privacy">Privacy</a><a className="text-button" href="#terms">Terms</a></span></div>
+  <div className="set-row"><span><b>Delete account</b><small>Deletes your account and everything Apex has saved. This can’t be undone.</small></span>
+   {confirm?<button className="secondary-action danger" disabled={busy} onClick={async()=>{setBusy(true);setErr('');try{await deleteAccount();}catch(e){setErr(e.message);setBusy(false);}}}>{busy?'Deleting…':'Yes, delete everything'}</button>:<button className="text-button danger" onClick={()=>setConfirm(true)}>Delete account</button>}</div>
+  {err&&<p className="form-error">{err}</p>}
+ </Section>;
+}
+
 export default function Settings({userPrefs,onSavePrefs,acts=[],whoop,theme,setTheme,nav}){
  const [s,update]=useSettings(userPrefs,onSavePrefs);
  const hr=heartRate(s,acts,whoop);
@@ -174,6 +198,8 @@ export default function Settings({userPrefs,onSavePrefs,acts=[],whoop,theme,setT
    <div className="set-row"><span><b>Window</b><small>Which recent runs count.</small></span><div className="apex-segments">{[4,8,12].map(w=><button key={w} aria-pressed={s.predictor.weeks===w} onClick={()=>update({predictor:{...s.predictor,weeks:w}})}>{w} weeks</button>)}</div></div>
   </Section>
 
+  <CoachAccess/>
+  {PUBLIC&&<Account/>}
   <Section title="Shoes" note="Rotation, roles and retire limits live on the Shoes screen."><button className="secondary-action" onClick={()=>nav?.('shoes')}>Open Shoes<Icon name="arrow" size={17}/></button></Section>
  </div>;
 }

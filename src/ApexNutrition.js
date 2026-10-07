@@ -1,5 +1,6 @@
 import {useState,useRef} from 'react';
 import {Icon} from './ApexUI';
+import {aiHeaders,ownKey,anthropicDirect,accessMessage} from './apexAccess';
 import {PREVIEW} from './ApexPreview';
 const fields=[['kcal','Energy','kcal'],['protein','Protein','g'],['carbs','Carbs','g'],['fat','Fat','g']];
 const defaults={kcal:3000,protein:140,carbs:300,fat:80};
@@ -16,8 +17,9 @@ export default function Nutrition({userPrefs,onSavePrefs}){
  const analyse=async()=>{setError('');if(PREVIEW){setError('AI is connected only in your live app. You can try manual meal logging in this preview.');return;}setBusy(true);try{
   const content=[];if(photo)content.push({type:'image',source:{type:'base64',media_type:photo.type,data:photo.data}});
   content.push({type:'text',text:`Estimate this meal${text?': '+text:''}. Return only JSON: {"name":"meal name","kcal":number,"protein":number,"carbs":number,"fat":number}. Use UK portions.`});
-  const res=await fetch('/.netlify/functions/claude-chat',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({system:'Estimate nutrition. Return only the requested JSON.',messages:[{role:'user',content}]})});
-  const data=await res.json();if(!res.ok||data.error)throw new Error('The food estimate could not be completed. Try again or add the meal manually.');
+  const req={system:'Estimate nutrition. Return only the requested JSON.',messages:[{role:'user',content}]};
+  const res=ownKey()?await anthropicDirect({model:'claude-sonnet-4-6',max_tokens:600,...req}):await fetch('/.netlify/functions/claude-chat',{method:'POST',headers:await aiHeaders(),body:JSON.stringify(req)});
+  const data=await res.json();if(!res.ok||data.error)throw new Error(accessMessage(data.code,'The food estimate could not be completed. Try again or add the meal manually.'));
   const parsed=JSON.parse((data.content?.[0]?.text||'').replace(/```json|```/g,'').trim());
   if(!parsed.name||fields.some(([k])=>!Number.isFinite(parsed[k])||parsed[k]<0))throw new Error('The estimate was incomplete. Please add the meal manually.');
   setDraft(parsed);setReview(true);

@@ -6,27 +6,15 @@ export function disconnectWhoop() {
   ["whoop_access_token","whoop_refresh_token","whoop_token_expiry","whoop_pending","whoop_state"].forEach(k => localStorage.removeItem(k));
 }
 
+// Token calls always go through /.netlify/functions/whoop-token so the client secret stays on the server.
+// (Run locally with `netlify dev` to get the functions.)
 async function tokenExchange(params) {
-  const isNetlify = window.location.hostname !== "localhost";
-  if (isNetlify) {
-    const res = await fetch("/.netlify/functions/whoop-token", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(params),
-    });
-    return res.json();
-  } else {
-    const res = await fetch("https://api.prod.whoop.com/oauth/oauth2/token", {
-      method: "POST",
-      headers: { "Content-Type": "application/x-www-form-urlencoded" },
-      body: new URLSearchParams({
-        client_id: process.env.REACT_APP_WHOOP_CLIENT_ID,
-        client_secret: process.env.REACT_APP_WHOOP_CLIENT_SECRET,
-        ...params,
-      }),
-    });
-    return res.json();
-  }
+  const res = await fetch("/.netlify/functions/whoop-token", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(params),
+  });
+  return res.json();
 }
 
 async function refreshWhoopToken() {

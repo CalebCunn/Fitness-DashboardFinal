@@ -1454,3 +1454,32 @@
 .apex-app .sl-start-edit{position:relative;display:flex;justify-content:center;width:max-content;margin:-4px auto 0;font-size:13px;font-weight:500;letter-spacing:0;text-transform:none;color:var(--ink-2);min-height:44px;align-items:center}
 .sl-start-edit u{text-underline-offset:3px;color:var(--ink)}
 .apex-app .sl-start-edit input{position:absolute;inset:0;opacity:0;width:100%;min-height:0;cursor:pointer}
+
+/* Customise · coach access and account */
+.set-field{display:grid;gap:6px;font-size:14px;font-weight:500;color:var(--ink-2)}
+.set-field small{font-weight:400;color:var(--ink-3)}
+.set-field input{font:500 16px var(--sans);color:var(--ink)}
+.danger{color:var(--bad)!important}
+.secondary-action.danger{box-shadow:inset 0 0 0 1px var(--bad)}
+
+/* Sign in (public build) */
+.signin .welcome-inner{display:grid;gap:14px}
+.signin-form{display:grid;gap:16px;max-width:420px}
+.signin-form p{margin:0}
+.signin-field{display:grid;gap:8px;font:600 13px 'Inter Tight',sans-serif;letter-spacing:.06em;text-transform:uppercase;color:#BCC6BB}
+.signin-field input{font:600 20px 'Inter Tight',sans-serif;letter-spacing:.02em;text-transform:none;color:#F3EDE2;background:rgba(243,237,226,.06);border:1px solid rgba(243,237,226,.3);border-radius:3px;min-height:56px;padding:0 16px;outline:none}
+.signin-field input:focus{border-color:#FFC94A}
+.signin .welcome-cta{border:0;cursor:pointer;margin-top:4px}
+.signin .welcome-cta:disabled{opacity:.6}
+.signin-link{background:none;border:0;color:#FFC94A;font:600 15px 'Inter Tight',sans-serif;text-align:left;padding:8px 0;cursor:pointer}
+.signin-error{color:#FF8A6B;font-weight:600;margin:0}
+.signin small a{color:#F3EDE2}
+/* Legal pages */
+.legal{min-height:100dvh;background:#F3EDE2;color:#0F3D2F;font:400 17px/1.55 'Inter Tight',sans-serif;padding:calc(env(safe-area-inset-top) + 24px) 22px 60px;max-width:720px;margin:0 auto}
+.legal h1{font:italic 400 52px/1 'DM Serif Display',Georgia,serif;margin:18px 0 6px}
+.legal-date{color:#4B675C;font-size:14px;margin:0 0 20px}
+.legal h2{font:800 20px 'Inter Tight',sans-serif;letter-spacing:-.02em;margin:26px 0 6px}
+.legal ul{padding-left:20px;margin:6px 0}
+.legal li{margin:6px 0}
+.legal .signin-link{color:#0F3D2F}
+.powered-by{font:600 12px var(--sans);letter-spacing:.08em;text-transform:uppercase;color:#FC4C02;margin:8px 0 0}

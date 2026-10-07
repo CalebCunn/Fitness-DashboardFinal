@@ -5,6 +5,17 @@ import {PREVIEW,previewStore} from './ApexPreview';
 import {localDate,calendarTable,parsePlanBlock,mergePlan,prettyDate,weekdayLong,addDays,mondayOf,isISODate,surfaceFor} from './apexDates';
 import {datedSessions} from './ApexTraining';
 import {corosForCoach} from './coros';
+import {aiHeaders,ownKey,anthropicDirect,accessMessage} from './apexAccess';
+// With the user's own key, build the same request the server would and send it straight to Anthropic.
+const COROS_HOSTS=new Set(['mcp.coros.com','mcpeu.coros.com','mcpus.coros.com','mcpcn.coros.com']);
+const COROS_WRITES=['createTrainingPlan','updateTrainingPlan','createSingleWorkout','updateWorkoutDetails','scheduleWorkout','createScheduledWorkout','updateScheduledWorkout'];
+function coachDirect({system,messages,coros,allowCorosWrites}){
+ const payload={model:'claude-sonnet-5-5',max_tokens:4096,stream:true,system,messages:messages.slice(-24)};let beta;
+ let url=null;try{const u=new URL(coros?.url||'');if(u.protocol==='https:'&&COROS_HOSTS.has(u.hostname))url=u.href;}catch{}
+ if(url&&coros?.token){const has=new Set(coros.tools||[]),set={type:'mcp_toolset',mcp_server_name:'coros'};if(!allowCorosWrites){const off=COROS_WRITES.filter(t=>has.has(t));if(off.length)set.configs=Object.fromEntries(off.map(t=>[t,{enabled:false}]));}
+  payload.mcp_servers=[{type:'url',url,name:'coros',authorization_token:coros.token}];payload.tools=[set];beta='mcp-client-2025-11-20';}
+ return anthropicDirect(payload,beta);
+}
 import {readyFor} from './ApexTrack';
 const {loadChatHistory,saveChatHistory}=PREVIEW?previewStore:persistence;
 
@@ -128,8 +139,9 @@ Saving to COROS is ${writes?'ENABLED for this message only. Save only what the u
   const paint=()=>setMsgs([...history,{role:'assistant',content:visible(raw),streaming:true,drafting:drafting(raw),tools:[...tools]}]);
   try{
    const coros=corosOk?await corosForCoach():null;
-   const res=await fetch('/api/coach',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({system:buildSystem(writes&&!!coros),messages:toApi(history),coros,allowCorosWrites:writes&&!!coros})});
-   if(!res.ok||!res.body){let m='The coach is unavailable. Please try again.';try{const j=await res.json();if(j.error)m=j.error;}catch{}throw new Error(m);}
+   const body={system:buildSystem(writes&&!!coros),messages:toApi(history),coros,allowCorosWrites:writes&&!!coros};
+   const res=ownKey()?await coachDirect(body):await fetch('/api/coach',{method:'POST',headers:await aiHeaders(),body:JSON.stringify(body)});
+   if(!res.ok||!res.body){let m='The coach is unavailable. Please try again.';try{const j=await res.json();m=accessMessage(j.code,j.error?.message||j.error||m);}catch{}throw new Error(m);}
    const reader=res.body.getReader(),dec=new TextDecoder();let buf='',stop='';
    for(;;){const {value,done}=await reader.read();if(done)break;buf+=dec.decode(value,{stream:true});
     let cut;while((cut=buf.indexOf('\n\n'))>=0){const chunk=buf.slice(0,cut);buf=buf.slice(cut+2);

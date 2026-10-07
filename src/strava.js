@@ -6,18 +6,14 @@ export function disconnect() {
   ["strava_access_token","strava_refresh_token","strava_token_expiry","strava_athlete_id","apex-activities-v1"].forEach(k => localStorage.removeItem(k));
 }
 
+// Token calls go through /.netlify/functions/strava-token so the client secret stays on the server.
+async function stravaToken(body) {
+  const res = await fetch("/.netlify/functions/strava-token", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
+  return res.json().catch(() => ({}));
+}
+
 async function refreshToken() {
-  const res = await fetch("https://www.strava.com/oauth/token", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
-      client_id: process.env.REACT_APP_STRAVA_CLIENT_ID,
-      client_secret: process.env.REACT_APP_STRAVA_CLIENT_SECRET,
-      refresh_token: localStorage.getItem("strava_refresh_token"),
-      grant_type: "refresh_token",
-    }),
-  });
-  const d = await res.json();
+  const d = await stravaToken({ refresh_token: localStorage.getItem("strava_refresh_token") });
   if (d.access_token) {
     localStorage.setItem("strava_access_token", d.access_token);
     localStorage.setItem("strava_refresh_token", d.refresh_token);
@@ -42,17 +38,7 @@ async function get(path) {
 }
 
 export async function exchangeCode(code) {
-  const res = await fetch("https://www.strava.com/oauth/token", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
-      client_id: process.env.REACT_APP_STRAVA_CLIENT_ID,
-      client_secret: process.env.REACT_APP_STRAVA_CLIENT_SECRET,
-      code,
-      grant_type: "authorization_code",
-    }),
-  });
-  const d = await res.json();
+  const d = await stravaToken({ code });
   if (d.access_token) {
     localStorage.setItem("strava_access_token", d.access_token);
     localStorage.setItem("strava_refresh_token", d.refresh_token);

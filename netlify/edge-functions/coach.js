@@ -5,12 +5,39 @@
 const ALLOWED = new Set(['mcp.coros.com', 'mcpeu.coros.com', 'mcpus.coros.com', 'mcpcn.coros.com']);
 const WRITE_TOOLS = ['createTrainingPlan', 'updateTrainingPlan', 'createSingleWorkout', 'updateWorkoutDetails', 'scheduleWorkout', 'createScheduledWorkout', 'updateScheduledWorkout'];
 
-const err = (status, message) => new Response(JSON.stringify({ error: message }), { status, headers: { 'Content-Type': 'application/json' } });
+const err = (status, message, code) => new Response(JSON.stringify({ error: message, code }), { status, headers: { 'Content-Type': 'application/json' } });
+const env = k => Netlify.env.get(k);
+
+// Who may use the coach. Public site (APEX_PUBLIC=true): a signed-in Supabase user with credit left.
+// Owner site: if APEX_ACCESS_CODE is set, requests must carry it in x-apex-access.
+async function guard(request, kind) {
+  if (env('APEX_PUBLIC') === 'true') {
+    const url = env('SUPABASE_URL') || env('REACT_APP_SUPABASE_URL'), anon = env('SUPABASE_ANON_KEY') || env('REACT_APP_SUPABASE_KEY'), service = env('SUPABASE_SERVICE_ROLE_KEY');
+    const token = (request.headers.get('authorization') || '').replace(/^Bearer\s+/i, '');
+    if (!url || !anon || !service) return err(500, 'The coach is not configured.');
+    if (!token) return err(401, 'Sign in to use the coach.', 'signin');
+    const who = await fetch(`${url}/auth/v1/user`, { headers: { apikey: anon, Authorization: `Bearer ${token}` } });
+    if (!who.ok) return err(401, 'Sign in again to use the coach.', 'signin');
+    const user = await who.json();
+    const credit = await fetch(`${url}/rest/v1/rpc/use_ai_credit`, {
+      method: 'POST', headers: { apikey: service, Authorization: `Bearer ${service}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ p_user: user.id, p_kind: kind, p_free: +(env('APEX_FREE_MESSAGES') || 30), p_pro: +(env('APEX_PRO_MESSAGES') || 400) }),
+    });
+    if (!credit.ok) return err(503, 'The coach is unavailable. Please try again.');
+    if ((await credit.json()) !== true) return err(429, 'You’ve used this month’s free coach messages.', 'limit');
+    return null;
+  }
+  const code = env('APEX_ACCESS_CODE');
+  if (code && request.headers.get('x-apex-access') !== code) return err(401, 'The coach is locked on this site.', 'access');
+  return null;
+}
 
 export default async request => {
   if (request.method !== 'POST') return err(405, 'Method not allowed');
   const key = Netlify.env.get('ANTHROPIC_API_KEY');
   if (!key) return err(500, 'The coach is not configured.');
+  const denied = await guard(request, 'coach');
+  if (denied) return denied;
   let body;
   try { body = await request.json(); } catch { return err(400, 'Invalid request'); }
   const { system, messages, coros, allowCorosWrites } = body || {};

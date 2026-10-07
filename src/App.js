@@ -15,11 +15,27 @@ import Performance from './ApexPerformance';
 import Settings,{readSettings,heartRate} from './ApexSettings';
 import Shoes from './ApexShoes';
 import {PREVIEW,fixture,previewStore} from './ApexPreview';
+import {PUBLIC} from './apexAccess';
+import {session,onAuth} from './apexAuth';
+import {SignIn,Legal} from './ApexSignIn';
 import {isCorosConnected,isCorosCallback,finishCorosConnect,startCorosConnect,disconnectCoros} from './coros';
 const {loadUserPrefs,saveUserPrefs,loadTrainingPlan,saveTrainingPlan}=PREVIEW?previewStore:persistence;
 
-// Existing provider modules, OAuth callbacks, stored tokens and Supabase tables are retained.
+// Public build: sign in first, then the app runs against that user's private data.
+// Owner build (REACT_APP_PUBLIC unset): straight into the app, exactly as before.
 export default function App(){
+ const [auth,setAuth]=useState(PUBLIC?undefined:null),[hash,setHash]=useState(window.location.hash);
+ useEffect(()=>{if(!PUBLIC)return;let off=()=>{};session().then(s=>setAuth(s||null));onAuth(s=>setAuth(s||null)).then(f=>{off=f;});const h=()=>setHash(window.location.hash);window.addEventListener('hashchange',h);return()=>{off();window.removeEventListener('hashchange',h);};},[]);
+ if(!PUBLIC||PREVIEW)return <ApexApp/>;
+ if(hash==='#privacy'||hash==='#terms')return <Legal kind={hash.slice(1)}/>;
+ if(auth===undefined)return <div className="app-loading"><div/></div>;
+ if(!auth)return <SignIn/>;
+ persistence.setUser(auth.user.id);
+ return <ApexApp key={auth.user.id}/>;
+}
+
+// Existing provider modules, OAuth callbacks, stored tokens and Supabase tables are retained.
+function ApexApp(){
  const [loadFailure,setLoadFailure]=useState(null),[loadAttempt,setLoadAttempt]=useState(0);
  const [saveStatus,setSaveStatus]=useState(persistence.getSaveStatus());
  useEffect(()=>{if(PREVIEW)return;const update=()=>setSaveStatus(persistence.getSaveStatus());window.addEventListener('apex-save-status',update);return()=>window.removeEventListener('apex-save-status',update);},[]);
