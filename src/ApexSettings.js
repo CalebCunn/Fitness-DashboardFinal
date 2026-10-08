@@ -3,7 +3,7 @@
 import {useMemo,useState} from 'react';
 import {Icon} from './ApexUI';
 import {historyInfo,clearHistory} from './strava';
-import {PUBLIC,accessCode,setAccessCode,ownKey,setOwnKey} from './apexAccess';
+import {PUBLIC,accessCode,setAccessCode,ownKey,setOwnKey,testKey} from './apexAccess';
 import {signOut,deleteAccount} from './apexAuth';
 
 export const HOME_MODULES={
@@ -109,11 +109,11 @@ function Section({title,note,children}){return <section className="set-section">
 // Coach access: an access code (owner site) and/or the user's own Anthropic key (stays on this device).
 function CoachAccess(){
  const [code,setCode]=useState(accessCode()),[key,setKey]=useState(ownKey()),[saved,setSaved]=useState('');
- const save=()=>{setAccessCode(code);setOwnKey(key);setSaved('Saved on this device.');};
+ const save=()=>{setAccessCode(code);setOwnKey(key.trim());setSaved('Saved on this device.');};
  return <Section title="Coach and AI" note={PUBLIC?'The coach includes a monthly allowance. Add your own Anthropic key for unlimited use, billed to your Anthropic account. It stays on this device and is sent only to Anthropic.':'Your coach is locked with an access code. Enter it once on each device. Or add your own Anthropic key, which is sent only to Anthropic.'}>
   {!PUBLIC&&<label className="set-field">Access code<input type="password" autoComplete="off" value={code} onChange={e=>{setCode(e.target.value);setSaved('');}} placeholder="Set as APEX_ACCESS_CODE on Netlify"/></label>}
   <label className="set-field">Your Anthropic API key <small>optional</small><input type="password" autoComplete="off" value={key} onChange={e=>{setKey(e.target.value);setSaved('');}} placeholder="sk-ant-…"/></label>
-  <div className="set-row" style={{borderBottom:0}}><button className="secondary-action" onClick={save}>Save</button>{saved&&<small role="status">{saved}</small>}</div>
+  <div className="set-row" style={{borderBottom:0,justifyContent:'flex-start'}}><button className="secondary-action" onClick={save}>Save</button>{key&&<button className="text-button" onClick={async()=>{setSaved('Checking…');const r=await testKey(key);setSaved(r.message);}}>Test key</button>}{saved&&<small role="status">{saved}</small>}</div>
  </Section>;
 }
 

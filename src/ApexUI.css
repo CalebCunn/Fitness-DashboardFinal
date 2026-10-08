@@ -1483,3 +1483,15 @@
 .legal li{margin:6px 0}
 .legal .signin-link{color:#0F3D2F}
 .powered-by{font:600 12px var(--sans);letter-spacing:.08em;text-transform:uppercase;color:#FC4C02;margin:8px 0 0}
+
+/* Sign in and legal pages scroll on their own (the app shell locks the body), and the
+   sign-in poster is shorter so the form sits on screen on small phones. */
+.welcome,.legal{height:100dvh;overflow-y:auto;-webkit-overflow-scrolling:touch;overscroll-behavior:contain}
+.signin .welcome-poster{height:30dvh;min-height:200px;max-height:300px}
+.signin .welcome-poster .bend{bottom:-30%}
+.signin .welcome-mast{font-size:clamp(52px,15vw,80px)}
+.signin .welcome-meta{display:none}
+.signin .welcome-inner{padding:22px 24px calc(28px + env(safe-area-inset-bottom))}
+.signin h1{font-size:clamp(38px,11vw,60px);margin-bottom:4px}
+.signin-form{gap:12px}
+.signin .welcome-inner{align-content:start}

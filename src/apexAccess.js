@@ -42,3 +42,16 @@ export function accessMessage(code, fallback) {
   if (code === 'limit') return 'You’ve used this month’s free coach messages. Add your own Anthropic key in Customise → Coach to keep going.';
   return fallback;
 }
+
+// Checks a key with Anthropic directly (lists models; costs nothing).
+export async function testKey(key) {
+  const k = (key || '').trim();
+  if (!/^sk-ant-/.test(k)) return { ok: false, message: 'That doesn’t look like an Anthropic key. It should start with sk-ant-.' };
+  if (k.includes('…') || k.includes('...') || k.length < 60) return { ok: false, message: 'That looks like the shortened preview of a key, not the full key. Create a new key and use its Copy button.' };
+  try {
+    const res = await fetch('https://api.anthropic.com/v1/models?limit=1', { headers: { 'x-api-key': k, 'anthropic-version': '2023-06-01', 'anthropic-dangerous-direct-browser-access': 'true' } });
+    if (res.ok) return { ok: true, message: 'Key works ✓' };
+    const j = await res.json().catch(() => ({}));
+    return { ok: false, message: res.status === 401 ? 'Anthropic says this key is invalid. It may have been deleted, or not copied in full.' : (j.error?.message || `Anthropic returned an error (${res.status}).`) };
+  } catch { return { ok: false, message: 'Couldn’t reach Anthropic. Check your connection.' }; }
+}
