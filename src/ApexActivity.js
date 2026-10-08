@@ -75,7 +75,7 @@ export default function Activity({acts=[],gear=[],initialId=null,restHr=null,nav
    <span className="row-figure">{a.distance?distU(a.distance,settings):Math.round((a.moving_time||0)/60)}<small>{a.distance?unitsOf(settings):'min'}</small><em>{run(a)?`${paceOf(a.average_speed,settings)}${perUnit(settings)}`:clock(a.moving_time)}</em></span>
   </button>)}</div>
   {filtered.length===0&&<div className="empty-block"><h2>Nothing matches.</h2><p>Try another search or time range.</p></div>}
-  <p className="powered-by">Powered by Strava</p>
+  <p className="powered-by"><img className="pb-light" src="/strava/powered-black.svg" alt="Powered by Strava" height="24"/><img className="pb-dark" src="/strava/powered-white.svg" alt="Powered by Strava" height="24"/></p>
 
   {gear.length>0&&<section className="gear-shelf"><div className="section-head"><h2>Shoes</h2></div>{gear.map(g=><div className="list-row" key={g.id}><span className="row-copy"><small>{g.brand_name||'In your rotation'}</small><b>{g.name||g.nickname}</b></span><span className="row-figure">{Math.round((g.distance||0)/1000)}<small>km</small></span></div>)}</section>}
   <p className="form-note">From the activities loaded from Strava. This may be a subset of your full history.</p>
@@ -254,7 +254,7 @@ function ActivityDetail({summary,acts=[],hrSet,onClose,maxHr,restHr,settings,gea
     {isRun&&<HrPulse hr={hr} time={st.time?.data||[]} cap={easyCap(hrSet)}/>}
     {notes.length>0&&<section className="detail-section"><h3>What the run says</h3>{notes.map(([b,t])=><p key={b} className="insight"><b>{b}</b> {t}</p>)}</section>}
 
-    <section className="detail-section"><h3>Details</h3><dl className="facts">{facts.map(([k,v])=><div key={k}><dt>{k}</dt><dd>{v}</dd></div>)}</dl>{isRun&&<ShoePicker activity={a} gear={gear} userPrefs={userPrefs} onSavePrefs={onSavePrefs}/>}</section>
+    <section className="detail-section"><h3>Details</h3><dl className="facts">{facts.map(([k,v])=><div key={k}><dt>{k}</dt><dd>{v}</dd></div>)}</dl>{!PREVIEW&&a.id&&<a className="view-on-strava" href={`https://www.strava.com/activities/${a.id}`} target="_blank" rel="noreferrer">View on Strava</a>}{isRun&&<ShoePicker activity={a} gear={gear} userPrefs={userPrefs} onSavePrefs={onSavePrefs}/>}</section>
 
     {splits.length>1&&hasDist&&<section className="detail-section"><h3>Splits</h3>
      <div className="splits"><div className="split split-head" aria-hidden="true"><span>{mi?'Mi':'Km'}</span><span/><span>Pace</span><span>HR</span><span>Elev</span></div>

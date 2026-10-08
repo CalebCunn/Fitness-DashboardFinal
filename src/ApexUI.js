@@ -240,7 +240,7 @@ export function Welcome({url}){
   <div className="welcome-inner">
    <h1>Every run, <em>read well.</em></h1>
    <p>Recovery, your plan, every run in detail, race predictions and posters, with a coach who knows all of it.</p>
-   <a className="welcome-cta" href={url}><span>Connect with Strava</span><Icon name="arrow"/></a>
+   <a className="strava-connect" href={url} aria-label="Connect with Strava"><img src="/strava/connect-orange.svg" alt="Connect with Strava" width="237" height="48"/></a>
    <small>Your existing Strava account, read-only. WHOOP and COROS connect later.</small>
   </div>
  </div>;

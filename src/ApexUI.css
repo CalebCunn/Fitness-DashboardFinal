@@ -1522,3 +1522,10 @@
 .onboard input[type=date]{-webkit-appearance:none;appearance:none;display:block}
 .onboard h1{overflow-wrap:break-word}
 .signin-field>span{display:block}.signin-field>span small{display:inline}
+/* Strava brand assets (official artwork, unaltered, per Strava's API guidelines) */
+.strava-connect{display:inline-block;margin-top:26px;line-height:0}
+.strava-connect img{height:48px;width:auto;display:block}
+.powered-by img{height:16px;width:auto;display:block}
+.powered-by .pb-dark,.apex-dark .powered-by .pb-light{display:none}
+.apex-dark .powered-by .pb-dark{display:block}
+.view-on-strava{display:inline-block;margin-top:14px;color:#FC5200!important;font-weight:700;text-decoration:underline;font-size:15px}

@@ -50,7 +50,7 @@ export default function Onboarding({ prefs, onDone }) {
      <span className="signin-field">Strength sessions a week</span>
      <div className="onboard-chips">{LIFT.map(([l, n]) => <button type="button" key={l} aria-pressed={lift === n} onClick={() => setLift(n)}>{l}</button>)}</div>
      <label className="signin-field"><span>Injuries or anything the coach should know <small>optional</small></span><input value={notes} onChange={e => setNotes(e.target.value)} placeholder="e.g. tight left calf, no runs before 7am" /></label>
-     <button className="welcome-cta"><span>Done: connect Strava</span><span aria-hidden="true">→</span></button>
+     <button className="welcome-cta"><span>Done</span><span aria-hidden="true">→</span></button>
      <button type="button" className="signin-link" onClick={() => setStep(1)}>Back</button>
     </form>}
     <small>You can change any of this later in You and Customise.</small>
