@@ -14,7 +14,8 @@ async function guard(request, kind) {
   if (env('APEX_PUBLIC') === 'true') {
     const url = env('SUPABASE_URL') || env('REACT_APP_SUPABASE_URL'), anon = env('SUPABASE_ANON_KEY') || env('REACT_APP_SUPABASE_KEY'), service = env('SUPABASE_SERVICE_ROLE_KEY');
     const token = (request.headers.get('authorization') || '').replace(/^Bearer\s+/i, '');
-    if (!url || !anon || !service) return err(500, 'The coach is not configured.');
+    const missing = [!url && 'SUPABASE_URL', !anon && 'SUPABASE_ANON_KEY', !service && 'SUPABASE_SERVICE_ROLE_KEY'].filter(Boolean);
+    if (missing.length) return err(500, `The coach is not configured (missing ${missing.join(', ')}).`);
     if (!token) return err(401, 'Sign in to use the coach.', 'signin');
     const who = await fetch(`${url}/auth/v1/user`, { headers: { apikey: anon, Authorization: `Bearer ${token}` } });
     if (!who.ok) return err(401, 'Sign in again to use the coach.', 'signin');
@@ -35,7 +36,7 @@ async function guard(request, kind) {
 export default async request => {
   if (request.method !== 'POST') return err(405, 'Method not allowed');
   const key = Netlify.env.get('ANTHROPIC_API_KEY');
-  if (!key) return err(500, 'The coach is not configured.');
+  if (!key) return err(500, 'The coach is not configured (missing ANTHROPIC_API_KEY).');
   const denied = await guard(request, 'coach');
   if (denied) return denied;
   let body;

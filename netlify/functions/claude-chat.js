@@ -7,7 +7,8 @@ async function guard(event) {
   if (process.env.APEX_PUBLIC === "true") {
     const url = process.env.SUPABASE_URL || process.env.REACT_APP_SUPABASE_URL, anon = process.env.SUPABASE_ANON_KEY || process.env.REACT_APP_SUPABASE_KEY, service = process.env.SUPABASE_SERVICE_ROLE_KEY;
     const token = (h.authorization || "").replace(/^Bearer\s+/i, "");
-    if (!url || !anon || !service) return json(500, { error: "Not configured." });
+    const missing = [!url && "SUPABASE_URL", !anon && "SUPABASE_ANON_KEY", !service && "SUPABASE_SERVICE_ROLE_KEY"].filter(Boolean);
+    if (missing.length) return json(500, { error: `Not configured (missing ${missing.join(", ")}).` });
     if (!token) return json(401, { error: "Sign in to use this.", code: "signin" });
     const who = await fetch(`${url}/auth/v1/user`, { headers: { apikey: anon, Authorization: `Bearer ${token}` } });
     if (!who.ok) return json(401, { error: "Sign in again to use this.", code: "signin" });
@@ -27,7 +28,7 @@ async function guard(event) {
 
 exports.handler = async (event) => {
   if (event.httpMethod !== "POST") return { statusCode: 405, body: "Method not allowed" };
-  if (!process.env.ANTHROPIC_API_KEY) return json(500, { error: "Not configured." });
+  if (!process.env.ANTHROPIC_API_KEY) return json(500, { error: "Not configured (missing ANTHROPIC_API_KEY)." });
   const denied = await guard(event);
   if (denied) return denied;
   let body;
