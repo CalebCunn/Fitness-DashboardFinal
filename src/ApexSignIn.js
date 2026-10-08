@@ -45,8 +45,8 @@ export function Legal({kind}){
    </ul></P>
    <P h="Health data">Sleep, heart rate, recovery and soreness are health data, which UK GDPR treats as special category data. We process it only with your explicit consent, given when you connect a service or enter it, and only to run Apex for you. You can withdraw consent at any time by disconnecting the service or deleting your account.</P>
    <P h="How we use it">To show your training and recovery, make Today’s call, and answer your coach questions. When you use the coach or meal estimates, the relevant data is sent to Anthropic (the AI provider) to generate the reply. We don’t sell your data, use it for advertising, or share it with anyone else.</P>
-   <P h="Where it’s stored">Your account data is stored with Supabase. Connection tokens for Strava, WHOOP and COROS are kept on your device. Activity history is cached on your device for speed.</P>
-   <P h="How long we keep it">Until you delete it or your account. Deleting your account (Customise → Account) removes everything we hold, immediately.</P>
+   <P h="Where it’s stored">Your account data is stored with Supabase (encrypted at rest). So you stay connected on every device, the connection tokens for Strava and WHOOP are stored with your account, where only you can access them. COROS tokens stay on your device. Activity history is cached on your device for speed.</P>
+   <P h="How long we keep it">Until you delete it or your account. Deleting your account (Customise → Account) removes everything we hold, immediately, and disconnects Apex from your Strava account.</P>
    <P h="Your rights">You can access, correct, export, or delete your data, and object to or restrict how we use it. You can also complain to the Information Commissioner’s Office (ico.org.uk).</P>
   </>:<>
    <h1>Terms of use</h1><p className="legal-date">Last updated October 2026 · Draft</p>

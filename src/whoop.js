@@ -1,9 +1,11 @@
+import {saveConnection,clearConnection,newerRefreshToken} from "./apexConnections";
 const WHOOP_BASE = "https://api.prod.whoop.com/developer/v1";
 
 export const isWhoopConnected = () => !!localStorage.getItem("whoop_refresh_token");
 
 export function disconnectWhoop() {
   ["whoop_access_token","whoop_refresh_token","whoop_token_expiry","whoop_pending","whoop_state"].forEach(k => localStorage.removeItem(k));
+  clearConnection("whoop");
 }
 
 // Token calls always go through /.netlify/functions/whoop-token so the client secret stays on the server.
@@ -17,7 +19,7 @@ async function tokenExchange(params) {
   return res.json();
 }
 
-async function refreshWhoopToken() {
+async function refreshWhoopToken(retried = false) {
   const d = await tokenExchange({
     grant_type: "refresh_token",
     refresh_token: localStorage.getItem("whoop_refresh_token"),
@@ -27,8 +29,12 @@ async function refreshWhoopToken() {
     localStorage.setItem("whoop_access_token", d.access_token);
     localStorage.setItem("whoop_refresh_token", d.refresh_token);
     localStorage.setItem("whoop_token_expiry", Date.now() + d.expires_in * 1000);
+    saveConnection("whoop");
     return d.access_token;
   }
+  // WHOOP rotates refresh tokens: if another device used ours, take the account's newer one once.
+  const newer = !retried && await newerRefreshToken("whoop");
+  if (newer) { localStorage.setItem("whoop_refresh_token", newer); return refreshWhoopToken(true); }
   throw new Error("Whoop refresh failed");
 }
 
@@ -77,6 +83,7 @@ export async function exchangeWhoopCode(code) {
     localStorage.setItem("whoop_token_expiry", Date.now() + d.expires_in * 1000);
     localStorage.removeItem("whoop_pending");
     localStorage.removeItem("whoop_state");
+    saveConnection("whoop");
     return d;
   }
   throw new Error("Whoop exchange failed: " + JSON.stringify(d));

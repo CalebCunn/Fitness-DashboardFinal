@@ -1495,3 +1495,30 @@
 .signin h1{font-size:clamp(38px,11vw,60px);margin-bottom:4px}
 .signin-form{gap:12px}
 .signin .welcome-inner{align-content:start}
+
+/* First-run setup (public build) */
+.onboard{display:grid;grid-template-rows:auto 1fr;background:radial-gradient(120% 50% at 85% 0%,#22775A,transparent 60%),#0F3D2F}
+.onboard-top{display:flex;justify-content:space-between;align-items:center;padding:calc(env(safe-area-inset-top) + 18px) 24px 0}
+.onboard .welcome-mast{position:static;font-size:52px}
+.onboard-dots{display:flex;gap:8px}
+.onboard-dots i{width:8px;height:8px;border-radius:4px;background:rgba(243,237,226,.25);transition:width .3s,background .3s}
+.onboard-dots i.on{width:22px;background:#FFC94A}
+.onboard .welcome-inner{align-content:start;padding-top:36px}
+.onboard h1{font-size:clamp(38px,11vw,58px);margin:4px 0 6px}
+.onboard .lab{font:600 12px 'Inter Tight',sans-serif;letter-spacing:.1em;text-transform:uppercase;color:#FFC94A;margin:0}
+.onboard-chips{display:flex;flex-wrap:wrap;gap:8px}
+.onboard-chips button{min-height:46px;padding:0 18px;border-radius:999px;border:1px solid rgba(243,237,226,.35);background:transparent;color:#F3EDE2;font:600 16px 'Inter Tight',sans-serif;cursor:pointer}
+.onboard-chips button[aria-pressed=true]{background:#FFC94A;border-color:#FFC94A;color:#0F3D2F}
+.onboard-row{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.signin-field small{font-weight:500;letter-spacing:0;text-transform:none;opacity:.7;margin-left:4px}
+.onboard input[type=date]{color-scheme:dark}
+.plan-badge{font:700 12px var(--sans);letter-spacing:.08em;text-transform:uppercase;padding:6px 12px;border-radius:999px;box-shadow:inset 0 0 0 1px var(--rule-strong)}
+.plan-badge.is-pro{background:var(--gold,#FFC94A);color:#0F3D2F;box-shadow:none}
+.usage-bar{height:8px;border-radius:4px;background:var(--fill-2);margin-top:10px;overflow:hidden}
+.usage-bar i{display:block;height:100%;background:var(--accent)}
+/* keep setup screens inside the phone width */
+.welcome-inner,.signin-form,.signin-field,.onboard-row>*{min-width:0}
+.signin-field input{width:100%;min-width:0;box-sizing:border-box}
+.onboard input[type=date]{-webkit-appearance:none;appearance:none;display:block}
+.onboard h1{overflow-wrap:break-word}
+.signin-field>span{display:block}.signin-field>span small{display:inline}

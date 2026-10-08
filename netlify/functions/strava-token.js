@@ -8,6 +8,11 @@ exports.handler = async (event) => {
   if (!id || !secret) return json(500, { error: "Strava is not configured." });
   let body;
   try { body = JSON.parse(event.body || "{}"); } catch { return json(400, { error: "Invalid request" }); }
+  // Revoke Apex's access for this athlete (account deletion).
+  if (typeof body.deauthorize === "string" && body.deauthorize) {
+    const r = await fetch("https://www.strava.com/oauth/deauthorize", { method: "POST", headers: { Authorization: `Bearer ${body.deauthorize}` } });
+    return json(r.ok ? 200 : r.status, { ok: r.ok });
+  }
   const grant = typeof body.code === "string" && body.code
     ? { grant_type: "authorization_code", code: body.code }
     : typeof body.refresh_token === "string" && body.refresh_token

@@ -1,10 +1,11 @@
 // APEX · Customise. Every choice lives in userPrefs.settings, so it syncs with the
 // rest of your saved data. Missing values always fall back to DEFAULTS.
-import {useMemo,useState} from 'react';
+import {useEffect,useMemo,useState} from 'react';
 import {Icon} from './ApexUI';
 import {historyInfo,clearHistory} from './strava';
 import {PUBLIC,accessCode,setAccessCode,ownKey,setOwnKey,testKey} from './apexAccess';
-import {signOut,deleteAccount} from './apexAuth';
+import {signOut,deleteAccount,accountSummary} from './apexAuth';
+const FREE_LIMIT=+(process.env.REACT_APP_FREE_MESSAGES||30),PRO_LIMIT=+(process.env.REACT_APP_PRO_MESSAGES||400);
 
 export const HOME_MODULES={
  recovery:['Recovery poster','Score, sleep and HRV'],
@@ -118,8 +119,13 @@ function CoachAccess(){
 }
 
 function Account(){
- const [busy,setBusy]=useState(false),[err,setErr]=useState(''),[confirm,setConfirm]=useState(false);
+ const [busy,setBusy]=useState(false),[err,setErr]=useState(''),[confirm,setConfirm]=useState(false),[me,setMe]=useState(null);
+ useEffect(()=>{let live=true;accountSummary().then(m=>{if(live)setMe(m);});return()=>{live=false;};},[]);
+ const used=me?me.used:null,limit=me?.plan==='pro'?PRO_LIMIT:FREE_LIMIT;
  return <Section title="Account">
+  <div className="set-row"><span><b>Signed in as</b><small>{me?.email||'…'}</small></span><span className={`plan-badge${me?.plan==='pro'?' is-pro':''}`}>{me?.plan==='pro'?'Pro':'Free'}</span></div>
+  <div className="set-row" style={{display:'block'}}><span><b>Coach this month</b><small>{used==null?'…':`${used} of ${limit} messages used · resets on the 1st`}</small></span>
+   {used!=null&&<div className="usage-bar" aria-hidden="true"><i style={{width:`${Math.min(100,used/limit*100)}%`}}/></div>}</div>
   <div className="set-row"><span><b>Sign out</b><small>Removes your data and connections from this device.</small></span><button className="secondary-action" onClick={()=>signOut()}>Sign out</button></div>
   <div className="set-row"><span><b>Privacy and terms</b></span><span style={{display:'flex',gap:14}}><a className="text-button" href="#privacy">Privacy</a><a className="text-button" href="#terms">Terms</a></span></div>
   <div className="set-row"><span><b>Delete account</b><small>Deletes your account and everything Apex has saved. This can’t be undone.</small></span>
@@ -138,6 +144,7 @@ export default function Settings({userPrefs,onSavePrefs,acts=[],whoop,theme,setT
  const pickTab=(slot,k)=>{const next=[...s.tabs];const other=next.indexOf(k);if(other>=0)next[other]=next[slot];next[slot]=k;update({tabs:next});};
  const addPb=e=>{e.preventDefault();const t=parseTime(pb.time);if(!t){setPbError('Type the time as digits, for example 1842 for 18:42 or 12410 for 1:24:10.');return;}setPbError('');update({pbs:[...s.pbs,{id:Date.now(),dist:pb.dist,time:t,date:pb.date||null,race:pb.race.trim()}]});setPb({...pb,time:'',race:''});};
  return <div className="settings-page">
+  {PUBLIC&&<Account/>}
   <p className="lede">Make APEX yours. Every change saves straight to your account.</p>
 
   <Section title="Today" note="Show, hide and order what’s on your Today screen.">
@@ -199,7 +206,6 @@ export default function Settings({userPrefs,onSavePrefs,acts=[],whoop,theme,setT
   </Section>
 
   <CoachAccess/>
-  {PUBLIC&&<Account/>}
   <Section title="Shoes" note="Rotation, roles and retire limits live on the Shoes screen."><button className="secondary-action" onClick={()=>nav?.('shoes')}>Open Shoes<Icon name="arrow" size={17}/></button></Section>
  </div>;
 }

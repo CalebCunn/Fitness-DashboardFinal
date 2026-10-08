@@ -54,8 +54,29 @@ export async function signOut() {
 
 // Deletes the account and all saved data (server checks the session before deleting).
 export async function deleteAccount() {
+  try { const { deauthorizeStrava } = await import('./strava'); await deauthorizeStrava(); } catch {}
   const s = await session();
   const res = await fetch('/.netlify/functions/delete-account', { method: 'POST', headers: { Authorization: `Bearer ${s?.access_token || ''}` } });
   if (!res.ok) throw new Error('Your account could not be deleted. Please try again or email us.');
   await signOut();
+}
+
+// Asks the server to send the one-time welcome email (it checks the session and only sends once).
+export async function sendWelcome(name) {
+  try { const s = await session(); if (s) await fetch('/.netlify/functions/welcome-email', { method: 'POST', headers: { Authorization: `Bearer ${s.access_token}`, 'Content-Type': 'application/json' }, body: JSON.stringify({ name }) }); } catch {}
+}
+
+// Email, plan and this month's AI use, for the Account screen (reads only the user's own rows).
+export async function accountSummary() {
+  const c = await client();
+  if (!c) return null;
+  const { data: { user } } = await c.auth.getUser();
+  if (!user) return null;
+  const month = new Date(); month.setDate(1);
+  const m = `${month.getFullYear()}-${String(month.getMonth() + 1).padStart(2, '0')}-01`;
+  const [{ data: prof }, { data: use }] = await Promise.all([
+    c.from('apex_profiles').select('plan').eq('user_id', user.id).maybeSingle(),
+    c.from('apex_usage').select('coach,food').eq('user_id', user.id).eq('month', m).maybeSingle(),
+  ]);
+  return { email: user.email, plan: prof?.plan || 'free', used: (use?.coach || 0) + (use?.food || 0) };
 }

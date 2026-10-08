@@ -1,9 +1,17 @@
+import {saveConnection,clearConnection,newerRefreshToken} from "./apexConnections";
 const BASE = "https://www.strava.com/api/v3";
 
 export const isConnected = () => !!localStorage.getItem("strava_refresh_token");
 
 export function disconnect() {
   ["strava_access_token","strava_refresh_token","strava_token_expiry","strava_athlete_id","apex-activities-v1"].forEach(k => localStorage.removeItem(k));
+  clearConnection("strava");
+}
+
+// Revokes Apex's access on Strava's side (used when an account is deleted).
+export async function deauthorizeStrava() {
+  if (!isConnected()) return;
+  try { const t = await token(); await stravaToken({ deauthorize: t }); } catch {}
 }
 
 // Token calls go through /.netlify/functions/strava-token so the client secret stays on the server.
@@ -12,14 +20,19 @@ async function stravaToken(body) {
   return res.json().catch(() => ({}));
 }
 
-async function refreshToken() {
+async function refreshToken(retried = false) {
   const d = await stravaToken({ refresh_token: localStorage.getItem("strava_refresh_token") });
   if (d.access_token) {
+    const changed = d.refresh_token !== localStorage.getItem("strava_refresh_token");
     localStorage.setItem("strava_access_token", d.access_token);
     localStorage.setItem("strava_refresh_token", d.refresh_token);
     localStorage.setItem("strava_token_expiry", d.expires_at);
+    if (changed) saveConnection("strava");
     return d.access_token;
   }
+  // Another device may have refreshed first: use the account's newer token once.
+  const newer = !retried && await newerRefreshToken("strava");
+  if (newer) { localStorage.setItem("strava_refresh_token", newer); return refreshToken(true); }
   throw new Error("Strava refresh failed");
 }
 
@@ -44,6 +57,7 @@ export async function exchangeCode(code) {
     localStorage.setItem("strava_refresh_token", d.refresh_token);
     localStorage.setItem("strava_token_expiry", d.expires_at);
     localStorage.setItem("strava_athlete_id", d.athlete.id);
+    saveConnection("strava");
     return d;
   }
   throw new Error("Strava exchange failed");

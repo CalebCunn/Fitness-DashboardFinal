@@ -17,25 +17,32 @@ import Shoes from './ApexShoes';
 import {PREVIEW,fixture,previewStore} from './ApexPreview';
 import {PUBLIC} from './apexAccess';
 import {session,onAuth} from './apexAuth';
+import {setConnectionsUser,restoreConnections} from './apexConnections';
 import {SignIn,Legal} from './ApexSignIn';
+import Onboarding from './ApexOnboarding';
+import {sendWelcome} from './apexAuth';
 import {isCorosConnected,isCorosCallback,finishCorosConnect,startCorosConnect,disconnectCoros} from './coros';
 const {loadUserPrefs,saveUserPrefs,loadTrainingPlan,saveTrainingPlan}=PREVIEW?previewStore:persistence;
 
 // Public build: sign in first, then the app runs against that user's private data.
 // Owner build (REACT_APP_PUBLIC unset): straight into the app, exactly as before.
 export default function App(){
- const [auth,setAuth]=useState(PUBLIC?undefined:null),[hash,setHash]=useState(window.location.hash);
+ const [auth,setAuth]=useState(PUBLIC?undefined:null),[hash,setHash]=useState(window.location.hash),[ready,setReady]=useState(null);
  useEffect(()=>{if(!PUBLIC)return;let off=()=>{};session().then(s=>setAuth(s||null));onAuth(s=>setAuth(s||null)).then(f=>{off=f;});const h=()=>setHash(window.location.hash);window.addEventListener('hashchange',h);return()=>{off();window.removeEventListener('hashchange',h);};},[]);
+ // Point the data layer at this user, then bring their Strava/WHOOP connections onto this device.
+ const uid=auth?.user?.id;
+ useEffect(()=>{if(!PUBLIC||!uid)return;let live=true;persistence.setUser(uid);setConnectionsUser(uid);restoreConnections().finally(()=>{if(live)setReady(uid);});return()=>{live=false;};},[uid]);
+ if(PREVIEW&&/[?&]onboard/.test(window.location.search))return <Onboarding prefs={{}} onDone={()=>{}}/>;// sample-mode screenshots only
  if(!PUBLIC||PREVIEW)return <ApexApp/>;
  if(hash==='#privacy'||hash==='#terms')return <Legal kind={hash.slice(1)}/>;
  if(auth===undefined)return <div className="app-loading"><div/></div>;
  if(!auth)return <SignIn/>;
- persistence.setUser(auth.user.id);
- return <ApexApp key={auth.user.id}/>;
+ if(ready!==uid)return <div className="app-loading"><div/></div>;
+ return <ApexApp key={uid} account={auth.user}/>;
 }
 
 // Existing provider modules, OAuth callbacks, stored tokens and Supabase tables are retained.
-function ApexApp(){
+function ApexApp({account}={}){
  const [loadFailure,setLoadFailure]=useState(null),[loadAttempt,setLoadAttempt]=useState(0);
  const [saveStatus,setSaveStatus]=useState(persistence.getSaveStatus());
  useEffect(()=>{if(PREVIEW)return;const update=()=>setSaveStatus(persistence.getSaveStatus());window.addEventListener('apex-save-status',update);return()=>window.removeEventListener('apex-save-status',update);},[]);
@@ -77,6 +84,11 @@ function ApexApp(){
  const saveWorkout=w=>{if(!prefsReady||loadFailure?.prefs)return;setSavedWorkout(w);savePrefs({...userPrefs,currentWorkout:w});};
  const connectWhoop=()=>{if(!PREVIEW)window.location.assign(getWhoopAuthUrl());};
  const stravaUrl=`https://www.strava.com/oauth/authorize?client_id=${process.env.REACT_APP_STRAVA_CLIENT_ID}&redirect_uri=${encodeURIComponent(window.location.origin)}&response_type=code&scope=read,activity:read_all`;
+ // Public build: a quick first-run setup before connecting Strava (skipped if saved data couldn't load).
+ if(PUBLIC&&!PREVIEW&&!loadFailure?.prefs){
+  if(!prefsReady)return <div className="app-loading"><div/></div>;
+  if(!userPrefs?.onboarded)return <Onboarding prefs={userPrefs} onDone={p=>{savePrefs(p);sendWelcome(p.profile?.name);}}/>;
+ }
  if(!connected)return <>{error&&<p className="connection-error" role="alert">{error}</p>}<Welcome url={stravaUrl}/></>;
  // Activity types you've hidden (WHOOP walks by default) are left out everywhere except Customise.
  const hidden=readSettings(userPrefs).hiddenTypes,shownActs=acts.filter(a=>!hidden.includes(a.sport_type||a.type));
