@@ -14,12 +14,12 @@ export function SignIn(){
   <div className="welcome-inner">
    <h1>Every run, <em>read well.</em></h1>
    {step==='email'?<form onSubmit={send} className="signin-form">
-    <p>Sign in or create your account. We’ll email you a 6-digit code: no password to remember.</p>
+    <p>Sign in or create your account. We’ll email you a sign-in code: no password to remember.</p>
     <label className="signin-field">Email<input type="email" inputMode="email" autoComplete="email" value={email} onChange={e=>setEmail(e.target.value)} placeholder="you@example.com" required/></label>
     <button className="welcome-cta" disabled={busy}><span>{busy?'Sending…':'Email me a code'}</span><span aria-hidden="true">→</span></button>
    </form>:<form onSubmit={verify} className="signin-form">
     <p>We sent a code to <b>{email}</b>. Enter it below, or tap the link in the email on this device.</p>
-    <label className="signin-field">6-digit code<input inputMode="numeric" autoComplete="one-time-code" maxLength={8} value={code} onChange={e=>setCode(e.target.value.replace(/\D/g,''))} placeholder="123456" required/></label>
+    <label className="signin-field">Code from the email<input inputMode="numeric" autoComplete="one-time-code" maxLength={8} value={code} onChange={e=>setCode(e.target.value.replace(/\D/g,''))} placeholder="12345678" required/></label>
     <button className="welcome-cta" disabled={busy||code.length<6}><span>{busy?'Checking…':'Sign in'}</span><span aria-hidden="true">→</span></button>
     <button type="button" className="signin-link" onClick={()=>{setStep('email');setCode('');setErr('');}}>Use a different email</button>
    </form>}
