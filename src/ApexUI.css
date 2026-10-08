@@ -1529,3 +1529,16 @@
 .powered-by .pb-dark,.apex-dark .powered-by .pb-light{display:none}
 .apex-dark .powered-by .pb-dark{display:block}
 .view-on-strava{display:inline-block;margin-top:14px;color:#FC5200!important;font-weight:700;text-decoration:underline;font-size:15px}
+/* Waitlist, support FAQ, feedback */
+.waitlist .welcome-meta{display:none}
+.waitlist p{color:#BCC6BB;font-size:17px;line-height:1.5;margin:0}
+.faq{border-top:1px solid rgba(15,61,47,.15);padding:4px 0}
+.faq summary{cursor:pointer;font:700 17px 'Inter Tight',sans-serif;padding:12px 0;list-style-position:outside}
+.faq div{padding:0 0 14px;color:#2b4a3f}
+.legal a{color:#1A5C46;font-weight:600}
+.feedback-form textarea{font:500 16px var(--sans);color:var(--ink);min-height:110px}
+.faq summary{list-style:none;display:flex;justify-content:space-between;gap:12px}
+.faq summary::-webkit-details-marker{display:none}
+.faq summary::after{content:'+';font-weight:500;color:#4B675C}
+.faq[open] summary::after{content:'−'}
+.waitlist small a{color:#FFC94A;font-weight:700}

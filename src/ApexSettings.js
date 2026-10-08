@@ -5,6 +5,7 @@ import {Icon} from './ApexUI';
 import {historyInfo,clearHistory} from './strava';
 import {PUBLIC,accessCode,setAccessCode,ownKey,setOwnKey,testKey} from './apexAccess';
 import {signOut,deleteAccount,accountSummary} from './apexAuth';
+import {Feedback} from './ApexSignIn';
 const FREE_LIMIT=+(process.env.REACT_APP_FREE_MESSAGES||30),PRO_LIMIT=+(process.env.REACT_APP_PRO_MESSAGES||400);
 
 export const HOME_MODULES={
@@ -127,7 +128,7 @@ function Account(){
   <div className="set-row" style={{display:'block'}}><span><b>Coach this month</b><small>{used==null?'…':`${used} of ${limit} messages used · resets on the 1st`}</small></span>
    {used!=null&&<div className="usage-bar" aria-hidden="true"><i style={{width:`${Math.min(100,used/limit*100)}%`}}/></div>}</div>
   <div className="set-row"><span><b>Sign out</b><small>Removes your data and connections from this device.</small></span><button className="secondary-action" onClick={()=>signOut()}>Sign out</button></div>
-  <div className="set-row"><span><b>Privacy and terms</b></span><span style={{display:'flex',gap:14}}><a className="text-button" href="#privacy">Privacy</a><a className="text-button" href="#terms">Terms</a></span></div>
+  <div className="set-row"><span><b>Help and legal</b></span><span style={{display:'flex',gap:14}}><a className="text-button" href="#support">Support</a><a className="text-button" href="#privacy">Privacy</a><a className="text-button" href="#terms">Terms</a></span></div>
   <div className="set-row"><span><b>Delete account</b><small>Deletes your account and everything Apex has saved. This can’t be undone.</small></span>
    {confirm?<button className="secondary-action danger" disabled={busy} onClick={async()=>{setBusy(true);setErr('');try{await deleteAccount();}catch(e){setErr(e.message);setBusy(false);}}}>{busy?'Deleting…':'Yes, delete everything'}</button>:<button className="text-button danger" onClick={()=>setConfirm(true)}>Delete account</button>}</div>
   {err&&<p className="form-error">{err}</p>}
@@ -145,6 +146,7 @@ export default function Settings({userPrefs,onSavePrefs,acts=[],whoop,theme,setT
  const addPb=e=>{e.preventDefault();const t=parseTime(pb.time);if(!t){setPbError('Type the time as digits, for example 1842 for 18:42 or 12410 for 1:24:10.');return;}setPbError('');update({pbs:[...s.pbs,{id:Date.now(),dist:pb.dist,time:t,date:pb.date||null,race:pb.race.trim()}]});setPb({...pb,time:'',race:''});};
  return <div className="settings-page">
   {PUBLIC&&<Account/>}
+  {PUBLIC&&<Section title="Send feedback" note="Goes straight to the person who built Apex."><Feedback/></Section>}
   <p className="lede">Make APEX yours. Every change saves straight to your account.</p>
 
   <Section title="Today" note="Show, hide and order what’s on your Today screen.">

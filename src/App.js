@@ -18,7 +18,7 @@ import {PREVIEW,fixture,previewStore} from './ApexPreview';
 import {PUBLIC} from './apexAccess';
 import {session,onAuth} from './apexAuth';
 import {setConnectionsUser,restoreConnections} from './apexConnections';
-import {SignIn,Legal} from './ApexSignIn';
+import {SignIn,Legal,Support,StravaGate,StravaGateDemo} from './ApexSignIn';
 import Onboarding from './ApexOnboarding';
 import {sendWelcome} from './apexAuth';
 import {isCorosConnected,isCorosCallback,finishCorosConnect,startCorosConnect,disconnectCoros} from './coros';
@@ -32,9 +32,12 @@ export default function App(){
  // Point the data layer at this user, then bring their Strava/WHOOP connections onto this device.
  const uid=auth?.user?.id;
  useEffect(()=>{if(!PUBLIC||!uid)return;let live=true;persistence.setUser(uid);setConnectionsUser(uid);restoreConnections().finally(()=>{if(live)setReady(uid);});return()=>{live=false;};},[uid]);
+ if(PREVIEW&&/[?&]waitlist/.test(window.location.search))return <StravaGateDemo/>;// sample-mode screenshots only
+ if(PREVIEW&&/[?&]support/.test(window.location.search))return <Support/>;
  if(PREVIEW&&/[?&]onboard/.test(window.location.search))return <Onboarding prefs={{}} onDone={()=>{}}/>;// sample-mode screenshots only
  if(!PUBLIC||PREVIEW)return <ApexApp/>;
  if(hash==='#privacy'||hash==='#terms')return <Legal kind={hash.slice(1)}/>;
+ if(hash==='#support')return <Support/>;
  if(auth===undefined)return <div className="app-loading"><div/></div>;
  if(!auth)return <SignIn/>;
  if(ready!==uid)return <div className="app-loading"><div/></div>;
@@ -89,7 +92,7 @@ function ApexApp({account}={}){
   if(!prefsReady)return <div className="app-loading"><div/></div>;
   if(!userPrefs?.onboarded)return <Onboarding prefs={userPrefs} onDone={p=>{savePrefs(p);sendWelcome(p.profile?.name);}}/>;
  }
- if(!connected)return <>{error&&<p className="connection-error" role="alert">{error}</p>}<Welcome url={stravaUrl}/></>;
+ if(!connected){const w=<>{error&&<p className="connection-error" role="alert">{error}</p>}<Welcome url={stravaUrl}/></>;return PUBLIC&&!PREVIEW?<StravaGate>{w}</StravaGate>:w;}
  // Activity types you've hidden (WHOOP walks by default) are left out everywhere except Customise.
  const hidden=readSettings(userPrefs).hiddenTypes,shownActs=acts.filter(a=>!hidden.includes(a.sport_type||a.type));
  const views={

@@ -80,3 +80,15 @@ export async function accountSummary() {
   ]);
   return { email: user.email, plan: prof?.plan || 'free', used: (use?.coach || 0) + (use?.food || 0) };
 }
+
+// Public-site helpers (Strava capacity / waitlist / feedback).
+async function publicCall(method, body) {
+  const s = await session();
+  const res = await fetch('/.netlify/functions/apex-public', { method, headers: { Authorization: `Bearer ${s?.access_token || ''}`, 'Content-Type': 'application/json' }, body: body ? JSON.stringify(body) : undefined });
+  const j = await res.json().catch(() => ({}));
+  if (!res.ok) throw new Error(j.error || 'Something went wrong. Please try again.');
+  return j;
+}
+export const stravaCapacity = () => publicCall('GET');
+export const joinWaitlist = () => publicCall('POST', { waitlist: true });
+export const sendFeedback = (feedback, page) => publicCall('POST', { feedback, page, device: navigator.userAgent });

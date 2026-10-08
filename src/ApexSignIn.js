@@ -1,6 +1,6 @@
 // APEX · sign in (public build), plus the privacy policy and terms.
-import {useState} from 'react';
-import {sendCode,verifyCode} from './apexAuth';
+import {useEffect,useState} from 'react';
+import {sendCode,verifyCode,signOut,stravaCapacity,joinWaitlist,sendFeedback} from './apexAuth';
 import {Bend} from './ApexTrack';
 
 const CONTACT = process.env.REACT_APP_CONTACT_EMAIL || 'hello@apexrunning.app';
@@ -24,7 +24,7 @@ export function SignIn(){
     <button type="button" className="signin-link" onClick={()=>{setStep('email');setCode('');setErr('');}}>Use a different email</button>
    </form>}
    {err&&<p className="signin-error" role="alert">{err}</p>}
-   <small>By continuing you agree to the <a href="#terms">terms</a> and <a href="#privacy">privacy policy</a>. Apex gives training guidance, not medical advice.</small>
+   <small>By continuing you agree to the <a href="#terms">terms</a> and <a href="#privacy">privacy policy</a>. Apex gives training guidance, not medical advice. <a href="#support">Support</a></small>
   </div>
  </div>;
 }
@@ -59,3 +59,61 @@ export function Legal({kind}){
   </>}
  </div>;
 }
+
+// Shown instead of "Connect with Strava" while all of Strava's athlete places are taken.
+export function StravaGate({children}){
+ const [state,setState]=useState(null);
+ useEffect(()=>{let live=true;stravaCapacity().then(s=>{if(live)setState(s);}).catch(()=>{if(live)setState({open:true});});return()=>{live=false;};},[]);
+ if(!state)return <div className="app-loading"><div/></div>;
+ if(state.open)return children;
+ return <WaitlistView state={state} setState={setState}/>;
+}
+function WaitlistView({state,setState=()=>{}}){
+ const [busy,setBusy]=useState(false),[err,setErr]=useState('');
+ const join=async()=>{setBusy(true);setErr('');try{await joinWaitlist();setState({...state,waitlisted:true});}catch(e){setErr(e.message);}setBusy(false);};
+ return <div className="welcome signin waitlist">
+  <div className="welcome-poster"><Bend progress={78} score={78}/><em className="welcome-mast" aria-label="APEX">Apex</em></div>
+  <div className="welcome-inner">
+   {state.waitlisted?<>
+    <h1>You’re <em>on the list.</em></h1>
+    <p>Apex is in a small beta while Strava reviews the app, and every tester place is taken. We’ll email you the moment a place opens. Your account and setup are saved, so you’ll go straight in.</p>
+   </>:<>
+    <h1>Apex is <em>full right now.</em></h1>
+    <p>We’re in a small beta while Strava reviews the app, and all {state.capacity} tester places are taken. Join the waitlist and we’ll email you as soon as a place opens.</p>
+    <button className="welcome-cta" onClick={join} disabled={busy}><span>{busy?'Joining…':'Join the waitlist'}</span><span aria-hidden="true">→</span></button>
+   </>}
+   {err&&<p className="signin-error" role="alert">{err}</p>}
+   <small><a href="#support">Questions?</a> · <button className="signin-link" style={{display:'inline',padding:0,fontSize:'inherit'}} onClick={()=>signOut()}>Sign out</button></small>
+  </div>
+ </div>;
+}
+
+export function Support(){
+ const Q=({q,children})=><details className="faq"><summary>{q}</summary><div>{children}</div></details>;
+ return <div className="legal">
+  <button className="signin-link" onClick={()=>{window.location.hash='';}}>← Back</button>
+  <h1>Support</h1><p className="legal-date">We usually reply within a day.</p>
+  <p>Email <a href={`mailto:${CONTACT}`}>{CONTACT}</a>, or use <b>Customise → Send feedback</b> in the app.</p>
+  <h2>Common questions</h2>
+  <Q q="How do I sign in?">Enter your email and we’ll send you a code. Type it in, or tap the link in the email on the device you’re using. There’s no password.</Q>
+  <Q q="Which apps and devices work with Apex?">Strava for your activities (required), WHOOP for sleep and recovery, and COROS for training data. Any watch that syncs to Strava works.</Q>
+  <Q q="Why can’t I connect Strava?">Apex is in a small beta while Strava reviews the app, so the number of people who can connect is limited. If it’s full, join the waitlist and we’ll email you when a place opens.</Q>
+  <Q q="How do I use Apex on my phone like an app?">iPhone: open apexrunning.app in Safari, tap Share, then Add to Home Screen. Android: open it in Chrome, tap the menu, then Install app.</Q>
+  <Q q="How many coach messages do I get?">Free accounts include {process.env.REACT_APP_FREE_MESSAGES||30} a month, shown in Customise → Account. For unlimited use you can add your own Anthropic key in Customise → Coach and AI.</Q>
+  <Q q="Is Apex medical advice?">No. Apex gives training guidance based on your data. If something hurts or you feel unwell, stop and speak to a professional.</Q>
+  <Q q="How do I disconnect Strava or delete my account?">Disconnect a service in You. Delete everything in Customise → Account → Delete account. That removes all your data and disconnects Apex from Strava.</Q>
+  <p style={{marginTop:28}}><a href="#privacy">Privacy policy</a> · <a href="#terms">Terms</a></p>
+ </div>;
+}
+
+export function Feedback(){
+ const [text,setText]=useState(''),[state,setState]=useState('');
+ const send=async e=>{e.preventDefault();setState('Sending…');try{await sendFeedback(text,window.location.hash.slice(1)||'home');setText('');setState('Thanks, that’s sent. We read every one.');}catch(x){setState(x.message);}};
+ return <form onSubmit={send} className="feedback-form">
+  <label className="set-field">What’s working, what’s rubbish, what’s missing?<textarea rows={4} value={text} onChange={e=>{setText(e.target.value);setState('');}} placeholder="Be as blunt as you like."/></label>
+  <div className="set-row" style={{borderBottom:0,justifyContent:'flex-start'}}><button className="secondary-action" disabled={!text.trim()||state==='Sending…'}>Send feedback</button>{state&&<small role="status">{state}</small>}</div>
+ </form>;
+}
+
+// Sample-mode only: the waitlist screen without a server.
+export function StravaGateDemo(){return <WaitlistView state={{open:false,capacity:10,waitlisted:false}}/>;}
