@@ -32,3 +32,6 @@ if(PREVIEW&&typeof window!=='undefined'){const q=window.location.search,r=fixtur
 if(PREVIEW&&typeof window!=='undefined'&&/[?&]swiss/.test(window.location.search))fixture.prefs.settings={...(fixture.prefs.settings||{}),look:'swiss'};
 // Preview only: the sample block started seven weeks ago, so the season lap reads week 8.
 if(PREVIEW&&fixture.plan)fixture.plan.blockStart=day(-49);
+// Preview only: ?chat seeds a two-day conversation to check the coach's date dividers.
+if(PREVIEW&&typeof window!=='undefined'&&/[?&]chat/.test(window.location.search)){const at=(d,h,m)=>{const x=new Date();x.setDate(x.getDate()+d);x.setHours(h,m,0,0);return x.toISOString();};
+ memory.chat=[{role:'assistant',content:'Ready when you are. Ask about today, your week, or what to change.'},{role:'user',at:at(-2,7,12),content:'Legs feel heavy today. Should I still do the tempo?'},{role:'assistant',at:at(-2,7,13),content:'Swap it for 6 km easy today and move the tempo to Friday. Heavy legs after a long run usually clear in 48 hours.'},{role:'user',at:at(0,6,58),content:'Feeling much better this morning.'},{role:'assistant',at:at(0,6,58),content:'Good, that fits your recovery jumping to 71. Friday’s tempo is on: 20 minutes at 4:45 /km.'}];}

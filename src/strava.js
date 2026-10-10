@@ -36,11 +36,13 @@ async function refreshToken(retried = false) {
   throw new Error("Strava refresh failed");
 }
 
+let refreshing = null;
 async function token() {
   const t = localStorage.getItem("strava_access_token");
   const exp = localStorage.getItem("strava_token_expiry");
   if (t && exp && Date.now() / 1000 < parseInt(exp) - 300) return t;
-  return refreshToken();
+  if (!refreshing) refreshing = refreshToken().finally(() => { refreshing = null; });
+  return refreshing;
 }
 
 async function get(path) {

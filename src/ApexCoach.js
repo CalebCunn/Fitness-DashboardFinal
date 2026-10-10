@@ -1,4 +1,4 @@
-import {useState,useEffect,useLayoutEffect,useRef,useMemo} from 'react';
+import {Fragment,useState,useEffect,useLayoutEffect,useRef,useMemo} from 'react';
 import {Icon} from './ApexUI';
 import * as persistence from './supabase';
 import {PREVIEW,previewStore} from './ApexPreview';
@@ -19,6 +19,11 @@ function coachDirect({system,messages,coros,allowCorosWrites}){
 import {readyFor} from './ApexTrack';
 const {loadChatHistory,saveChatHistory}=PREVIEW?previewStore:persistence;
 
+
+const sentLabel=iso=>{const d=new Date(iso);return `${d.toLocaleDateString('en-GB',{weekday:'long',day:'numeric',month:'long'})}, ${d.toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit'})}`;};
+const dayKey=iso=>iso?localDate(new Date(iso)):null;
+const dayLabel=iso=>{const k=dayKey(iso),t=localDate(new Date());if(k===t)return 'Today';if(k===addDays(t,-1))return 'Yesterday';return new Date(iso).toLocaleDateString('en-GB',{weekday:'long',day:'numeric',month:'long'});};
+const timeLabel=iso=>new Date(iso).toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit'});
 const GREETING='Ready when you are. Ask about today, your week, or what to change.';
 const PROMPTS=[
  ['Today','How should I approach today given my recovery?'],
@@ -75,6 +80,9 @@ export default function CoachScreen({whoop,userPrefs,onPlanSaved,onGymSaved,coro
   const races=(userPrefs?.races||[]).filter(r=>!r.archived&&!r.done).map(r=>`${r.name}${r.date?` on ${r.date}`:''}${r.distance?`, ${r.distance} km`:''}${r.target?`, target ${r.target}`:''}${r.next?' (PRIMARY GOAL)':''}`).join('\n');
   return `You are APEX Coach, the coach inside APEX, a personal performance app for runners who also lift. You coach running, strength, recovery and fuelling. Be specific, warm and direct. Write in plain conversational sentences, short paragraphs, no markdown headings, no tables, and never use double dashes.
 
+MESSAGE TIMES
+Each of the athlete's messages starts with [Sent <day, date, time>]. Use it: if a message was sent days ago, words like "today", "tonight" or "tomorrow" in it refer to that day, not now. If time has passed since the last message, notice it naturally (e.g. ask how the session you discussed went) instead of carrying on as if no time passed. Never write [Sent ...] in your replies.
+
 CALENDAR (authoritative)
 Today is ${weekdayLong(today)} ${prettyDate(today,{day:'numeric',month:'long',year:'numeric'})} (${today}). Local time ${now.toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit'})}, UK.
 Never work out a weekday yourself. Read it from this table:
@@ -122,15 +130,17 @@ Saving to COROS is ${writes?'ENABLED for this message only. Save only what the u
  };
 
  const toApi=list=>list.filter((m,i)=>!(i===0&&m.role==='assistant')&&!m.error).map((m,i,a)=>{
-  if(m.role==='user'&&Array.isArray(m.api)){const last=i===a.length-1;return {role:'user',content:last?m.api:[...m.api.filter(c=>c.type==='text'),{type:'text',text:'[image shared earlier]'}]};}
-  return {role:m.role,content:String(m.raw||m.content||'…')};
+  // Every user message carries when it was sent, so the coach knows "today" in an old message meant that day.
+  const stamp=m.role==='user'&&m.at?`[Sent ${sentLabel(m.at)}] `:'';
+  if(m.role==='user'&&Array.isArray(m.api)){const last=i===a.length-1;const parts=last?m.api:[...m.api.filter(c=>c.type==='text'),{type:'text',text:'[image shared earlier]'}];return {role:'user',content:stamp?[{type:'text',text:stamp.trim()},...parts]:parts};}
+  return {role:m.role,content:stamp+String(m.raw||m.content||'…')};
  });
 
  const send=async textOverride=>{
   const text=(textOverride??input).trim();
   if((!text&&!imgs.length)||sending)return;
   const content=[...imgs.map(img=>({type:'image',source:{type:'base64',media_type:img.type,data:img.b64}})),...(text?[{type:'text',text}]:[])];
-  const user={role:'user',content:text||`${imgs.length} image${imgs.length>1?'s':''}`,raw:text,api:imgs.length?content:undefined,previews:imgs.map(i=>i.preview)};
+  const user={role:'user',at:new Date().toISOString(),content:text||`${imgs.length} image${imgs.length>1?'s':''}`,raw:text,api:imgs.length?content:undefined,previews:imgs.map(i=>i.preview)};
   const history=[...msgs,user];stick.current=true;
   setMsgs([...history,{role:'assistant',content:'',streaming:true}]);setInput('');if(inputRef.current)inputRef.current.style.height='44px';setImgs([]);setSending(true);setStatus('');
   const writes=allowWrites;setAllowWrites(false);
@@ -156,7 +166,7 @@ Saving to COROS is ${writes?'ENABLED for this message only. Save only what the u
    let shown=visible(raw);
    if(!shown&&!proposal&&!gym)shown=stop==='pause_turn'?'That COROS lookup took longer than expected. Ask again with a shorter date range.':'No reply came back. Please try again.';
    if(stop==='max_tokens'&&raw.includes('PLAN_START')&&!proposal)shown+=(shown?'\n\n':'')+'The plan was cut short. Ask for one week at a time.';
-   setMsgs([...history,{role:'assistant',content:shown,raw,plan:proposal||undefined,gym:gym||undefined,tools}]);
+   setMsgs([...history,{role:'assistant',at:new Date().toISOString(),content:shown,raw,plan:proposal||undefined,gym:gym||undefined,tools}]);
   }catch(e){setMsgs([...history,{role:'assistant',content:e.message||'Something went wrong. Please try again.',error:true}]);}
   setStatus('');setSending(false);setTimeout(()=>inputRef.current?.focus({preventScroll:true}),50);
  };
@@ -177,7 +187,7 @@ Saving to COROS is ${writes?'ENABLED for this message only. Save only what the u
   </header>
 
   <div className="coach-log" aria-live="polite" ref={logRef} onScroll={e=>{const el=e.currentTarget;stick.current=el.scrollHeight-el.scrollTop-el.clientHeight<80;}}>
-   {msgs.map((m,i)=>(i===0&&m.role==='assistant'&&!fresh)?null:<article key={i} className={`bubble ${m.role==='user'?'mine':'theirs'}${m.error?' is-error':''}`}>
+   {msgs.map((m,i)=>(i===0&&m.role==='assistant'&&!fresh)?null:<Fragment key={i}>{m.at&&dayKey(m.at)!==dayKey(msgs.slice(0,i).reverse().find(x=>x.at)?.at)&&<div className="chat-day"><span>{dayLabel(m.at)}</span></div>}<article className={`bubble ${m.role==='user'?'mine':'theirs'}${m.error?' is-error':''}`}>
     {m.previews?.length>0&&<div className="bubble-images">{m.previews.map((src,j)=><img key={j} src={src} alt="Shared with coach"/>)}</div>}
     {m.tools?.length>0&&<div className="bubble-tools">{[...new Set(m.tools)].map(t=><span key={t}>{TOOL_LABEL(t)}</span>)}</div>}
     {(m.content||'').split(/\n{2,}/).filter(Boolean).map((p,j)=><p key={j}>{p}</p>)}
@@ -185,7 +195,8 @@ Saving to COROS is ${writes?'ENABLED for this message only. Save only what the u
     {m.drafting&&<div className="drafting"><span className="spinner"/>Drafting your sessions</div>}
     {m.plan&&<PlanProposal proposal={m.plan} applied={m.applied} onApply={()=>apply(i,m.plan)} onFix={()=>send('Some days or dates in that plan look wrong. Check every row against the calendar and send the corrected plan.')} busy={sending}/>}
     {m.gym&&<div className="proposal"><div className="proposal-top"><span className="eyebrow">Strength session</span><strong>{m.gym.title}</strong></div><div className="proposal-lanes">{m.gym.exercises.map((e,j)=><div className="proposal-row" key={j} style={{'--lane':'#465363'}}><span className="lane-date"><b>{String(j+1).padStart(2,'0')}</b></span><span className="lane-swatch"/><div><b>{e.name}</b><em>{e.sets} × {e.reps} · {e.weight}</em>{e.notes&&<small>{e.notes}</small>}</div></div>)}</div><div className="proposal-actions"><button className="primary-action" disabled={m.gymApplied} onClick={()=>{onGymSaved(m.gym);setMsgs(msgs.map((x,j)=>j===i?{...x,gymApplied:true}:x));}}>{m.gymApplied?'Added to Strength':'Add to Strength'}</button></div></div>}
-   </article>)}
+    {m.at&&!m.streaming&&<time className="bubble-time" dateTime={m.at}>{timeLabel(m.at)}</time>}
+   </article></Fragment>)}
    {fresh&&<div className="coach-starters">{PROMPTS.map(([k,p])=><button key={k} onClick={()=>send(p)}><span>{k}</span><p>{p}</p><Icon name="arrow" size={16}/></button>)}</div>}
    <div ref={bottom}/>
   </div>

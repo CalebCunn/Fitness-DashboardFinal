@@ -38,11 +38,15 @@ async function refreshWhoopToken(retried = false) {
   throw new Error("Whoop refresh failed");
 }
 
+// One refresh at a time: WHOOP rotates refresh tokens, so parallel refreshes (four requests on
+// app open) made all but the first fail, which is why WHOOP needed a manual retry every morning.
+let refreshing = null;
 async function whoopToken() {
   const t = localStorage.getItem("whoop_access_token");
   const exp = localStorage.getItem("whoop_token_expiry");
   if (t && exp && Date.now() < parseInt(exp) - 60000) return t;
-  return refreshWhoopToken();
+  if (!refreshing) refreshing = refreshWhoopToken().finally(() => { refreshing = null; });
+  return refreshing;
 }
 
 async function whoopGet(path) {
@@ -100,6 +104,7 @@ export function getWhoopAuthUrl() {
 }
 
 export async function getWhoopData() {
+  await whoopToken(); // refresh once up front, then fetch in parallel
   const [recoveries, sleeps, workouts, cycles] = await Promise.all([
     whoopGet("/recovery?limit=14&order=desc"),
     whoopGet("/activity/sleep?limit=14&order=desc"),

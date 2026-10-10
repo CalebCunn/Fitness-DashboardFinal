@@ -47,8 +47,24 @@ const MORE_ALL=[['performance','Performance','Form, predictor, PBs, pace band'],
 const STAT_SHORT={marathon:'Marathon',half:'Half',tenk:'10K',fivek:'5K',week:'Week',month:'Month',year:'Year',streak:'Streak',shoe:'Shoe',race:'Race',rhr:'RHR'};
 const TITLES={shoes:'Shoes',performance:'Performance',plan:'Training',activity:'Activity',recovery:'Recovery',nutrition:'Fuel',gym:'Strength',coach:'Coach',profile:'You',races:'Races',settings:'Customise'};
 
-export function Frame({page,nav,athlete,dark,preview,settings,children}){
+// Pull down at the top of any page to refresh Strava and WHOOP. The app shell locks native
+// overscroll, so this is drawn by hand: a lane line that fills as you pull, then a spinner.
+function usePullToRefresh(ref,onRefresh){
+ const [pull,setPull]=useState(0),[busy,setBusy]=useState(false),start=useRef(null),dist=useRef(0);
+ useEffect(()=>{
+  const el=ref.current;if(!el||!onRefresh)return;
+  const down=e=>{if(busy||el.scrollTop>0||e.touches.length!==1||e.target.closest('.coach-log,.call-track,input,textarea,select,[role=dialog]'))return;start.current=e.touches[0].clientY;dist.current=0;};
+  const move=e=>{if(start.current==null)return;const dy=e.touches[0].clientY-start.current;if(dy<=0||el.scrollTop>0){if(dist.current){dist.current=0;setPull(0);}return;}dist.current=Math.min(120,dy*.5);setPull(dist.current);};
+  const up=()=>{if(start.current==null)return;start.current=null;if(dist.current>=64){setBusy(true);setPull(56);try{navigator.vibrate?.(8);}catch{}Promise.resolve(onRefresh()).finally(()=>setTimeout(()=>{setBusy(false);setPull(0);},900));}else setPull(0);dist.current=0;};
+  el.addEventListener('touchstart',down,{passive:true});el.addEventListener('touchmove',move,{passive:true});el.addEventListener('touchend',up);el.addEventListener('touchcancel',up);
+  return()=>{el.removeEventListener('touchstart',down);el.removeEventListener('touchmove',move);el.removeEventListener('touchend',up);el.removeEventListener('touchcancel',up);};
+ },[ref,onRefresh,busy]);
+ return {pull,busy};
+}
+
+export function Frame({page,nav,athlete,dark,preview,settings,onRefresh,children}){
  const positions=useRef({}),previous=useRef(page),scroll=useRef(null),[menu,setMenu]=useState(false),[solid,setSolid]=useState(false);
+ const pull=usePullToRefresh(scroll,onRefresh);
  useDialog(menu,()=>setMenu(false));
  useEffect(()=>{previous.current=page;if(scroll.current)scroll.current.scrollTop=positions.current[page]||0;setMenu(false);setSolid((positions.current[page]||0)>8);},[page]);
  const tabs=[['home','Today'],...(settings?.tabs||['plan','activity','coach']).map(k=>[k,TAB_CHOICES[k]])];
@@ -64,6 +80,7 @@ export function Frame({page,nav,athlete,dark,preview,settings,children}){
    <button className="rail-brand" onClick={()=>nav('home')} aria-label="APEX home"><Mark size={26}/><span>APEX</span><em className="masthead">Apex</em></button>
    <nav>{[...tabs,...more.map(([id,l])=>[id,l])].map(([id,label],i)=><Fragment key={id}>{i===tabs.length&&<hr/>}<button className={page===id?'is-on':''} aria-current={page===id?'page':undefined} onClick={()=>nav(id)}><Icon name={id} size={20}/><span>{label}</span></button></Fragment>)}</nav>
   </aside>
+  <div className="ptr" aria-hidden={!pull.busy} style={{transform:`translate(-50%,${pull.pull-48}px)`,opacity:Math.min(1,pull.pull/40)}}><span className={pull.busy?"ptr-spin":""} style={{"--p":Math.min(1,pull.pull/64)}}/>{pull.busy&&<em className="sr-only" role="status">Refreshing</em>}</div>
   <div className="workspace" ref={scroll} onScroll={onScroll}>
    <header className={`topbar${solid?' is-solid':''}`}>
     <button className="brand" onClick={()=>nav('home')} aria-label="APEX home"><Mark size={22}/><span>APEX</span><em className="masthead">Apex</em></button>
