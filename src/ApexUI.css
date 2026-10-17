@@ -1557,3 +1557,6 @@
 .chat-day::before,.chat-day::after{content:'';flex:1;height:1px;background:var(--rule)}
 .bubble-time{display:block;margin-top:6px;font:500 11px var(--sans);opacity:.6;text-align:right}
 .bubble.theirs .bubble-time{text-align:left}
+.key-row{display:flex;gap:10px;align-items:center}
+.key-row input{flex:1;font-family:ui-monospace,Menlo,monospace!important;font-size:14px!important}
+.key-sync{font-size:14px}.key-sync small{color:var(--ink-3)}

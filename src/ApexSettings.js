@@ -109,12 +109,17 @@ function HistoryRow(){
 function Section({title,note,children}){return <section className="set-section"><div className="set-head"><h2>{title}</h2>{note&&<p>{note}</p>}</div>{children}</section>;}
 
 // Coach access: an access code (owner site) and/or the user's own Anthropic key (stays on this device).
-function CoachAccess(){
- const [code,setCode]=useState(accessCode()),[key,setKey]=useState(ownKey()),[saved,setSaved]=useState('');
- const save=()=>{setAccessCode(code);setOwnKey(key.trim());setSaved('Saved on this device.');};
- return <Section title="Coach and AI" note={PUBLIC?'The coach includes a monthly allowance. Add your own Anthropic key for unlimited use, billed to your Anthropic account. It stays on this device and is sent only to Anthropic.':'Your coach is locked with an access code. Enter it once on each device. Or add your own Anthropic key, which is sent only to Anthropic.'}>
+function CoachAccess({userPrefs,onSavePrefs}){
+ const synced=!!userPrefs?.aiKey;
+ const [code,setCode]=useState(accessCode()),[key,setKey]=useState(ownKey()),[saved,setSaved]=useState(''),[show,setShow]=useState(false),[everywhere,setEverywhere]=useState(synced);
+ const save=()=>{const k=key.trim();setAccessCode(code);setOwnKey(k);
+  // Optionally keep the key on the account (private to this user) so every signed-in device gets it.
+  if(PUBLIC&&onSavePrefs){const {aiKey,...rest}=userPrefs||{};onSavePrefs(everywhere&&k?{...rest,aiKey:k}:rest);}
+  setSaved(PUBLIC&&everywhere&&k?'Saved to your account: works on all your devices.':'Saved on this device.');};
+ return <Section title="Coach and AI" note={PUBLIC?'The coach includes a monthly allowance. Add your own Anthropic key for unlimited use, billed to your Anthropic account. It’s only ever sent to Anthropic.':'Your coach is locked with an access code. Enter it once on each device. Or add your own Anthropic key, which is sent only to Anthropic.'}>
   {!PUBLIC&&<label className="set-field">Access code<input type="password" autoComplete="off" value={code} onChange={e=>{setCode(e.target.value);setSaved('');}} placeholder="Set as APEX_ACCESS_CODE on Netlify"/></label>}
-  <label className="set-field">Your Anthropic API key <small>optional</small><input type="password" autoComplete="off" value={key} onChange={e=>{setKey(e.target.value);setSaved('');}} placeholder="sk-ant-…"/></label>
+  <label className="set-field">Your Anthropic API key <small>optional</small><span className="key-row"><input type={show?'text':'password'} autoComplete="off" spellCheck={false} value={key} onChange={e=>{setKey(e.target.value);setSaved('');}} placeholder="sk-ant-…"/>{key&&<button type="button" className="text-button" onClick={()=>setShow(!show)}>{show?'Hide':'Show'}</button>}</span></label>
+  {PUBLIC&&<label className="checkbox-label key-sync"><input type="checkbox" checked={everywhere} onChange={e=>{setEverywhere(e.target.checked);setSaved('');}}/>Use this key on all my devices <small>(saved privately to your account)</small></label>}
   <div className="set-row" style={{borderBottom:0,justifyContent:'flex-start'}}><button className="secondary-action" onClick={save}>Save</button>{key&&<button className="text-button" onClick={async()=>{setSaved('Checking…');const r=await testKey(key);setSaved(r.message);}}>Test key</button>}{saved&&<small role="status">{saved}</small>}</div>
  </Section>;
 }
@@ -207,7 +212,7 @@ export default function Settings({userPrefs,onSavePrefs,acts=[],whoop,theme,setT
    <div className="set-row"><span><b>Window</b><small>Which recent runs count.</small></span><div className="apex-segments">{[4,8,12].map(w=><button key={w} aria-pressed={s.predictor.weeks===w} onClick={()=>update({predictor:{...s.predictor,weeks:w}})}>{w} weeks</button>)}</div></div>
   </Section>
 
-  <CoachAccess/>
+  <CoachAccess userPrefs={userPrefs} onSavePrefs={onSavePrefs}/>
   <Section title="Shoes" note="Rotation, roles and retire limits live on the Shoes screen."><button className="secondary-action" onClick={()=>nav?.('shoes')}>Open Shoes<Icon name="arrow" size={17}/></button></Section>
  </div>;
 }

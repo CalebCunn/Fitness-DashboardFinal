@@ -15,7 +15,7 @@ import Performance from './ApexPerformance';
 import Settings,{readSettings,heartRate} from './ApexSettings';
 import Shoes from './ApexShoes';
 import {PREVIEW,fixture,previewStore} from './ApexPreview';
-import {PUBLIC} from './apexAccess';
+import {PUBLIC,ownKey,setOwnKey} from './apexAccess';
 import {session,onAuth} from './apexAuth';
 import {setConnectionsUser,restoreConnections} from './apexConnections';
 import {SignIn,Legal,Support,StravaGate,StravaGateDemo} from './ApexSignIn';
@@ -86,6 +86,8 @@ function ApexApp({account}={}){
   // One quiet retry before showing anything: a phone waking up often has no signal for a second.
   load().catch(()=>new Promise(r=>setTimeout(r,1500)).then(()=>active&&load())).catch(()=>{if(active)setError('WHOOP data could not be refreshed. Pull down to try again.');});return()=>{active=false;};},[whoopOk,retry]);
  useEffect(()=>{let active=true;setPrefsReady(false);Promise.allSettled([loadUserPrefs(),loadTrainingPlan()]).then(([prefsResult,planResult])=>{if(!active)return;const p=prefsResult.status==='fulfilled'?prefsResult.value:null;if(prefsResult.status==='fulfilled'){setUserPrefs(p||{});setSavedWorkout(p?.currentWorkout||null);}if(planResult.status==='fulfilled')setSavedPlan(planResult.value||p?.currentPlan||null);else if(p?.currentPlan)setSavedPlan(p.currentPlan);const failed={prefs:prefsResult.status==='rejected',plan:planResult.status==='rejected'&&!p?.currentPlan};setLoadFailure(failed.prefs||failed.plan?failed:null);setPrefsReady(true);});return()=>{active=false;};},[loadAttempt]);
+ // A key saved to the account reaches every device the user signs in on.
+ useEffect(()=>{if(PUBLIC&&userPrefs?.aiKey&&!ownKey())setOwnKey(userPrefs.aiKey);},[userPrefs?.aiKey]);
  const savePrefs=useCallback(p=>{if(!prefsReady||loadFailure?.prefs)return;setUserPrefs(p);saveUserPrefs(p);},[prefsReady,loadFailure]);
  const savePlan=p=>{if(!prefsReady||loadFailure)return;setSavedPlan(p);saveTrainingPlan(p);savePrefs({...userPrefs,currentPlan:p});};
  const saveWorkout=w=>{if(!prefsReady||loadFailure?.prefs)return;setSavedWorkout(w);savePrefs({...userPrefs,currentWorkout:w});};
