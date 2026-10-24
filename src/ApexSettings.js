@@ -4,7 +4,7 @@ import {useEffect,useMemo,useState} from 'react';
 import {Icon} from './ApexUI';
 import {historyInfo,clearHistory} from './strava';
 import {PUBLIC,accessCode,setAccessCode,ownKey,setOwnKey,testKey} from './apexAccess';
-import {signOut,deleteAccount,accountSummary} from './apexAuth';
+import {signOut,deleteAccount,accountSummary,setPassword} from './apexAuth';
 import {Feedback} from './ApexSignIn';
 const FREE_LIMIT=+(process.env.REACT_APP_FREE_MESSAGES||30),PRO_LIMIT=+(process.env.REACT_APP_PRO_MESSAGES||400);
 
@@ -124,6 +124,16 @@ function CoachAccess({userPrefs,onSavePrefs}){
  </Section>;
 }
 
+function PasswordRow(){
+ const [open,setOpen]=useState(false),[pw,setPw]=useState(''),[msg,setMsg]=useState(''),[busy,setBusy]=useState(false);
+ const save=async e=>{e.preventDefault();setBusy(true);setMsg('');try{if(pw.length<8)throw new Error('Use at least 8 characters.');await setPassword(pw);setPw('');setOpen(false);setMsg('Password saved. Sign in with it any time.');}catch(x){setMsg(x.message);}setBusy(false);};
+ return <div className="set-row" style={{display:'block'}}>
+  <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',gap:14}}><span><b>Password</b><small>Set or change the password you sign in with.</small></span>{!open&&<button className="secondary-action" onClick={()=>setOpen(true)}>Set password</button>}</div>
+  {open&&<form onSubmit={save} style={{display:'flex',gap:10,marginTop:10,flexWrap:'wrap'}}><input type="password" autoComplete="new-password" minLength={8} value={pw} onChange={e=>setPw(e.target.value)} placeholder="New password, 8+ characters" style={{flex:1,minWidth:180}}/><button className="secondary-action" disabled={busy}>{busy?'Saving…':'Save'}</button></form>}
+  {msg&&<small role="status" style={{display:'block',marginTop:8}}>{msg}</small>}
+ </div>;
+}
+
 function Account(){
  const [busy,setBusy]=useState(false),[err,setErr]=useState(''),[confirm,setConfirm]=useState(false),[me,setMe]=useState(null);
  useEffect(()=>{let live=true;accountSummary().then(m=>{if(live)setMe(m);});return()=>{live=false;};},[]);
@@ -132,6 +142,7 @@ function Account(){
   <div className="set-row"><span><b>Signed in as</b><small>{me?.email||'…'}</small></span><span className={`plan-badge${me?.plan==='pro'?' is-pro':''}`}>{me?.plan==='pro'?'Pro':'Free'}</span></div>
   <div className="set-row" style={{display:'block'}}><span><b>Coach this month</b><small>{used==null?'…':`${used} of ${limit} messages used · resets on the 1st`}</small></span>
    {used!=null&&<div className="usage-bar" aria-hidden="true"><i style={{width:`${Math.min(100,used/limit*100)}%`}}/></div>}</div>
+  <PasswordRow/>
   <div className="set-row"><span><b>Sign out</b><small>Removes your data and connections from this device.</small></span><button className="secondary-action" onClick={()=>signOut()}>Sign out</button></div>
   <div className="set-row"><span><b>Help and legal</b></span><span style={{display:'flex',gap:14}}><a className="text-button" href="#support">Support</a><a className="text-button" href="#privacy">Privacy</a><a className="text-button" href="#terms">Terms</a></span></div>
   <div className="set-row"><span><b>Delete account</b><small>Deletes your account and everything Apex has saved. This can’t be undone.</small></span>

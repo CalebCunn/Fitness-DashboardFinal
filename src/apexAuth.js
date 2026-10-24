@@ -1,4 +1,4 @@
-// APEX · accounts (public build only). Email sign-in with a 6-digit code or a magic link,
+// APEX · accounts (public build only). Email + password, Google, or an emailed code,
 // via Supabase Auth. The client loads lazily, so the owner build never ships it.
 const PUBLIC = process.env.REACT_APP_PUBLIC === 'true';
 let clientP = null;
@@ -22,7 +22,7 @@ export async function session() {
 export async function onAuth(cb) {
   const c = await client();
   if (!c) return () => {};
-  const { data } = c.auth.onAuthStateChange((_e, s) => cb(s || null));
+  const { data } = c.auth.onAuthStateChange((e, s) => cb(s || null, e));
   return () => data.subscription.unsubscribe();
 }
 
@@ -37,6 +37,61 @@ export async function verifyCode(email, token) {
   const { data, error } = await c.auth.verifyOtp({ email, token, type: 'email' });
   if (error) throw new Error(error.message.includes('expired') ? 'That code has expired. Send a new one.' : 'That code didn’t work. Check it and try again.');
   return data.session;
+}
+
+// ── Passwords ──
+const friendly = m => /invalid login/i.test(m) ? 'Wrong email or password.'
+  : /not confirmed/i.test(m) ? 'Confirm your email first: enter the code we sent you.'
+  : /at least|short|weak/i.test(m) ? 'Use at least 8 characters.'
+  : /rate|too many/i.test(m) ? 'Too many attempts. Wait a minute and try again.'
+  : /expired/i.test(m) ? 'That code has expired. Send a new one.'
+  : /invalid|token/i.test(m) ? 'That code didn’t work. Check it and try again.' : m;
+
+// Returns 'signed-in' when no email confirmation is needed, otherwise 'confirm' (a code is on its way).
+export async function signUpPassword(email, password) {
+  const c = await client();
+  const { data, error } = await c.auth.signUp({ email, password, options: { emailRedirectTo: window.location.origin } });
+  if (error) throw new Error(friendly(error.message));
+  if (data.user && Array.isArray(data.user.identities) && data.user.identities.length === 0) throw new Error('There’s already an account with this email. Sign in, or reset your password.');
+  return data.session ? 'signed-in' : 'confirm';
+}
+export async function signInPassword(email, password) {
+  const c = await client();
+  const { error } = await c.auth.signInWithPassword({ email, password });
+  if (error) { const e = new Error(friendly(error.message)); e.unconfirmed = /not confirmed/i.test(error.message); throw e; }
+}
+export async function verifySignup(email, token) {
+  const c = await client();
+  const { error } = await c.auth.verifyOtp({ email, token, type: 'signup' });
+  if (error) throw new Error(friendly(error.message));
+}
+export async function resendSignup(email) {
+  const c = await client();
+  const { error } = await c.auth.resend({ type: 'signup', email, options: { emailRedirectTo: window.location.origin } });
+  if (error) throw new Error(friendly(error.message));
+}
+// Forgot password: email a code (works inside the home-screen app, where links open Safari instead).
+export async function sendReset(email) {
+  const c = await client();
+  const { error } = await c.auth.resetPasswordForEmail(email, { redirectTo: window.location.origin });
+  if (error) throw new Error(friendly(error.message));
+}
+export async function verifyReset(email, token) {
+  const c = await client();
+  const { error } = await c.auth.verifyOtp({ email, token, type: 'recovery' });
+  if (error) throw new Error(friendly(error.message));
+}
+export async function setPassword(password) {
+  const c = await client();
+  const { error } = await c.auth.updateUser({ password });
+  if (error) throw new Error(/same|different/i.test(error.message) ? 'That’s already your password.' : friendly(error.message));
+}
+// ── Google ── (switch on with REACT_APP_AUTH_GOOGLE=true once the provider is set up in Supabase)
+export const GOOGLE = process.env.REACT_APP_AUTH_GOOGLE === 'true';
+export async function googleSignIn() {
+  const c = await client();
+  const { error } = await c.auth.signInWithOAuth({ provider: 'google', options: { redirectTo: window.location.origin } });
+  if (error) throw new Error('Google sign-in isn’t available right now. Use your email instead.');
 }
 
 // Everything this device knows about the user goes when they sign out.

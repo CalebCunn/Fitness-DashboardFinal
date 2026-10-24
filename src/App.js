@@ -18,7 +18,7 @@ import {PREVIEW,fixture,previewStore} from './ApexPreview';
 import {PUBLIC,ownKey,setOwnKey} from './apexAccess';
 import {session,onAuth} from './apexAuth';
 import {setConnectionsUser,restoreConnections} from './apexConnections';
-import {SignIn,Legal,Support,StravaGate,StravaGateDemo} from './ApexSignIn';
+import {SignIn,NewPassword,Legal,Support,StravaGate,StravaGateDemo} from './ApexSignIn';
 import Onboarding from './ApexOnboarding';
 import {sendWelcome} from './apexAuth';
 import {isCorosConnected,isCorosCallback,finishCorosConnect,startCorosConnect,disconnectCoros} from './coros';
@@ -28,7 +28,8 @@ const {loadUserPrefs,saveUserPrefs,loadTrainingPlan,saveTrainingPlan}=PREVIEW?pr
 // Owner build (REACT_APP_PUBLIC unset): straight into the app, exactly as before.
 export default function App(){
  const [auth,setAuth]=useState(PUBLIC?undefined:null),[hash,setHash]=useState(window.location.hash),[ready,setReady]=useState(null);
- useEffect(()=>{if(!PUBLIC)return;let off=()=>{};session().then(s=>setAuth(s||null));onAuth(s=>setAuth(s||null)).then(f=>{off=f;});const h=()=>setHash(window.location.hash);window.addEventListener('hashchange',h);return()=>{off();window.removeEventListener('hashchange',h);};},[]);
+ const [recovering,setRecovering]=useState(false);
+ useEffect(()=>{if(!PUBLIC)return;let off=()=>{};session().then(s=>setAuth(s||null));onAuth((s,e)=>{setAuth(s||null);if(e==='PASSWORD_RECOVERY')setRecovering(true);}).then(f=>{off=f;});const h=()=>setHash(window.location.hash);window.addEventListener('hashchange',h);return()=>{off();window.removeEventListener('hashchange',h);};},[]);
  // Point the data layer at this user, then bring their Strava/WHOOP connections onto this device.
  const uid=auth?.user?.id;
  useEffect(()=>{if(!PUBLIC||!uid)return;let live=true;persistence.setUser(uid);setConnectionsUser(uid);restoreConnections().finally(()=>{if(live)setReady(uid);});return()=>{live=false;};},[uid]);
@@ -40,6 +41,7 @@ export default function App(){
  if(hash==='#support')return <Support/>;
  if(auth===undefined)return <div className="app-loading"><div/></div>;
  if(!auth)return <SignIn/>;
+ if(recovering)return <NewPassword onDone={()=>setRecovering(false)}/>;
  if(ready!==uid)return <div className="app-loading"><div/></div>;
  return <ApexApp key={uid} account={auth.user}/>;
 }
