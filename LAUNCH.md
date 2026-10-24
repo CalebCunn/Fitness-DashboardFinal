@@ -45,7 +45,6 @@ Buy one (Cloudflare, Namecheap or Netlify Domains, about £10–20 a year). Also
    - `APEX_FREE_MESSAGES=30`, `APEX_PRO_MESSAGES=400`
    - `REACT_APP_STRAVA_CLIENT_ID`, `STRAVA_CLIENT_SECRET`
    - `REACT_APP_WHOOP_CLIENT_ID`, `WHOOP_CLIENT_SECRET`
-   - `REACT_APP_CONTACT_EMAIL=hello@yourdomain`
 3. Domain management → add your domain.
 
 ## Step 5 · Connections
