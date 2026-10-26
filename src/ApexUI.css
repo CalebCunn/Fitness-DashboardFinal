@@ -1591,3 +1591,14 @@
 .si-center{text-align:center;max-width:420px}
 .si-note{color:#9EE0B5;font-weight:600;margin:0}
 .si .signin-form{max-width:420px}
+
+/* Journal */
+.journal-page{display:grid;gap:16px}
+.jr-write textarea{min-height:200px;font-family:var(--serif);font-size:19px!important;line-height:1.5}
+.jr-actions{display:flex;align-items:center;gap:14px;flex-wrap:wrap}
+.jr-actions small{font-size:13px;color:var(--ink-2)}
+.jr-past{display:grid;gap:12px;margin-top:8px}
+.jr-entry{display:grid;gap:6px;padding:14px 0;border-top:1px solid var(--rule)}
+.jr-entry-head{display:flex;justify-content:space-between;align-items:baseline;gap:10px}
+.jr-entry-head strong{font-size:16px;font-weight:600}
+.jr-text{font-family:var(--serif);font-size:18px;line-height:1.45;white-space:pre-wrap;overflow-wrap:anywhere}

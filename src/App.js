@@ -10,7 +10,7 @@ import Activity from './ApexActivity';
 import Strength from './ApexStrength';
 import Coach from './ApexCoach';
 import Profile from './ApexProfile';
-import Journal from './ApexJournal';
+import Journal,{JournalPage} from './ApexJournal';
 import Performance from './ApexPerformance';
 import Settings,{readSettings,heartRate} from './ApexSettings';
 import Shoes from './ApexShoes';
@@ -53,7 +53,7 @@ function ApexApp({account}={}){
  useEffect(()=>{if(PREVIEW)return;const update=()=>setSaveStatus(persistence.getSaveStatus());window.addEventListener('apex-save-status',update);return()=>window.removeEventListener('apex-save-status',update);},[]);
  const [activityId,setActivityId]=useState(null);
  const navigate=(id,activity=null)=>{setActivityId(activity);if(window.location.hash!=='#'+id)window.history.pushState({},'', '#'+id);setPage(id);};
- useEffect(()=>{const back=()=>{const id=window.location.hash.slice(1);setPage(['home','plan','activity','performance','recovery','nutrition','gym','coach','profile','races','settings','shoes'].includes(id)?id:'home');};window.addEventListener('popstate',back);back();return()=>window.removeEventListener('popstate',back);},[]);
+ useEffect(()=>{const back=()=>{const id=window.location.hash.slice(1);setPage(['home','plan','activity','performance','recovery','nutrition','gym','coach','profile','races','journal','settings','shoes'].includes(id)?id:'home');};window.addEventListener('popstate',back);back();return()=>window.removeEventListener('popstate',back);},[]);
  const [page,setPage]=useState('home'),[connected,setConnected]=useState(PREVIEW||isConnected()),[whoopOk,setWhoopOk]=useState(PREVIEW||isWhoopConnected());
  const [acts,setActs]=useState([]),[stats,setStats]=useState(null),[athlete,setAthlete]=useState(null),[gear,setGear]=useState([]),[whoop,setWhoop]=useState(null),[loading,setLoading]=useState(false),[whoopPending,setWhoopPending]=useState(false),[error,setError]=useState(''),[retry,setRetry]=useState(0);
  const hasActs=useRef(false);useEffect(()=>{hasActs.current=acts.length>0;},[acts]);
@@ -90,6 +90,8 @@ function ApexApp({account}={}){
  useEffect(()=>{let active=true;setPrefsReady(false);Promise.allSettled([loadUserPrefs(),loadTrainingPlan()]).then(([prefsResult,planResult])=>{if(!active)return;const p=prefsResult.status==='fulfilled'?prefsResult.value:null;if(prefsResult.status==='fulfilled'){setUserPrefs(p||{});setSavedWorkout(p?.currentWorkout||null);}if(planResult.status==='fulfilled')setSavedPlan(planResult.value||p?.currentPlan||null);else if(p?.currentPlan)setSavedPlan(p.currentPlan);const failed={prefs:prefsResult.status==='rejected',plan:planResult.status==='rejected'&&!p?.currentPlan};setLoadFailure(failed.prefs||failed.plan?failed:null);setPrefsReady(true);});return()=>{active=false;};},[loadAttempt]);
  // A key saved to the account reaches every device the user signs in on.
  useEffect(()=>{if(PUBLIC&&userPrefs?.aiKey&&!ownKey())setOwnKey(userPrefs.aiKey);},[userPrefs?.aiKey]);
+ // Another device saved journal entries this one didn't have: show them too.
+ useEffect(()=>{const on=e=>setUserPrefs(e.detail);window.addEventListener('apex-prefs-merged',on);return()=>window.removeEventListener('apex-prefs-merged',on);},[]);
  const savePrefs=useCallback(p=>{if(!prefsReady||loadFailure?.prefs)return;setUserPrefs(p);saveUserPrefs(p);},[prefsReady,loadFailure]);
  const savePlan=p=>{if(!prefsReady||loadFailure)return;setSavedPlan(p);saveTrainingPlan(p);savePrefs({...userPrefs,currentPlan:p});};
  const saveWorkout=w=>{if(!prefsReady||loadFailure?.prefs)return;setSavedWorkout(w);savePrefs({...userPrefs,currentWorkout:w});};
@@ -106,6 +108,7 @@ function ApexApp({account}={}){
  const views={
   home:<Home gear={gear} onSavePrefs={savePrefs} prefsUnavailable={!!loadFailure?.prefs} planUnavailable={!!loadFailure?.plan} acts={shownActs} whoop={whoop} whoopOk={whoopOk} connectWhoop={connectWhoop} athlete={athlete} plan={savedPlan} nav={navigate} userPrefs={userPrefs} checkin={<Journal userPrefs={userPrefs} onSavePrefs={savePrefs} plan={savedPlan} nav={navigate}/>}/>,
   recovery:<><Recovery whoop={whoop} whoopOk={whoopOk} connectWhoop={connectWhoop}/>{!loadFailure?.prefs&&<Journal userPrefs={userPrefs} onSavePrefs={savePrefs} plan={savedPlan} nav={navigate}/>}</>,
+  journal:<JournalPage userPrefs={userPrefs} onSavePrefs={savePrefs}/>,
   shoes:<Shoes gear={gear} acts={shownActs} userPrefs={userPrefs} onSavePrefs={savePrefs}/>,
   settings:<Settings userPrefs={userPrefs} onSavePrefs={savePrefs} acts={acts} whoop={whoop} gear={gear} theme={theme} setTheme={setTheme} nav={navigate}/>,
   performance:<Performance acts={shownActs} gear={gear} whoop={whoop} userPrefs={userPrefs} nav={navigate}/>,
@@ -117,6 +120,6 @@ function ApexApp({account}={}){
   profile:<Profile athlete={athlete} acts={shownActs} whoopOk={whoopOk} whoop={whoop} connectWhoop={connectWhoop} corosOk={corosOk} connectCoros={connectCoros} onDisconnectCoros={disconnectCorosNow} corosError={corosError} darkMode={darkMode} setDarkMode={setDarkMode} onDisconnect={()=>{if(PREVIEW)return;disconnect();setConnected(false);setActs([]);}} onDisconnectWhoop={()=>{if(PREVIEW)return;disconnectWhoop();setWhoopOk(false);setWhoop(null);}} userPrefs={userPrefs} onSavePrefs={savePrefs}/>
  };
  views.races=<Profile athlete={athlete} acts={shownActs} whoopOk={whoopOk} whoop={whoop} connectWhoop={connectWhoop} darkMode={darkMode} setDarkMode={setDarkMode} onDisconnect={()=>{if(!PREVIEW){disconnect();setConnected(false);}}} onDisconnectWhoop={()=>{if(!PREVIEW){disconnectWhoop();setWhoopOk(false);setWhoop(null);}}} userPrefs={userPrefs} onSavePrefs={savePrefs} racesOnly/>;
- const blocked=loadFailure&&((loadFailure.prefs&&['nutrition','gym','profile','races','settings','shoes'].includes(page))||(['plan','coach'].includes(page)&&(loadFailure.prefs||loadFailure.plan)));
+ const blocked=loadFailure&&((loadFailure.prefs&&['journal','nutrition','gym','profile','races','settings','shoes'].includes(page))||(['plan','coach'].includes(page)&&(loadFailure.prefs||loadFailure.plan)));
  return <Frame page={page} nav={navigate} athlete={athlete} dark={darkMode} preview={PREVIEW} settings={readSettings(userPrefs)} onRefresh={()=>{setError('');setRetry(r=>r+1);}}>{loadFailure&&prefsReady&&<div className="sync-error" role="alert"><span>Some saved data is unavailable. Connected activities and recovery are still available.</span><button onClick={()=>setLoadAttempt(x=>x+1)}>Retry saved data</button></div>}{!PREVIEW&&!loadFailure&&<SyncToast status={saveStatus} onRetry={()=>persistence.retryPendingSaves()}/>}{error&&<div className="sync-error is-float" role="alert"><span>{error}</span><span className="sync-actions"><button onClick={()=>{setError('');setRetry(retry+1);}}>Retry</button><button aria-label="Dismiss" onClick={()=>setError('')}>×</button></span></div>}{loading||!prefsReady||whoopPending?<div className="app-loading" role="status"><svg viewBox="0 0 120 78" aria-hidden="true">{[18,26,34].map(r=><path key={r} d={`M120,${39+r} H40 A${r},${r} 0 0 1 40,${39-r} H120`}/>)}<path className="loading-lap" d="M100,61 H40 A22,22 0 0 1 40,17 H120"/></svg><p>{whoopPending?'Connecting WHOOP…':'Bringing your day together…'}</p></div>:blocked?<section className="daily-review"><h2>Your saved records are temporarily unavailable.</h2><p>This section will reopen when its data loads. Your existing records have not been replaced.</p><button className="secondary-action" onClick={()=>navigate('activity')}>View connected activities</button></section>:(views[page]||views.home)}</Frame>;
 }

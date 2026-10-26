@@ -23,6 +23,7 @@ const paths={
  coach:'M5 18V8a3 3 0 0 1 3-3h8a3 3 0 0 1 3 3v6a3 3 0 0 1-3 3H9l-4 3z M9 10.5h6 M9 13.5h4',
  profile:'M12 12a4 4 0 1 0 0-8 4 4 0 0 0 0 8z M4 20a8 8 0 0 1 16 0',
  races:'M5 21V4 M5 4h11l-2 4 2 4H5',
+ journal:'M6 3h11a1 1 0 0 1 1 1v16a1 1 0 0 1-1 1H6z M6 3v18 M9.5 8h5 M9.5 11.5h5',
  arrow:'M5 12h14 M13 6l6 6-6 6',
  back:'M15 5l-7 7 7 7',
  plus:'M12 5v14 M5 12h14',
@@ -43,9 +44,9 @@ export function Icon({name,size=22}){return <svg width={size} height={size} view
 // The mark: the end of a track, lane 1 drawn heavy.
 export function Mark({size=26}){return <svg width={size} height={size} viewBox="0 0 64 64" aria-hidden="true"><g fill="none" stroke="currentColor" strokeLinecap="butt"><path d="M62 46H28a14 14 0 0 1 0-28h34" strokeWidth="6"/><path d="M62 55H28a23 23 0 0 1 0-46h34" strokeWidth="2.4"/></g></svg>;}
 
-const MORE_ALL=[['performance','Performance','Form, predictor, PBs, pace band'],['shoes','Shoes','Mileage, rotation and retirement'],['recovery','Recovery','Sleep, HRV and the last 30 mornings'],['nutrition','Fuel','Meals, targets and body weight'],['gym','Strength','Live workouts, rest timer, history'],['races','Races','Your calendar and primary goal'],['settings','Customise','Today, tabs, colour, units, PBs, heart rate'],['profile','You','Profile and connections'],['plan','Training','Your plan, week by week'],['activity','Activity','Every run and the 12-week grid'],['coach','Coach','Plans, questions, adjustments']];
+const MORE_ALL=[['performance','Performance','Form, predictor, PBs, pace band'],['shoes','Shoes','Mileage, rotation and retirement'],['recovery','Recovery','Sleep, HRV and the last 30 mornings'],['nutrition','Fuel','Meals, targets and body weight'],['gym','Strength','Live workouts, rest timer, history'],['journal','Journal','Write anything. Your coach remembers it'],['races','Races','Your calendar and primary goal'],['settings','Customise','Today, tabs, colour, units, PBs, heart rate'],['profile','You','Profile and connections'],['plan','Training','Your plan, week by week'],['activity','Activity','Every run and the 12-week grid'],['coach','Coach','Plans, questions, adjustments']];
 const STAT_SHORT={marathon:'Marathon',half:'Half',tenk:'10K',fivek:'5K',week:'Week',month:'Month',year:'Year',streak:'Streak',shoe:'Shoe',race:'Race',rhr:'RHR'};
-const TITLES={shoes:'Shoes',performance:'Performance',plan:'Training',activity:'Activity',recovery:'Recovery',nutrition:'Fuel',gym:'Strength',coach:'Coach',profile:'You',races:'Races',settings:'Customise'};
+const TITLES={shoes:'Shoes',performance:'Performance',plan:'Training',activity:'Activity',recovery:'Recovery',nutrition:'Fuel',gym:'Strength',coach:'Coach',profile:'You',races:'Races',journal:'Journal',settings:'Customise'};
 
 // Pull down at the top of any page to refresh Strava and WHOOP. The app shell locks native
 // overscroll, so this is drawn by hand: a lane line that fills as you pull, then a spinner.
