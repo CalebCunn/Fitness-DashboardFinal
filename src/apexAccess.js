@@ -37,9 +37,9 @@ export function anthropicDirect(payload, beta) {
 
 // Friendly messages for the guard's error codes.
 export function accessMessage(code, fallback) {
-  if (code === 'access') return 'The coach is locked on this site. Add your access code in Customise → Coach.';
+  if (code === 'access') return 'The coach is locked on this site. Add your access code in Settings → Coach.';
   if (code === 'signin') return 'Sign in again to use the coach.';
-  if (code === 'limit') return 'You’ve used this month’s free coach messages. Add your own Anthropic key in Customise → Coach to keep going.';
+  if (code === 'limit') return 'You’ve used this month’s free coach messages. Add your own Anthropic key in Settings → Coach to keep going.';
   return fallback;
 }
 

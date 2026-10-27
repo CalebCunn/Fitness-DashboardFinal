@@ -1,4 +1,4 @@
-// APEX · Customise. Every choice lives in userPrefs.settings, so it syncs with the
+// APEX · Settings. Every choice lives in userPrefs.settings, so it syncs with the
 // rest of your saved data. Missing values always fall back to DEFAULTS.
 import {useEffect,useMemo,useState} from 'react';
 import {Icon} from './ApexUI';
@@ -106,6 +106,7 @@ function HistoryRow(){
  return <div className="set-row"><span><b>Strava history</b><small>{h.count.toLocaleString('en-GB')} activities{h.oldest?` back to ${new Date(h.oldest).toLocaleDateString('en-GB',{month:'short',year:'numeric'})}`:''}{h.complete?'':' · still syncing older runs'}</small></span><button className="secondary-action set-small-btn" onClick={()=>{clearHistory();window.location.reload();}}>Re-sync all</button></div>;
 }
 
+function Group({id,title,note,children}){return <div className="set-group" id={`set-${id}`}><div className="set-group-head"><h2>{title}</h2>{note&&<p>{note}</p>}</div>{children}</div>;}
 function Section({title,note,children}){return <section className="set-section"><div className="set-head"><h2>{title}</h2>{note&&<p>{note}</p>}</div>{children}</section>;}
 
 // Coach access: an access code (owner site) and/or the user's own Anthropic key (stays on this device).
@@ -128,7 +129,7 @@ function PasswordRow(){
  const [open,setOpen]=useState(false),[pw,setPw]=useState(''),[msg,setMsg]=useState(''),[busy,setBusy]=useState(false);
  const save=async e=>{e.preventDefault();setBusy(true);setMsg('');try{if(pw.length<8)throw new Error('Use at least 8 characters.');await setPassword(pw);setPw('');setOpen(false);setMsg('Password saved. Sign in with it any time.');}catch(x){setMsg(x.message);}setBusy(false);};
  return <div className="set-row" style={{display:'block'}}>
-  <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',gap:14}}><span><b>Password</b><small>Set or change the password you sign in with.</small></span>{!open&&<button className="secondary-action" onClick={()=>setOpen(true)}>Set password</button>}</div>
+  <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',gap:14}}><span><b>Password</b><small style={{display:'block'}}>Set or change the password you sign in with.</small></span>{!open&&<button className="secondary-action" onClick={()=>setOpen(true)}>Set password</button>}</div>
   {open&&<form onSubmit={save} style={{display:'flex',gap:10,marginTop:10,flexWrap:'wrap'}}><input type="password" autoComplete="new-password" minLength={8} value={pw} onChange={e=>setPw(e.target.value)} placeholder="New password, 8+ characters" style={{flex:1,minWidth:180}}/><button className="secondary-action" disabled={busy}>{busy?'Saving…':'Save'}</button></form>}
   {msg&&<small role="status" style={{display:'block',marginTop:8}}>{msg}</small>}
  </div>;
@@ -138,7 +139,7 @@ function Account(){
  const [busy,setBusy]=useState(false),[err,setErr]=useState(''),[confirm,setConfirm]=useState(false),[me,setMe]=useState(null);
  useEffect(()=>{let live=true;accountSummary().then(m=>{if(live)setMe(m);});return()=>{live=false;};},[]);
  const used=me?me.used:null,limit=me?.plan==='pro'?PRO_LIMIT:FREE_LIMIT;
- return <Section title="Account">
+ return <Section title="Sign-in and plan">
   <div className="set-row"><span><b>Signed in as</b><small>{me?.email||'…'}</small></span><span className={`plan-badge${me?.plan==='pro'?' is-pro':''}`}>{me?.plan==='pro'?'Pro':'Free'}</span></div>
   <div className="set-row" style={{display:'block'}}><span><b>Coach this month</b><small>{used==null?'…':`${used} of ${limit} messages used · resets on the 1st`}</small></span>
    {used!=null&&<div className="usage-bar" aria-hidden="true"><i style={{width:`${Math.min(100,used/limit*100)}%`}}/></div>}</div>
@@ -160,10 +161,11 @@ export default function Settings({userPrefs,onSavePrefs,acts=[],whoop,theme,setT
  const pickStat=(slot,k)=>{const next=[...s.stats];next[slot]=k;update({stats:next});};
  const pickTab=(slot,k)=>{const next=[...s.tabs];const other=next.indexOf(k);if(other>=0)next[other]=next[slot];next[slot]=k;update({tabs:next});};
  const addPb=e=>{e.preventDefault();const t=parseTime(pb.time);if(!t){setPbError('Type the time as digits, for example 1842 for 18:42 or 12410 for 1:24:10.');return;}setPbError('');update({pbs:[...s.pbs,{id:Date.now(),dist:pb.dist,time:t,date:pb.date||null,race:pb.race.trim()}]});setPb({...pb,time:'',race:''});};
+ const exportData=()=>{const blob=new Blob([JSON.stringify({format:'apex-personal-export-v1',exportedAt:new Date().toISOString(),preferences:(({aiKey,...rest})=>rest)(userPrefs||{})},null,2)],{type:'application/json'}),url=URL.createObjectURL(blob),a=document.createElement('a');a.href=url;a.download='apex-personal-data.json';a.click();setTimeout(()=>URL.revokeObjectURL(url),1000);};
  return <div className="settings-page">
-  {PUBLIC&&<Account/>}
-  {PUBLIC&&<Section title="Send feedback" note="Goes straight to the person who built Apex."><Feedback/></Section>}
-  <p className="lede">Make APEX yours. Every change saves straight to your account.</p>
+  <nav className="set-jump" aria-label="Settings sections">{[PUBLIC&&['account','Account'],['customise','Customise'],['running','Running'],['coach','Coach'],['help','Help']].filter(Boolean).map(([id,l])=><a key={id} href={`#set-${id}`} onClick={e=>{e.preventDefault();document.getElementById('set-'+id)?.scrollIntoView({behavior:'smooth',block:'start'});}}>{l}</a>)}</nav>
+  {PUBLIC&&<Group id="account" title="Account"><Account/></Group>}
+  <Group id="customise" title="Customise" note="Make Apex yours. Every change saves straight to your account.">
 
   <Section title="Today" note="Show, hide and order what’s on your Today screen.">
    <ol className="set-order">{s.home.order.map((k,i)=><li key={k} className={s.home.hidden.includes(k)?'is-off':''}>
@@ -195,6 +197,8 @@ export default function Settings({userPrefs,onSavePrefs,acts=[],whoop,theme,setT
    <HistoryRow/>
   </Section>
 
+  </Group>
+  <Group id="running" title="Running" note="Your numbers, used for zones, paces and predictions.">
   <Section title="Personal bests" note="Add PBs from races or from before you used Strava. They join the PB wall and sharpen the race predictor.">
    {s.pbs.length>0&&<div className="set-pbs">{[...s.pbs].sort((a,b)=>PB_DISTANCES.findIndex(d=>d[0]===a.dist)-PB_DISTANCES.findIndex(d=>d[0]===b.dist)).map(p=><div key={p.id}><span><b>{p.dist}</b><small>{[p.race,p.date&&new Date(p.date+'T12:00:00').toLocaleDateString('en-GB',{day:'numeric',month:'short',year:'numeric'})].filter(Boolean).join(' · ')||'Your PB'}</small></span><strong>{fmtTime(p.time)}</strong><button onClick={()=>update({pbs:s.pbs.filter(x=>x.id!==p.id)})} aria-label={`Remove ${p.dist} PB`}><Icon name="close" size={16}/></button></div>)}</div>}
    <form className="set-pb-form" onSubmit={addPb}>
@@ -223,7 +227,12 @@ export default function Settings({userPrefs,onSavePrefs,acts=[],whoop,theme,setT
    <div className="set-row"><span><b>Window</b><small>Which recent runs count.</small></span><div className="apex-segments">{[4,8,12].map(w=><button key={w} aria-pressed={s.predictor.weeks===w} onClick={()=>update({predictor:{...s.predictor,weeks:w}})}>{w} weeks</button>)}</div></div>
   </Section>
 
-  <CoachAccess userPrefs={userPrefs} onSavePrefs={onSavePrefs}/>
-  <Section title="Shoes" note="Rotation, roles and retire limits live on the Shoes screen."><button className="secondary-action" onClick={()=>nav?.('shoes')}>Open Shoes<Icon name="arrow" size={17}/></button></Section>
+ <Section title="Shoes" note="Rotation, roles and retire limits live on the Shoes screen."><button className="secondary-action" onClick={()=>nav?.('shoes')}>Open Shoes<Icon name="arrow" size={17}/></button></Section>
+  </Group>
+  <Group id="coach" title="Coach"><CoachAccess userPrefs={userPrefs} onSavePrefs={onSavePrefs}/></Group>
+  <Group id="help" title="Help">
+   {PUBLIC&&<Section title="Send feedback" note="Goes straight to the person who built Apex."><Feedback/></Section>}
+   <Section title="Your data" note="Download everything you’ve saved in Apex as a file."><button className="secondary-action" onClick={exportData}>Export my data</button></Section>
+  </Group>
  </div>;
 }

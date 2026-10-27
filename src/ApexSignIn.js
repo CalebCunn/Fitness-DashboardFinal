@@ -92,8 +92,8 @@ export function Legal({kind}){
  return <div className="legal">
   <button className="signin-link" onClick={back}>← Back</button>
   {kind==='privacy'?<>
-   <h1>Privacy policy</h1><p className="legal-date">Last updated October 2026 · Draft</p>
-   <P h="Who we are">Apex is a running and recovery app. For any privacy question, or to use any of your rights below, email {CONTACT}.</P>
+   <h1>Privacy policy</h1><p className="legal-date">Last updated October 2026</p>
+   <P h="Who we are">Apex is a running and recovery app, registered with the UK Information Commissioner’s Office (registration number ZC269531). For any privacy question, or to use any of your rights below, email {CONTACT}.</P>
    <P h="What we collect"><ul>
     <li><b>Account:</b> your email address, and your password if you set one. Passwords are stored only in scrambled (hashed) form by Supabase, so nobody at Apex can see them. If you sign in with Google, Google shares your name and email address with us.</li>
     <li><b>What you add:</b> preferences, training plans, races, personal bests, check-ins (energy, stress, soreness and where), journal entries, meals and body weight, and coach conversations.</li>
@@ -102,10 +102,10 @@ export function Legal({kind}){
    <P h="Health data">Sleep, heart rate, recovery and soreness are health data, which UK GDPR treats as special category data. We process it only with your explicit consent, given when you connect a service or enter it, and only to run Apex for you. You can withdraw consent at any time by disconnecting the service or deleting your account.</P>
    <P h="How we use it">To show your training and recovery, make Today’s call, and answer your coach questions. When you use the coach or meal estimates, the relevant data is sent to Anthropic (the AI provider) to generate the reply. We don’t sell your data, use it for advertising, or share it with anyone else.</P>
    <P h="Where it’s stored">Your account data is stored with Supabase (encrypted at rest). So you stay connected on every device, the connection tokens for Strava and WHOOP are stored with your account, where only you can access them. COROS tokens stay on your device. Activity history is cached on your device for speed.</P>
-   <P h="How long we keep it">Until you delete it or your account. Deleting your account (Customise → Account) removes everything we hold, immediately, and disconnects Apex from your Strava account.</P>
+   <P h="How long we keep it">Until you delete it or your account. Deleting your account (Settings → Account) removes everything we hold, immediately, and disconnects Apex from your Strava account.</P>
    <P h="Your rights">You can access, correct, export, or delete your data, and object to or restrict how we use it. You can also complain to the Information Commissioner’s Office (ico.org.uk).</P>
   </>:<>
-   <h1>Terms of use</h1><p className="legal-date">Last updated October 2026 · Draft</p>
+   <h1>Terms of use</h1><p className="legal-date">Last updated October 2026</p>
    <P h="Training guidance, not medical advice">Apex suggests how to train based on your data. It is not a medical device and doesn’t diagnose or treat anything. If something hurts, if you feel unwell, or if you have a medical condition, stop and speak to a qualified professional. You’re responsible for how you train.</P>
    <P h="Your account">Keep your password and your email secure: anyone who can get into your email can reset your password. You must be 16 or over to use Apex.</P>
    <P h="Connected services">Strava, WHOOP and COROS are separate services with their own terms. Apex isn’t affiliated with or endorsed by them. Data from them is shown to you and used to run Apex.</P>
@@ -149,18 +149,18 @@ export function Support(){
  return <div className="legal">
   <button className="signin-link" onClick={()=>{window.location.hash='';}}>← Back</button>
   <h1>Support</h1><p className="legal-date">We usually reply within a day.</p>
-  <p>Email <a href={`mailto:${CONTACT}`}>{CONTACT}</a>, or use <b>Customise → Send feedback</b> in the app.</p>
+  <p>Email <a href={`mailto:${CONTACT}`}>{CONTACT}</a>, or use <b>Settings → Send feedback</b> in the app.</p>
   <h2>Common questions</h2>
   <Q q="How do I sign in?">With your email and password. The first time, tap <b>Create account</b>; we email you a code to confirm it’s you. After that, just sign in.{GOOGLE&&<> You can also use <b>Continue with Google</b>.</>} If you’d rather not use a password, tap <b>Email me a sign-in code instead</b>.</Q>
   <Q q="I forgot my password">On the sign-in screen, tap <b>Forgot password?</b> and enter your email. We’ll send you a code: enter it with a new password and you’re back in.</Q>
-  <Q q="I used to sign in with a code. How do I get a password?">Sign in with a code one more time, then go to <b>Customise → Account → Set password</b>. Or use <b>Forgot password?</b> on the sign-in screen. Your data stays exactly as it is.</Q>
+  <Q q="I used to sign in with a code. How do I get a password?">Sign in with a code one more time, then go to <b>Settings → Account → Set password</b>. Or use <b>Forgot password?</b> on the sign-in screen. Your data stays exactly as it is.</Q>
   <Q q="Which apps and devices work with Apex?">Strava for your activities (required), WHOOP for sleep and recovery, and COROS for training data. Any watch that syncs to Strava works.</Q>
   <Q q="Why can’t I connect Strava?">Apex is in a small beta while Strava reviews the app, so the number of people who can connect is limited. If it’s full, join the waitlist and we’ll email you when a place opens.</Q>
   <Q q="How do I use Apex on my phone like an app?">iPhone: open apexrunning.app in Safari, tap Share, then Add to Home Screen. Android: open it in Chrome, tap the menu, then Install app.</Q>
-  <Q q="How many coach messages do I get?">Free accounts include {process.env.REACT_APP_FREE_MESSAGES||30} a month, shown in Customise → Account. For unlimited use you can add your own Anthropic key in Customise → Coach and AI.</Q>
+  <Q q="How many coach messages do I get?">Free accounts include {process.env.REACT_APP_FREE_MESSAGES||30} a month, shown in Settings → Account. For unlimited use you can add your own Anthropic key in Settings → Coach and AI.</Q>
   <Q q="Does the coach remember what I write in my journal?">Yes. Everything in More → Journal, plus your morning check-ins, is saved to your account and given to the coach with every message, so it can refer back to how runs felt and what you ate. Only you and your coach can read it.</Q>
   <Q q="Is Apex medical advice?">No. Apex gives training guidance based on your data. If something hurts or you feel unwell, stop and speak to a professional.</Q>
-  <Q q="How do I disconnect Strava or delete my account?">Disconnect a service in You. Delete everything in Customise → Account → Delete account. That removes all your data and disconnects Apex from Strava.</Q>
+  <Q q="How do I disconnect Strava or delete my account?">Disconnect a service in You. Delete everything in Settings → Account → Delete account. That removes all your data and disconnects Apex from Strava.</Q>
   <p style={{marginTop:28}}><a href="#privacy">Privacy policy</a> · <a href="#terms">Terms</a></p>
  </div>;
 }

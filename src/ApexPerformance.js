@@ -253,7 +253,7 @@ export default function Performance({acts=[],gear=[],whoop,userPrefs,nav}){
    <div className="section-head"><h2 id="pb-title">PB wall</h2>{!PREVIEW&&unscanned.length>0&&<button className="text-button" disabled={scan&&scan.done<scan.total&&!scan.msg} onClick={runScan}>{scan&&scan.done<scan.total&&!scan.msg?`Scanning ${scan.done}/${scan.total}`:`Scan ${Math.min(20,unscanned.length)} runs`}</button>}</div>
    <div className="pb-wall">{wall.map(w=><button key={w.label} className={`pb-tile${w.best?'':' is-empty'}`} disabled={!w.best} onClick={()=>w.best&&(w.best.id?nav('activity',w.best.id):nav('settings'))}><small>{w.label}</small><b>{w.best?clock(w.best.time):'—'}</b><em>{w.best?(w.best.date?new Date(w.best.date+'T12:00:00').toLocaleDateString('en-GB',{day:'numeric',month:'short',year:'numeric'}):w.best.run):'Not yet'}</em></button>)}</div>
    {scan?.msg&&<p className="form-note">{scan.msg}</p>}
-   <p className="form-note">From Strava’s detailed runs plus any PBs you add in Customise. Every run you open is added; scanning fetches up to 20 at a time to stay inside Strava’s limits.</p>
+   <p className="form-note">From Strava’s detailed runs plus any PBs you add in Settings. Every run you open is added; scanning fetches up to 20 at a time to stay inside Strava’s limits.</p>
    <button className="text-button" onClick={()=>nav('settings')}>Add a PB<Icon name="plus" size={15}/></button>
   </section>
 

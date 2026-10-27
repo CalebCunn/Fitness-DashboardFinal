@@ -49,6 +49,7 @@ export default function Activity({acts=[],gear=[],initialId=null,restHr=null,nav
   <section className="volume" aria-label="Last 12 weeks">
    <p className="meta">Last 12 weeks · {sessions} sessions · {Math.round(hours)} h</p>
    <p className="hero-figure"><span>{Math.round(runKm)}</span><small>km run</small></p>
+   {!acts.length&&<p className="form-note">Your runs appear here once Strava syncs. Record a run on your watch or phone and pull down to refresh.</p>}
    <div className="grid-wrap">
     <svg className="volume-ridge" viewBox="0 0 400 64" preserveAspectRatio="none" aria-hidden="true"><path d={ridge}/></svg>
     <div className="movement-mosaic" aria-label="Activity minutes by day, last 12 weeks" onMouseLeave={()=>setHover(null)}>

@@ -44,9 +44,11 @@ export function Icon({name,size=22}){return <svg width={size} height={size} view
 // The mark: the end of a track, lane 1 drawn heavy.
 export function Mark({size=26}){return <svg width={size} height={size} viewBox="0 0 64 64" aria-hidden="true"><g fill="none" stroke="currentColor" strokeLinecap="butt"><path d="M62 46H28a14 14 0 0 1 0-28h34" strokeWidth="6"/><path d="M62 55H28a23 23 0 0 1 0-46h34" strokeWidth="2.4"/></g></svg>;}
 
-const MORE_ALL=[['performance','Performance','Form, predictor, PBs, pace band'],['shoes','Shoes','Mileage, rotation and retirement'],['recovery','Recovery','Sleep, HRV and the last 30 mornings'],['nutrition','Fuel','Meals, targets and body weight'],['gym','Strength','Live workouts, rest timer, history'],['journal','Journal','Write anything. Your coach remembers it'],['races','Races','Your calendar and primary goal'],['settings','Customise','Today, tabs, colour, units, PBs, heart rate'],['profile','You','Profile and connections'],['plan','Training','Your plan, week by week'],['activity','Activity','Every run and the 12-week grid'],['coach','Coach','Plans, questions, adjustments']];
+const MORE_ALL=[['performance','Performance','Form, predictor, PBs, pace band'],['shoes','Shoes','Mileage, rotation and retirement'],['recovery','Recovery','Sleep, HRV and the last 30 mornings'],['nutrition','Fuel','Meals, targets and body weight'],['gym','Strength','Live workouts, rest timer, history'],['journal','Journal','Write anything. Your coach remembers it'],['races','Races','Your calendar and primary goal'],['settings','Settings','Account, customise Today, heart rate, coach'],['profile','You','Profile and connections'],['plan','Training','Your plan, week by week'],['activity','Activity','Every run and the 12-week grid'],['coach','Coach','Plans, questions, adjustments']];
+// The More sheet in three short groups (pages already on the tab bar are left out).
+const MORE_GROUPS=[['Training',['plan','activity','coach','performance','races','gym','shoes']],['Body',['recovery','nutrition','journal']],['You',['profile','settings']]];
 const STAT_SHORT={marathon:'Marathon',half:'Half',tenk:'10K',fivek:'5K',week:'Week',month:'Month',year:'Year',streak:'Streak',shoe:'Shoe',race:'Race',rhr:'RHR'};
-const TITLES={shoes:'Shoes',performance:'Performance',plan:'Training',activity:'Activity',recovery:'Recovery',nutrition:'Fuel',gym:'Strength',coach:'Coach',profile:'You',races:'Races',journal:'Journal',settings:'Customise'};
+const TITLES={shoes:'Shoes',performance:'Performance',plan:'Training',activity:'Activity',recovery:'Recovery',nutrition:'Fuel',gym:'Strength',coach:'Coach',profile:'You',races:'Races',journal:'Journal',settings:'Settings'};
 
 // Pull down at the top of any page to refresh Strava and WHOOP. The app shell locks native
 // overscroll, so this is drawn by hand: a lane line that fills as you pull, then a spinner.
@@ -88,7 +90,7 @@ export function Frame({page,nav,athlete,dark,preview,settings,onRefresh,children
     {!home&&title&&<span className="topbar-title" aria-hidden="true">{title}</span>}
     <div className="topbar-actions">
      {preview&&<span className="preview-chip">Sample</span>}
-     {home&&<button className="glass-button" onClick={()=>nav('settings')} aria-label="Customise Today"><Icon name="settings" size={19}/></button>}
+     {home&&<button className="glass-button" onClick={()=>nav('settings')} aria-label="Settings"><Icon name="settings" size={19}/></button>}
      <button className="glass-button avatar" onClick={()=>nav('profile')} aria-label="Your profile">{athlete?.firstname?.[0]||'A'}</button>
     </div>
    </header>
@@ -105,7 +107,7 @@ export function Frame({page,nav,athlete,dark,preview,settings,onRefresh,children
    <section className="sheet" role="dialog" aria-modal="true" aria-labelledby="more-title">
     <div className="sheet-grip"/>
     <div className="sheet-head"><h2 id="more-title">More</h2><button className="glass-button" onClick={()=>setMenu(false)} aria-label="Close"><Icon name="close" size={18}/></button></div>
-    <div className="sheet-list">{more.map(([id,label,sub])=><button key={id} className={page===id?'is-on':''} onClick={()=>{nav(id);setMenu(false);}}><Icon name={id} size={22}/><span><strong>{label}</strong><small>{sub}</small></span><Icon name="chevron" size={17}/></button>)}</div>
+    {MORE_GROUPS.map(([title,ids])=>{const rows=more.filter(([id])=>ids.includes(id));return rows.length?<div className="sheet-list" key={title}><h3 className="sheet-group">{title}</h3>{rows.map(([id,label,sub])=><button key={id} className={page===id?'is-on':''} onClick={()=>{nav(id);setMenu(false);}}><Icon name={id} size={22}/><span><strong>{label}</strong><small>{sub}</small></span><Icon name="chevron" size={17}/></button>)}</div>:null;})}
    </section>
   </div>}
  </div>;

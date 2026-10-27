@@ -53,7 +53,7 @@ export default function Onboarding({ prefs, onDone }) {
      <button className="welcome-cta"><span>Done</span><span aria-hidden="true">→</span></button>
      <button type="button" className="signin-link" onClick={() => setStep(1)}>Back</button>
     </form>}
-    <small>You can change any of this later in You and Customise.</small>
+    <small>You can change any of this later in You and Settings.</small>
    </div>
   </div>;
 }

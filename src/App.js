@@ -14,7 +14,7 @@ import Journal,{JournalPage} from './ApexJournal';
 import Performance from './ApexPerformance';
 import Settings,{readSettings,heartRate} from './ApexSettings';
 import Shoes from './ApexShoes';
-import {PREVIEW,fixture,previewStore} from './ApexPreview';
+import {PREVIEW,NEW_USER,fixture,previewStore} from './ApexPreview';
 import {PUBLIC,ownKey,setOwnKey} from './apexAccess';
 import {session,onAuth} from './apexAuth';
 import {setConnectionsUser,restoreConnections} from './apexConnections';
@@ -54,7 +54,7 @@ function ApexApp({account}={}){
  const [activityId,setActivityId]=useState(null);
  const navigate=(id,activity=null)=>{setActivityId(activity);if(window.location.hash!=='#'+id)window.history.pushState({},'', '#'+id);setPage(id);};
  useEffect(()=>{const back=()=>{const id=window.location.hash.slice(1);setPage(['home','plan','activity','performance','recovery','nutrition','gym','coach','profile','races','journal','settings','shoes'].includes(id)?id:'home');};window.addEventListener('popstate',back);back();return()=>window.removeEventListener('popstate',back);},[]);
- const [page,setPage]=useState('home'),[connected,setConnected]=useState(PREVIEW||isConnected()),[whoopOk,setWhoopOk]=useState(PREVIEW||isWhoopConnected());
+ const [page,setPage]=useState('home'),[connected,setConnected]=useState(PREVIEW||isConnected()),[whoopOk,setWhoopOk]=useState((PREVIEW&&!NEW_USER)||isWhoopConnected());
  const [acts,setActs]=useState([]),[stats,setStats]=useState(null),[athlete,setAthlete]=useState(null),[gear,setGear]=useState([]),[whoop,setWhoop]=useState(null),[loading,setLoading]=useState(false),[whoopPending,setWhoopPending]=useState(false),[error,setError]=useState(''),[retry,setRetry]=useState(0);
  const hasActs=useRef(false);useEffect(()=>{hasActs.current=acts.length>0;},[acts]);
  const [savedPlan,setSavedPlan]=useState(null),[savedWorkout,setSavedWorkout]=useState(null),[userPrefs,setUserPrefs]=useState(null),[prefsReady,setPrefsReady]=useState(false);
@@ -103,7 +103,7 @@ function ApexApp({account}={}){
   if(!userPrefs?.onboarded)return <Onboarding prefs={userPrefs} onDone={p=>{savePrefs(p);sendWelcome(p.profile?.name);}}/>;
  }
  if(!connected){const w=<>{error&&<p className="connection-error" role="alert">{error}</p>}<Welcome url={stravaUrl}/></>;return PUBLIC&&!PREVIEW?<StravaGate>{w}</StravaGate>:w;}
- // Activity types you've hidden (WHOOP walks by default) are left out everywhere except Customise.
+ // Activity types you've hidden (WHOOP walks by default) are left out everywhere except Settings.
  const hidden=readSettings(userPrefs).hiddenTypes,shownActs=acts.filter(a=>!hidden.includes(a.sport_type||a.type));
  const views={
   home:<Home gear={gear} onSavePrefs={savePrefs} prefsUnavailable={!!loadFailure?.prefs} planUnavailable={!!loadFailure?.plan} acts={shownActs} whoop={whoop} whoopOk={whoopOk} connectWhoop={connectWhoop} athlete={athlete} plan={savedPlan} nav={navigate} userPrefs={userPrefs} checkin={<Journal userPrefs={userPrefs} onSavePrefs={savePrefs} plan={savedPlan} nav={navigate}/>}/>,

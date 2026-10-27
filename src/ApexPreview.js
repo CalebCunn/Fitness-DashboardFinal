@@ -6,6 +6,9 @@ fixture.gear=[{id:'g1',name:'Endorphin Speed 4',brand_name:'Saucony',distance:41
 fixture.prefs={races:[{name:'Seville Marathon',date:'2027-02-21',distance:'42.195',target:'Sub 3:00',next:true}],currentPlan:fixture.plan,nutrition:{[day()]:{kcal:'2180',protein:'112',carbs:'242',fat:'68',meals:[{name:'Porridge, banana & almond butter',kcal:560,protein:24,carbs:78,fat:17,time:'08:00'},{name:'Chicken, rice & roasted vegetables',kcal:780,protein:52,carbs:96,fat:21,time:'13:15'},{name:'Yoghurt, granola & berries',kcal:840,protein:36,carbs:68,fat:30,time:'16:30'}]}},weightLog:[]};
 // Sample journal so the Journal page and the coach's memory can be checked in the preview.
 fixture.prefs.journal={...(fixture.prefs.journal||{}),[day(-1)]:{energy:4,stress:2,soreness:1,entry:'Tempo felt controlled until 6 km, then the hill on the way back hurt. Held 4:15s. Next time start 5 seconds slower.',updatedAt:new Date().toISOString()},[day(-3)]:{energy:2,stress:4,soreness:2,body:{'calf-L':1},entry:'Rushed out before work. Felt flat the whole way and the left calf was tight. Coffee on an empty stomach again: never again before a hard one.',updatedAt:new Date().toISOString()}};
+// Preview only: ?new is a brand-new account: Strava connected but empty, no WHOOP, nothing logged.
+export const NEW_USER=PREVIEW&&typeof window!=='undefined'&&/[?&]new\b/.test(window.location.search);
+if(NEW_USER){fixture.activities=[];fixture.gear=[];fixture.whoop=null;fixture.plan=null;fixture.prefs={onboarded:true,profile:{name:'Sam'}};}
 const memory={prefs:fixture.prefs,plan:fixture.plan,chat:[]};
 export const previewStore={loadUserPrefs:async()=>memory.prefs,saveUserPrefs:async p=>{memory.prefs=p;},loadTrainingPlan:async()=>memory.plan,saveTrainingPlan:async p=>{memory.plan=p;},loadChatHistory:async()=>memory.chat,saveChatHistory:async p=>{memory.chat=p;}};
 export const previewFetch=async()=>({ok:false,json:async()=>({error:'This design preview does not call your live AI service.'})});
