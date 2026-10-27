@@ -96,7 +96,7 @@ export async function googleSignIn() {
 
 // Everything this device knows about the user goes when they sign out.
 const DEVICE_KEYS = ['strava_access_token', 'strava_refresh_token', 'strava_token_expiry', 'strava_athlete_id', 'apex-activities-v1',
-  'whoop_access_token', 'whoop_refresh_token', 'whoop_token_expiry', 'whoop_pending', 'whoop_state', 'apex-anthropic-key', 'apex-coach-draft'];
+  'whoop_access_token', 'whoop_refresh_token', 'whoop_token_expiry', 'whoop_pending', 'whoop_state', 'oura_access_token', 'oura_refresh_token', 'oura_token_expiry', 'google_access_token', 'google_refresh_token', 'google_token_expiry', 'recovery_pending', 'recovery_pending_state', 'apex-anthropic-key', 'apex-coach-draft'];
 export async function signOut() {
   const c = await client();
   if (c) await c.auth.signOut();

@@ -1612,3 +1612,9 @@
 .set-group:first-of-type{border-top:0;margin-top:0;padding-top:8px}
 .set-group-head h2{font-family:var(--serif);font-style:italic;font-weight:400;font-size:34px;line-height:1}
 .set-group-head p{font-size:14px;color:var(--ink-2);margin-top:6px}
+
+/* Recovery sources */
+.source-buttons{display:flex;flex-wrap:wrap;gap:10px}
+.source-picker{display:grid;gap:8px;padding:16px 0;border-top:1px solid var(--rule)}
+.source-picker h3{font-size:17px;font-weight:600}
+.source-picker p{font-size:13px;color:var(--ink-2)}

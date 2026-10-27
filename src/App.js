@@ -1,6 +1,7 @@
 import {useState,useEffect,useCallback,useRef} from 'react';
 import {isConnected,disconnect,exchangeCode,getAthlete,getStats,getActivityHistory,getAllGear} from './strava';
-import {isWhoopConnected,disconnectWhoop,exchangeWhoopCode,getWhoopAuthUrl,getWhoopData} from './whoop';
+import {exchangeWhoopCode} from './whoop';
+import {connectedSources,activeSource,connectSource,disconnectSource,pendingSource,finishConnect,getRecoveryData,available as recoveryAvailable,SOURCES} from './recoverySources';
 import * as persistence from './supabase';
 import {Frame,Home,Welcome,SyncToast} from './ApexUI';
 import Recovery from './ApexRecovery';
@@ -54,7 +55,7 @@ function ApexApp({account}={}){
  const [activityId,setActivityId]=useState(null);
  const navigate=(id,activity=null)=>{setActivityId(activity);if(window.location.hash!=='#'+id)window.history.pushState({},'', '#'+id);setPage(id);};
  useEffect(()=>{const back=()=>{const id=window.location.hash.slice(1);setPage(['home','plan','activity','performance','recovery','nutrition','gym','coach','profile','races','journal','settings','shoes'].includes(id)?id:'home');};window.addEventListener('popstate',back);back();return()=>window.removeEventListener('popstate',back);},[]);
- const [page,setPage]=useState('home'),[connected,setConnected]=useState(PREVIEW||isConnected()),[whoopOk,setWhoopOk]=useState((PREVIEW&&!NEW_USER)||isWhoopConnected());
+ const [page,setPage]=useState('home'),[connected,setConnected]=useState(PREVIEW||isConnected()),[whoopOk,setWhoopOk]=useState((PREVIEW&&!NEW_USER)||connectedSources().length>0),[sourcesTick,setSourcesTick]=useState(0);
  const [acts,setActs]=useState([]),[stats,setStats]=useState(null),[athlete,setAthlete]=useState(null),[gear,setGear]=useState([]),[whoop,setWhoop]=useState(null),[loading,setLoading]=useState(false),[whoopPending,setWhoopPending]=useState(false),[error,setError]=useState(''),[retry,setRetry]=useState(0);
  const hasActs=useRef(false);useEffect(()=>{hasActs.current=acts.length>0;},[acts]);
  const [savedPlan,setSavedPlan]=useState(null),[savedWorkout,setSavedWorkout]=useState(null),[userPrefs,setUserPrefs]=useState(null),[prefsReady,setPrefsReady]=useState(false);
@@ -72,6 +73,7 @@ function ApexApp({account}={}){
   if(PREVIEW)return;
   if(isCorosCallback()){finishCorosConnect().then(()=>{setCorosOk(true);setCorosError('');}).catch(e=>setCorosError(e.message||'COROS could not be connected.')).finally(()=>{window.history.replaceState({},'','/#profile');setPage('profile');});return;}
   const p=new URLSearchParams(window.location.search),code=p.get('code'),whoopP=localStorage.getItem('whoop_pending');if(!code)return;
+  const other=pendingSource();if(other){setWhoopPending(true);finishConnect(code,p.get('state')).then(k=>{setWhoopOk(true);setSourcesTick(t=>t+1);setPage('profile');window.history.replaceState({},'','/#profile');}).catch(e=>{setError(e.message);window.history.replaceState({},'','/');}).finally(()=>setWhoopPending(false));return;}
   if(whoopP){setWhoopPending(true);exchangeWhoopCode(code).then(()=>setWhoopOk(true)).catch(()=>setError('WHOOP could not be connected. Please try again.')).finally(()=>{setWhoopPending(false);window.history.replaceState({},'','/');});}
   else if(!isConnected()){exchangeCode(code).then(()=>setConnected(true)).catch(()=>setError('Strava could not be connected. Please try again.')).finally(()=>window.history.replaceState({},'','/'));}
  },[]);
@@ -84,9 +86,11 @@ function ApexApp({account}={}){
   getActivityHistory({onUpdate:list=>{if(active){setActs(list);setLoading(false);}}}).catch(()=>{if(active)setError('Your activities could not finish syncing. Please try again.');}).finally(()=>{if(active)setLoading(false);});
   getAthlete().then(a=>{if(active)setAthlete(a);return Promise.all([getStats(a.id),getAllGear(a)]);}).then(([s,g])=>{if(active){setStats(s);setGear(g.filter(Boolean));}}).catch(()=>{if(active)setError('Your Strava profile could not load. Please try again.');});return()=>{active=false;};
  },[connected,retry]);
- useEffect(()=>{if(PREVIEW||!whoopOk)return;let active=true;const load=()=>getWhoopData().then(d=>{if(active){setWhoop(d);setError(e=>e.startsWith('WHOOP')?'':e);}});
+ // Sleep and recovery come from whichever source is chosen (WHOOP, Oura or Google Health).
+ const recSource=PREVIEW?null:activeSource(readSettings(userPrefs));
+ useEffect(()=>{if(PREVIEW||!whoopOk||!recSource)return;let active=true;const name=SOURCES[recSource];const load=()=>getRecoveryData(recSource).then(d=>{if(active){setWhoop(d);setError(e=>e.startsWith(name)?'':e);}});
   // One quiet retry before showing anything: a phone waking up often has no signal for a second.
-  load().catch(()=>new Promise(r=>setTimeout(r,1500)).then(()=>active&&load())).catch(()=>{if(active)setError('WHOOP data could not be refreshed. Pull down to try again.');});return()=>{active=false;};},[whoopOk,retry]);
+  load().catch(()=>new Promise(r=>setTimeout(r,1500)).then(()=>active&&load())).catch(()=>{if(active)setError(`${name} data could not be refreshed. Pull down to try again.`);});return()=>{active=false;};},[whoopOk,retry,recSource,sourcesTick]);
  useEffect(()=>{let active=true;setPrefsReady(false);Promise.allSettled([loadUserPrefs(),loadTrainingPlan()]).then(([prefsResult,planResult])=>{if(!active)return;const p=prefsResult.status==='fulfilled'?prefsResult.value:null;if(prefsResult.status==='fulfilled'){setUserPrefs(p||{});setSavedWorkout(p?.currentWorkout||null);}if(planResult.status==='fulfilled')setSavedPlan(planResult.value||p?.currentPlan||null);else if(p?.currentPlan)setSavedPlan(p.currentPlan);const failed={prefs:prefsResult.status==='rejected',plan:planResult.status==='rejected'&&!p?.currentPlan};setLoadFailure(failed.prefs||failed.plan?failed:null);setPrefsReady(true);});return()=>{active=false;};},[loadAttempt]);
  // A key saved to the account reaches every device the user signs in on.
  useEffect(()=>{if(PUBLIC&&userPrefs?.aiKey&&!ownKey())setOwnKey(userPrefs.aiKey);},[userPrefs?.aiKey]);
@@ -95,7 +99,9 @@ function ApexApp({account}={}){
  const savePrefs=useCallback(p=>{if(!prefsReady||loadFailure?.prefs)return;setUserPrefs(p);saveUserPrefs(p);},[prefsReady,loadFailure]);
  const savePlan=p=>{if(!prefsReady||loadFailure)return;setSavedPlan(p);saveTrainingPlan(p);savePrefs({...userPrefs,currentPlan:p});};
  const saveWorkout=w=>{if(!prefsReady||loadFailure?.prefs)return;setSavedWorkout(w);savePrefs({...userPrefs,currentWorkout:w});};
- const connectWhoop=()=>{if(!PREVIEW)window.location.assign(getWhoopAuthUrl());};
+ // With more than one source available, connecting starts on the You page so the runner can pick.
+ const connectWhoop=()=>{if(PREVIEW)return;recoveryAvailable().length>1?navigate('profile'):connectSource('whoop');};
+ const onSourceChange=()=>{const left=connectedSources();setWhoopOk(left.length>0);if(!left.length)setWhoop(null);setSourcesTick(t=>t+1);};
  const stravaUrl=`https://www.strava.com/oauth/authorize?client_id=${process.env.REACT_APP_STRAVA_CLIENT_ID}&redirect_uri=${encodeURIComponent(window.location.origin)}&response_type=code&scope=read,activity:read_all`;
  // Public build: a quick first-run setup before connecting Strava (skipped if saved data couldn't load).
  if(PUBLIC&&!PREVIEW&&!loadFailure?.prefs){
@@ -117,9 +123,9 @@ function ApexApp({account}={}){
   activity:<Activity acts={shownActs} gear={gear} initialId={activityId} nav={navigate} userPrefs={userPrefs} onSavePrefs={savePrefs} settings={readSettings(userPrefs)} hr={heartRate(readSettings(userPrefs),shownActs,whoop)}/>,
   gym:<Strength userPrefs={userPrefs} onSavePrefs={savePrefs} savedWorkout={savedWorkout} openCoach={()=>navigate('coach')}/>,
   coach:<Coach whoop={whoop} onPlanSaved={savePlan} onGymSaved={saveWorkout} userPrefs={{...userPrefs,currentPlan:savedPlan}} corosOk={corosOk} connectCoros={connectCoros}/>,
-  profile:<Profile athlete={athlete} acts={shownActs} whoopOk={whoopOk} whoop={whoop} connectWhoop={connectWhoop} corosOk={corosOk} connectCoros={connectCoros} onDisconnectCoros={disconnectCorosNow} corosError={corosError} darkMode={darkMode} setDarkMode={setDarkMode} onDisconnect={()=>{if(PREVIEW)return;disconnect();setConnected(false);setActs([]);}} onDisconnectWhoop={()=>{if(PREVIEW)return;disconnectWhoop();setWhoopOk(false);setWhoop(null);}} userPrefs={userPrefs} onSavePrefs={savePrefs}/>
+  profile:<Profile athlete={athlete} acts={shownActs} whoopOk={whoopOk} whoop={whoop} connectWhoop={connectWhoop} corosOk={corosOk} connectCoros={connectCoros} onDisconnectCoros={disconnectCorosNow} corosError={corosError} darkMode={darkMode} setDarkMode={setDarkMode} onDisconnect={()=>{if(PREVIEW)return;disconnect();setConnected(false);setActs([]);}} onSourceChange={onSourceChange} userPrefs={userPrefs} onSavePrefs={savePrefs}/>
  };
- views.races=<Profile athlete={athlete} acts={shownActs} whoopOk={whoopOk} whoop={whoop} connectWhoop={connectWhoop} darkMode={darkMode} setDarkMode={setDarkMode} onDisconnect={()=>{if(!PREVIEW){disconnect();setConnected(false);}}} onDisconnectWhoop={()=>{if(!PREVIEW){disconnectWhoop();setWhoopOk(false);setWhoop(null);}}} userPrefs={userPrefs} onSavePrefs={savePrefs} racesOnly/>;
+ views.races=<Profile athlete={athlete} acts={shownActs} whoopOk={whoopOk} whoop={whoop} connectWhoop={connectWhoop} darkMode={darkMode} setDarkMode={setDarkMode} onDisconnect={()=>{if(!PREVIEW){disconnect();setConnected(false);}}} onSourceChange={onSourceChange} userPrefs={userPrefs} onSavePrefs={savePrefs} racesOnly/>;
  const blocked=loadFailure&&((loadFailure.prefs&&['journal','nutrition','gym','profile','races','settings','shoes'].includes(page))||(['plan','coach'].includes(page)&&(loadFailure.prefs||loadFailure.plan)));
  return <Frame page={page} nav={navigate} athlete={athlete} dark={darkMode} preview={PREVIEW} settings={readSettings(userPrefs)} onRefresh={()=>{setError('');setRetry(r=>r+1);}}>{loadFailure&&prefsReady&&<div className="sync-error" role="alert"><span>Some saved data is unavailable. Connected activities and recovery are still available.</span><button onClick={()=>setLoadAttempt(x=>x+1)}>Retry saved data</button></div>}{!PREVIEW&&!loadFailure&&<SyncToast status={saveStatus} onRetry={()=>persistence.retryPendingSaves()}/>}{error&&<div className="sync-error is-float" role="alert"><span>{error}</span><span className="sync-actions"><button onClick={()=>{setError('');setRetry(retry+1);}}>Retry</button><button aria-label="Dismiss" onClick={()=>setError('')}>×</button></span></div>}{loading||!prefsReady||whoopPending?<div className="app-loading" role="status"><svg viewBox="0 0 120 78" aria-hidden="true">{[18,26,34].map(r=><path key={r} d={`M120,${39+r} H40 A${r},${r} 0 0 1 40,${39-r} H120`}/>)}<path className="loading-lap" d="M100,61 H40 A22,22 0 0 1 40,17 H120"/></svg><p>{whoopPending?'Connecting WHOOP…':'Bringing your day together…'}</p></div>:blocked?<section className="daily-review"><h2>Your saved records are temporarily unavailable.</h2><p>This section will reopen when its data loads. Your existing records have not been replaced.</p><button className="secondary-action" onClick={()=>navigate('activity')}>View connected activities</button></section>:(views[page]||views.home)}</Frame>;
 }

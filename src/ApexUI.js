@@ -200,13 +200,13 @@ export function Home({acts=[],gear=[],whoop,whoopOk,connectWhoop,plan,nav,userPr
    <div className="poster-meta"><span>{now.toLocaleDateString('en-GB',{weekday:'short'})} {dd(now.getDate())}.{dd(now.getMonth()+1)}</span><span>{wx?`${Math.round(wx.temp)}° ${wx.word}`:`Week ${weekNo}`}</span><span>{goalDays!=null?`${goal.name.split(' ')[0]} · ${goalDays} days`:`${dist(weekM,settings,1)} ${u} this week`}</span></div>
    <div className="lp-top">
     <div><span className="label">The morning race</span><h2 className="lp-head">{race.head[0]} <em>{race.head[1]}</em></h2></div>
-    <button className="lp-score" onClick={whoopOk?()=>nav('recovery'):connectWhoop} aria-label={whoopOk?'Open recovery detail':'Connect WHOOP'}><small>{whoopOk?'Recovery':'Connect'}</small><b>{score==null?'—':Math.round(lap)}</b></button>
+    <button className="lp-score" onClick={whoopOk?()=>nav('recovery'):connectWhoop} aria-label={whoopOk?'Open recovery detail':'Connect a recovery source'}><small>{whoopOk?'Recovery':'Connect'}</small><b>{score==null?'—':Math.round(lap)}</b></button>
    </div>
    <LaneRace race={race} onOpen={nav}/>
   </section>:<section key="recovery" className="poster today-poster" aria-label={score==null?'Recovery not available':`Recovery ${score}. ${ready.label}`}>
    <div className="poster-meta"><span>{now.toLocaleDateString('en-GB',{weekday:'short'})} {dd(now.getDate())}.{dd(now.getMonth()+1)}</span><span>{wx?`${Math.round(wx.temp)}° ${wx.word}`:`Week ${weekNo}`}</span><span>{goalDays!=null?`${goal.name.split(' ')[0]} · ${goalDays} days`:`${dist(weekM,settings,1)} ${u} this week`}</span></div>
    <Bend progress={lap} score={score}/>
-   <button className="poster-score" onClick={whoopOk?()=>nav('recovery'):connectWhoop} aria-label={whoopOk?'Open recovery detail':'Connect WHOOP'}>
+   <button className="poster-score" onClick={whoopOk?()=>nav('recovery'):connectWhoop} aria-label={whoopOk?'Open recovery detail':'Connect a recovery source'}>
     <small>Recovery</small><b>{score==null?'—':Math.round(lap)}</b><em>{ready.word}</em>
    </button>
    <p className="poster-signals">{whoopOk?<>{asleep&&<span><small>Sleep</small>{hm(asleep)}</span>}{Number.isFinite(rec?.hrv_rmssd_milli)&&<span><small>HRV</small>{Math.round(rec.hrv_rmssd_milli)}{hrvDelta!=null?<em>{hrvDelta>=0?'+':''}{hrvDelta}%</em>:null}</span>}{rec?.resting_heart_rate!=null&&<span><small>RHR</small>{Math.round(rec.resting_heart_rate)}</span>}</>:<span>Connect WHOOP<br/>to read recovery</span>}</p>
@@ -261,7 +261,7 @@ export function Welcome({url}){
    <h1>Every run, <em>read well.</em></h1>
    <p>Recovery, your plan, every run in detail, race predictions and posters, with a coach who knows all of it.</p>
    <a className="strava-connect" href={url} aria-label="Connect with Strava"><img src="/strava/connect-orange.svg" alt="Connect with Strava" width="237" height="48"/></a>
-   <small>Your existing Strava account, read-only. WHOOP and COROS connect later.</small>
+   <small>Your existing Strava account, read-only. Recovery (WHOOP, Oura, Fitbit) and COROS connect later.</small>
   </div>
  </div>;
 }

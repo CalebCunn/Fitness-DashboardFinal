@@ -1,5 +1,5 @@
 // APEX · connections that follow the account (public build only).
-// Strava and WHOOP refresh tokens are kept in the user's own apex_data row (row-level security:
+// Strava, WHOOP, Oura and Google Health refresh tokens are kept in the user's own apex_data row (row-level security:
 // only they can read it), so signing in on a new device reconnects everything automatically.
 // The owner build keeps tokens on the device only, exactly as before.
 import {client} from './apexAuth';
@@ -8,6 +8,8 @@ const PUBLIC = process.env.REACT_APP_PUBLIC === 'true';
 const LOCAL = {
   strava: { refresh: 'strava_refresh_token', access: 'strava_access_token', expiry: 'strava_token_expiry', extra: 'strava_athlete_id' },
   whoop: { refresh: 'whoop_refresh_token', access: 'whoop_access_token', expiry: 'whoop_token_expiry' },
+  oura: { refresh: 'oura_refresh_token', access: 'oura_access_token', expiry: 'oura_token_expiry' },
+  google: { refresh: 'google_refresh_token', access: 'google_access_token', expiry: 'google_token_expiry' },
 };
 let uid = null;
 export const setConnectionsUser = id => { uid = id; };
@@ -40,7 +42,7 @@ export async function clearConnection(kind) {
 // On sign-in: put the account's connections on this device if it doesn't have them yet.
 export async function restoreConnections() {
   if (!PUBLIC || !uid) return;
-  for (const kind of ['strava', 'whoop']) {
+  for (const kind of ['strava', 'whoop', 'oura', 'google']) {
     const l = LOCAL[kind];
     if (get(l.refresh)) continue;
     try {
