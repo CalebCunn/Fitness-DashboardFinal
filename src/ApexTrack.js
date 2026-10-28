@@ -15,11 +15,12 @@ export function smooth(pts){
  return d;
 }
 
+// The one verdict for a recovery score, used word for word on Today, Recovery and the coach.
 export function readyFor(score){
- if(score==null)return {key:'none',label:'No reading',word:'Waiting.',line:'Connect WHOOP to read this morning’s recovery.'};
- if(score>=67)return {key:'high',label:'Ready to run',word:'Ready to run.'};
- if(score>=34)return {key:'mid',label:'Train steady',word:'Steady today.'};
- return {key:'low',label:'Recover first',word:'Recover first.'};
+ if(score==null)return {key:'none',label:'No reading',word:'Waiting.',head:['No reading','yet.'],line:'Connect a sleep and recovery source to read this morning.'};
+ if(score>=67)return {key:'high',label:'Ready to run',word:'Ready to run.',head:['Ready','to run.']};
+ if(score>=34)return {key:'mid',label:'Train steady',word:'Train steady.',head:['Train','steady.']};
+ return {key:'low',label:'Recover first',word:'Recover first.',head:['Recover','first.']};
 }
 
 // Signature: "first lap". On the first open of the day your lap sweeps the bend

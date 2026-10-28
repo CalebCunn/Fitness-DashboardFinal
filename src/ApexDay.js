@@ -10,7 +10,7 @@ const NAME={Easy:'easy run','Long Run':'long run',Tempo:'tempo',Interval:'interv
 export function dayStops({now=new Date(),score,asleep,hrvDelta,sleepEnd,journal,session,tomorrow,todayRun,wx,usual=7,fmt}){
  const mins=now.getHours()*60+now.getMinutes(),stops=[];
  const wake=sleepEnd?new Date(sleepEnd):null,wakeMin=wake?wake.getHours()*60+wake.getMinutes():6*60+45;
- stops.push({key:'wake',at:wake?hhmm(wake.getHours(),wake.getMinutes()):'Morning',min:wakeMin,title:score!=null?`Recovery ${score}`:'Morning',sub:[asleep&&`Slept ${fmt.hm(asleep)}`,hrvDelta!=null&&`HRV ${hrvDelta>=0?'+':''}${hrvDelta}%`].filter(Boolean).join(' · ')||'Connect WHOOP to read your night',done:true});
+ stops.push({key:'wake',at:wake?hhmm(wake.getHours(),wake.getMinutes()):'Morning',min:wakeMin,title:score!=null?`Recovery ${score}`:'Morning',sub:[asleep&&`Slept ${fmt.hm(asleep)}`,hrvDelta!=null&&`HRV ${hrvDelta>=0?'+':''}${hrvDelta}%`].filter(Boolean).join(' · ')||'Connect a sleep tracker to read your night',done:true});
  const j=journal,sore=j?.body?Object.entries(j.body).filter(([,v])=>v>0).length:0;
  stops.push({key:'checkin',at:j?'Done':'Now',min:wakeMin+10,title:j?'Checked in':'Check in',sub:j?[j.energy&&`Energy ${j.energy}/5`,sore?`${sore} sore spot${sore>1?'s':''}`:'Nothing sore'].filter(Boolean).join(' · '):'Twenty seconds: energy and anything sore.',done:!!j,action:j?null:'checkin'});
  const running=session&&!['Rest','Gym'].includes(session.type);

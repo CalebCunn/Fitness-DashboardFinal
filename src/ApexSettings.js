@@ -192,7 +192,7 @@ export default function Settings({userPrefs,onSavePrefs,acts=[],whoop,theme,setT
    <div className="set-row"><span><b>Run poster</b><small>Default layout when you make a poster.</small></span><div className="apex-segments">{Object.entries(POSTER_STYLES).map(([k,l])=><button key={k} aria-pressed={s.poster===k} onClick={()=>update({poster:k})}>{l}</button>)}</div></div>
   </Section>
 
-  <Section title="Activities" note="WHOOP and watches log every walk. Hide the types you don’t want counted on Today, Activity, Performance and Shoes.">
+  <Section title="Activities" note="Watches and trackers log every walk. Hide the types you don’t want counted on Today, Activity, Performance and Shoes.">
    {Object.entries(acts.reduce((m,a)=>{const t=a.sport_type||a.type||'Other';m[t]=(m[t]||0)+1;return m;},{})).sort((a,b)=>b[1]-a[1]).map(([t,n])=><div className="set-row" key={t}><span><b>{t.replace(/([a-z])([A-Z])/g,'$1 $2')}</b><small>{n} {n===1?'activity':'activities'}</small></span><button role="switch" aria-checked={!s.hiddenTypes.includes(t)} className="set-switch" aria-label={`Show ${t}`} onClick={()=>update({hiddenTypes:s.hiddenTypes.includes(t)?s.hiddenTypes.filter(x=>x!==t):[...s.hiddenTypes,t]})}><i/></button></div>)}
    <HistoryRow/>
   </Section>
@@ -218,7 +218,7 @@ export default function Settings({userPrefs,onSavePrefs,acts=[],whoop,theme,setT
   <Section title="Heart rate" note="Worked out from your data. Override if you know a more accurate number, for example from a lab or field test.">
    <div className="set-hr">
     <label>Max HR<input inputMode="numeric" placeholder={hr.autoMax?`Auto · ${hr.autoMax}`:'Auto'} defaultValue={s.hr.max||''} onBlur={e=>update({hr:{...s.hr,max:Number(e.target.value)||null}})}/><small>{hr.maxSet?`Using yours. Auto would be ${hr.autoMax||'—'}.`:`Auto: highest in your activities${hr.autoMax?` (${hr.autoMax})`:''}.`}</small></label>
-    <label>Resting HR<input inputMode="numeric" placeholder={hr.autoRest?`Auto · ${hr.autoRest}`:'Auto'} defaultValue={s.hr.rest||''} onBlur={e=>update({hr:{...s.hr,rest:Number(e.target.value)||null}})}/><small>{hr.restSet?`Using yours. Auto would be ${hr.autoRest||'—'}.`:`Auto: WHOOP 7-day median${hr.autoRest?` (${hr.autoRest})`:''}.`}</small></label>
+    <label>Resting HR<input inputMode="numeric" placeholder={hr.autoRest?`Auto · ${hr.autoRest}`:'Auto'} defaultValue={s.hr.rest||''} onBlur={e=>update({hr:{...s.hr,rest:Number(e.target.value)||null}})}/><small>{hr.restSet?`Using yours. Auto would be ${hr.autoRest||'—'}.`:`Auto: 7-day median from your recovery data${hr.autoRest?` (${hr.autoRest})`:''}.`}</small></label>
    </div>
    <div className="set-row"><span><b>Zone model</b><small>Heart-rate reserve uses resting HR, so it suits trained runners better.</small></span><div className="apex-segments">{[['reserve','HR reserve'],['max','% of max']].map(([k,l])=><button key={k} aria-pressed={s.hr.model===k} onClick={()=>update({hr:{...s.hr,model:k}})}>{l}</button>)}</div></div>
   </Section>

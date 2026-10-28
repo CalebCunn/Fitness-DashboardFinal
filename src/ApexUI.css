@@ -6,7 +6,7 @@
 
 .apex-app{
  --accent:#1C3BDB;--on-accent:#FFFFFF;
- --bg:#F5F4F0;--raised:#FFFFFF;--raised-2:#ECEBE6;--ink:#101322;--ink-2:#5B6070;--ink-3:#6E7383;--rule:rgba(16,19,34,.14);--rule-strong:rgba(16,19,34,.85);--fill:rgba(16,19,34,.05);--fill-2:rgba(16,19,34,.09);
+ --bg:#F5F4F0;--raised:#FFFFFF;--raised-2:#ECEBE6;--ink:#101322;--ink-2:#5B6070;--ink-3:#62677A;--rule:rgba(16,19,34,.14);--rule-strong:rgba(16,19,34,.85);--fill:rgba(16,19,34,.05);--fill-2:rgba(16,19,34,.09);
  --e-easy:color-mix(in srgb,var(--accent) 26%,var(--bg));--e-long:color-mix(in srgb,var(--accent) 52%,var(--bg));--e-tempo:color-mix(in srgb,var(--accent) 78%,var(--bg));--e-int:var(--accent);
  --good:#1D7A4C;--warn:#B06A00;--bad:#C2361F;
  --glass:rgba(255,255,255,.74);--glass-edge:rgba(255,255,255,.85);--glass-shadow:0 8px 26px rgba(16,19,34,.14);
@@ -217,8 +217,9 @@
 .training-banner h2,.strength-banner h2{font-family:var(--serif);font-weight:400;font-size:clamp(44px,13vw,56px);line-height:.95;margin:6px 0 6px}
 .training-banner p,.strength-banner p{font-size:15px;color:var(--ink-2);max-width:44ch;line-height:1.45}
 .training-banner .light-action,.strength-banner .light-action{justify-self:start;min-height:44px}
-.training-page>.training-banner{order:0}.training-page>.training-toolbar{order:1}.training-page>.week-bars{order:2}.training-page>.training-summary{order:3}
-.training-page>.save-notice{order:4}.training-page>.session-list{order:5}.training-page>.view-switch{order:6}.training-page>.goal-link{order:7}.training-page>.plan-management{order:8;margin-top:-12px}
+.training-page>.training-banner{order:0}.training-page>.training-toolbar{order:1}.training-page>.week-bars{order:2}.training-page>.training-summary{order:6}
+/* This week's sessions come first; the season track and goal follow. */
+.training-page>.save-notice{order:3}.training-page>.view-switch{order:4}.training-page>.session-list{order:5}.training-page>.season-lap{order:7}.training-page>.goal-link{order:8}.training-page>.plan-management{order:9;margin-top:-12px}
 .goal-link{display:grid;grid-template-columns:1fr auto;align-items:center;gap:12px;text-align:left;width:100%;color:var(--ink);padding:14px 0;border-top:1px solid var(--rule-strong)}
 .goal-link strong{display:block;font-size:17px;font-weight:500;margin:2px 0}
 .goal-link>div>span:last-child{font-size:13px;color:var(--ink-2)}
@@ -782,7 +783,7 @@
 .checkin-days button+button{box-shadow:inset 1px 0 0 var(--rule)}
 .checkin-days span{font-size:11px;font-weight:500;letter-spacing:.06em;text-transform:uppercase}
 .checkin-days strong{font-size:17px;font-weight:500;color:var(--ink)}
-.checkin-days i{font-style:normal;font-size:16px;line-height:.6;color:var(--ink)}
+.checkin-days i{display:block;height:8px;font-style:normal;font-size:16px;line-height:8px;color:var(--ink)}
 .checkin-days [aria-pressed=true]{background:var(--accent);color:#fff}
 .checkin-days [aria-pressed=true] strong,.checkin-days [aria-pressed=true] i{color:#fff}
 .checkin-form{display:grid;gap:16px}
@@ -842,8 +843,13 @@
  .topbar .brand{display:none}
  .content{padding-bottom:64px}
  .today-poster{margin:24px 0 0;height:560px}
- .is-home .topbar{margin-bottom:0;height:0;padding:0;overflow:visible}
- .is-home .topbar-actions{position:absolute;right:56px;top:40px;z-index:30}
+ /* Laptop: the top-right buttons sit above the page instead of floating over the session headline. */
+ .is-home .topbar{margin-bottom:0}
+ .topbar-actions{margin-left:auto}
+ .is-home .topbar:not(.is-solid) .glass-button{--glass:var(--fill);--glass-edge:var(--rule);color:var(--ink)}
+ .is-home .topbar:not(.is-solid) .preview-chip{color:var(--ink-2);box-shadow:inset 0 0 0 1px var(--rule)}
+ .apex-app .lanes-poster{margin-top:0;padding-top:52px}
+ .apex-app .lanes-poster .poster-meta{top:12px}
  .poster-meta{top:28px}
  .poster-score{top:64px}
  .today{grid-template-columns:minmax(0,1.2fr) minmax(0,1fr);column-gap:48px;align-items:start}
@@ -961,7 +967,7 @@
 .fs-bar i{position:absolute;top:-8px;bottom:-8px;width:2px;background:var(--ink);transform:translateX(-1px)}
 .fs-bar i b{position:absolute;bottom:calc(100% + 2px);left:50%;transform:translateX(-50%);font-size:13px;font-weight:600;font-style:normal;white-space:nowrap}
 .fs-labels span,.fs-ticks span{position:absolute;transform:translateX(-50%);white-space:nowrap}
-.fs-labels span{top:16px;font-size:10px;font-weight:500;letter-spacing:.04em;text-transform:uppercase;color:var(--ink-2)}
+.fs-labels span{top:16px;font-size:11px;font-weight:500;letter-spacing:.04em;text-transform:uppercase;color:var(--ink-2)}
 .fs-ticks span{top:30px;font-size:11px;color:var(--ink-3);font-variant-numeric:tabular-nums}
 .form-scale{padding-top:20px}
 .form-explain{display:grid;margin-top:14px;border-top:1px solid var(--rule-strong)}
@@ -1006,7 +1012,7 @@
 .fs-labels span:first-child{transform:translateX(-35%)}
 .fs-labels span:last-child{transform:translateX(-60%)}
 .fc-grid-labels{position:absolute;left:calc(100% - 52px);top:0;pointer-events:none}
-.fc-grid-labels span{position:absolute;left:4px;transform:translateY(-50%);font-size:10px;color:var(--ink-3);font-variant-numeric:tabular-nums;display:none}
+.fc-grid-labels span{position:absolute;left:4px;transform:translateY(-50%);font-size:11px;color:var(--ink-3);font-variant-numeric:tabular-nums;display:none}
 .bend-tile .bend{width:70%}
 
 /* ════ Today v5: a first screen composed to end above the tab bar ════ */
@@ -1017,7 +1023,7 @@
 .poster-score em{font-size:28px;margin-top:10px}
 .poster-signals{display:grid;grid-template-columns:auto;gap:8px;top:calc(var(--top-h) + 46px);line-height:1.2}
 .poster-signals span{display:grid;grid-template-columns:42px auto auto;align-items:baseline;gap:8px;border:0;padding:0;min-width:0;font-size:17px;font-variant-numeric:tabular-nums}
-.poster-signals small{font-size:10px;font-weight:500;letter-spacing:.08em;text-transform:uppercase;opacity:.75}
+.poster-signals small{font-size:11px;font-weight:500;letter-spacing:.08em;text-transform:uppercase;opacity:.85}
 .poster-signals em{font-style:normal;font-size:12px;opacity:.8}
 
 .start-line{display:grid;gap:12px;padding-top:4px}
@@ -1173,7 +1179,7 @@
    ══════════════════════════════════════════════════════════════════════ */
 .look-apex{
  --accent:#0F3D2F;--on-accent:#F3EDE2;--gold:#FFC94A;--hero:#0F3D2F;--hero-glow:#1E6B52;--poster:#0F3D2F;
- --bg:#F3EDE2;--raised:#FBF7EF;--raised-2:#E9E1D2;--ink:#0F3D2F;--ink-2:#4B675C;--ink-3:#5E776D;--rule:rgba(15,61,47,.15);--rule-strong:rgba(15,61,47,.8);--fill:rgba(15,61,47,.05);--fill-2:rgba(15,61,47,.1);
+ --bg:#F3EDE2;--raised:#FBF7EF;--raised-2:#E9E1D2;--ink:#0F3D2F;--ink-2:#4B675C;--ink-3:#506A60;--rule:rgba(15,61,47,.15);--rule-strong:rgba(15,61,47,.8);--fill:rgba(15,61,47,.05);--fill-2:rgba(15,61,47,.1);
  --good:#1D7A4C;--warn:#A86400;--bad:#B8442A;
  --glass:rgba(251,247,239,.8);--glass-edge:rgba(255,255,255,.9);--glass-shadow:0 8px 26px rgba(15,61,47,.14);
  --sans:'Inter Tight',-apple-system,BlinkMacSystemFont,'Helvetica Neue',sans-serif;
@@ -1233,7 +1239,7 @@
 .look-apex.apex-dark .tile.is-now{box-shadow:0 0 0 2px var(--bg),0 0 0 3.5px #F3EDE2}
 .look-apex:not(.apex-dark) .session-title em{color:#1A5C46}
 .look-apex .shoes-total em{margin-top:18px}
-.look-apex .stat-row b{font-size:26px;font-weight:700;letter-spacing:-.04em}
+.look-apex .stat-row b{font-size:clamp(19px,6vw,26px);font-weight:700;letter-spacing:-.04em}
 .look-apex :is(.ambition-card strong,.detail-hero span,.energy-summary strong,.form-tag b,.goal-focus>strong,.hero-figure span,.poster-score b,.routine-count strong,.sculpture-score strong,.shoes-total b,.strength-insight>div strong):not(.poster-score b){padding-bottom:.1em}
 
 /* Welcome, as the cover of the first issue. */
@@ -1557,7 +1563,7 @@
 /* Coach: date dividers and message times */
 .chat-day{display:flex;align-items:center;gap:12px;margin:18px 0 6px;color:var(--ink-3);font:600 12px var(--sans);letter-spacing:.08em;text-transform:uppercase}
 .chat-day::before,.chat-day::after{content:'';flex:1;height:1px;background:var(--rule)}
-.bubble-time{display:block;margin-top:6px;font:500 11px var(--sans);opacity:.6;text-align:right}
+.bubble-time{display:block;margin-top:6px;font:500 12px var(--sans);opacity:.75;text-align:right}
 .bubble.theirs .bubble-time{text-align:left}
 .key-row{display:flex;gap:10px;align-items:center}
 .key-row input{flex:1;font-family:ui-monospace,Menlo,monospace!important;font-size:14px!important}
@@ -1618,3 +1624,8 @@
 .source-picker{display:grid;gap:8px;padding:16px 0;border-top:1px solid var(--rule)}
 .source-picker h3{font-size:17px;font-weight:600}
 .source-picker p{font-size:13px;color:var(--ink-2)}
+.lanes-key{font-size:13px;line-height:1.4;opacity:.75;margin-top:-6px}
+.latest{display:grid;gap:6px;margin-bottom:22px}
+.latest .section-head h2{font-size:22px}
+.all-head{margin-top:8px}
+.all-head h2{font-size:22px}

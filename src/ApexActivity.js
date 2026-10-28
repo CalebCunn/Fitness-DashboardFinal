@@ -44,7 +44,14 @@ export default function Activity({acts=[],gear=[],initialId=null,restHr=null,nav
  const label=hover||picked;
  const vmax=Math.max(10,...weeks);
  const ridge=smooth([[0,58],...weeks.map((v,i)=>[(i+.5)/12*400,58-v/vmax*52]),[400,58]])+' L400,64 L0,64Z';
+ const row=a=><button className="activity-row" key={a.id} onClick={()=>setSelected(a)}>
+   <span className="activity-art" aria-hidden="true">{run(a)?<RouteLine encoded={a.map?.summary_polyline} small/>:<Icon name="gym" size={22}/>}</span>
+   <span className="row-copy"><small>{when(a).toLocaleDateString('en-GB',{weekday:'short',day:'numeric',month:'short'})} · {typeName(a)}</small><b>{a.name}</b></span>
+   <span className="row-figure">{a.distance?distU(a.distance,settings):Math.round((a.moving_time||0)/60)}<small>{a.distance?unitsOf(settings):'min'}</small><em>{run(a)?`${paceOf(a.average_speed,settings)}${perUnit(settings)}`:clock(a.moving_time)}</em></span>
+  </button>;
+ const latest=[...acts].sort((x,y)=>when(y)-when(x)).slice(0,3);
  return <div className="activity-page">
+  {latest.length>0&&<section className="latest" aria-label="Latest activities"><div className="section-head"><h2>Latest</h2></div><div className="activity-list">{latest.map(row)}</div></section>}
   {nav&&<button className="perf-link" onClick={()=>nav('performance')}><span><small>Performance</small><b>Form, race predictor, PB wall, shoes</b></span><Icon name="arrow" size={20}/></button>}
   <section className="volume" aria-label="Last 12 weeks">
    <p className="meta">Last 12 weeks · {sessions} sessions · {Math.round(hours)} h</p>
@@ -59,22 +66,19 @@ export default function Activity({acts=[],gear=[],initialId=null,restHr=null,nav
       onClick={()=>{setHover(null);if(d.count===1){setPicked(d);setSelected(d.items[0]);}else setPicked(d);}}/>;})}
     </div>
    </div>
-   <div className="mosaic-label" aria-live="polite">{label?<><small>{shortDate(label.key)}</small><b>{label.count===0?(label.future?'Still to come':'Rest day'):label.count===1?`${label.items[0].name}${label.items[0].distance?` · ${(label.items[0].distance/1000).toFixed(2)} km`:''} · ${clock(label.items[0].moving_time)}`:`${label.count} sessions · ${Math.round(label.mins)} min`}</b></>:<><small>Tap a day</small><b>Stronger colour, bigger day. Ringed: today.</b></>}</div>
+   <div className="mosaic-label" aria-live="polite">{label?<><small>{shortDate(label.key)}</small><b>{label.count===0?(label.future?'Still to come':'Rest day'):label.count===1?`${label.items[0].name}${label.items[0].distance?` · ${(label.items[0].distance/1000).toFixed(2)} km`:''} · ${clock(label.items[0].moving_time)}`:`${label.count} sessions · ${Math.round(label.mins)} min`}</b></>:<><small>Tap a day</small><b>Darker means more time moving.</b></>}</div>
   </section>
 
   {picked?.count>1&&<section className="day-panel"><div className="section-head"><h2>{longDate(picked.key)}</h2><button className="text-button" onClick={()=>setPicked(null)}>Close</button></div>{picked.items.map(a=><button key={a.id} className="list-row" onClick={()=>setSelected(a)}><span className="row-copy"><small>{typeName(a)}</small><b>{a.name}</b></span><span className="row-figure">{run(a)?((a.distance||0)/1000).toFixed(1):Math.round((a.moving_time||0)/60)}<small>{run(a)?'km':'min'}</small></span><Icon name="chevron" size={16}/></button>)}</section>}
 
+  <div className="section-head all-head"><h2>All activities</h2></div>
   <div className="activity-controls">
    <div className="apex-segments">{[['all','Everything'],['run','Running'],['other','Other']].map(([id,l])=><button key={id} aria-pressed={type===id} onClick={()=>setType(id)}>{l}</button>)}</div>
    <div className="activity-search"><input aria-label="Search activities" placeholder="Find an activity" value={query} onChange={e=>setQuery(e.target.value)}/><select aria-label="Activity period" value={period} onChange={e=>setPeriod(e.target.value)}><option value="all">All loaded</option><option value="30">Last 30 days</option><option value="7">Last 7 days</option></select></div>
    <p className="meta">{filtered.length} activities · {total.toFixed(1)} km · {duration(time)} moving</p>
   </div>
 
-  <div className="activity-list">{filtered.map(a=><button className="activity-row" key={a.id} onClick={()=>setSelected(a)}>
-   <span className="activity-art" aria-hidden="true">{run(a)?<RouteLine encoded={a.map?.summary_polyline} small/>:<Icon name="gym" size={22}/>}</span>
-   <span className="row-copy"><small>{when(a).toLocaleDateString('en-GB',{weekday:'short',day:'numeric',month:'short'})} · {typeName(a)}</small><b>{a.name}</b></span>
-   <span className="row-figure">{a.distance?distU(a.distance,settings):Math.round((a.moving_time||0)/60)}<small>{a.distance?unitsOf(settings):'min'}</small><em>{run(a)?`${paceOf(a.average_speed,settings)}${perUnit(settings)}`:clock(a.moving_time)}</em></span>
-  </button>)}</div>
+  <div className="activity-list">{filtered.map(row)}</div>
   {filtered.length===0&&<div className="empty-block"><h2>Nothing matches.</h2><p>Try another search or time range.</p></div>}
   <p className="powered-by"><img className="pb-light" src="/strava/powered-black.svg" alt="Powered by Strava" height="24"/><img className="pb-dark" src="/strava/powered-white.svg" alt="Powered by Strava" height="24"/></p>
 
@@ -268,7 +272,7 @@ function ActivityDetail({summary,acts=[],hrSet,onClose,maxHr,restHr,settings,gea
     {zones&&<section className="detail-section"><h3>Heart-rate zones</h3>
      <div className="zone-bar" aria-hidden="true">{zones.map((z,i)=>z.pct>0&&<i key={i} className={`z${i+1}`} style={{flex:z.pct}}/>)}</div>
      <dl className="facts single">{zones.map((z,i)=><div key={i}><dt><i className={`zone-key z${i+1}`}/>{ZONES[i][0]} · {ZONES[i][1]}</dt><dd>{Math.round(z.secs/60)} min · {Math.round(z.pct)}%</dd></div>)}</dl>
-     <p className="form-note">{restHr?`Zones use your heart-rate reserve: resting ${Math.round(restHr)} bpm from WHOOP, max ${peakHr} bpm from your loaded activities.`:`Zones are percentages of the highest heart rate in your loaded activities (${peakHr} bpm).`}</p></section>}
+     <p className="form-note">{restHr?`Zones use your heart-rate reserve: resting ${Math.round(restHr)} bpm from your recovery data, max ${peakHr} bpm from your loaded activities.`:`Zones are percentages of the highest heart rate in your loaded activities (${peakHr} bpm).`}</p></section>}
 
     {a.laps?.length>1&&<section className="detail-section"><h3>Laps</h3><div className="splits laps"><div className="split split-head" aria-hidden="true"><span>Lap</span><span>Distance</span><span>Time</span><span>Pace</span><span>HR</span></div>{a.laps.map((l,i)=><div className="split" key={i}><span>{i+1}</span><span>{(l.distance/1000).toFixed(2)} km</span><span>{clock(l.moving_time)}</span><span>{pace(l.average_speed)}</span><span>{l.average_heartrate?Math.round(l.average_heartrate):'—'}</span></div>)}</div></section>}
 

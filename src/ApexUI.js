@@ -203,13 +203,14 @@ export function Home({acts=[],gear=[],whoop,whoopOk,connectWhoop,plan,nav,userPr
     <button className="lp-score" onClick={whoopOk?()=>nav('recovery'):connectWhoop} aria-label={whoopOk?'Open recovery detail':'Connect a recovery source'}><small>{whoopOk?'Recovery':'Connect'}</small><b>{score==null?'—':Math.round(lap)}</b></button>
    </div>
    <LaneRace race={race} onOpen={nav}/>
+   <p className="lanes-key">Each lane runs towards its target at the dashed line. A highlighted dot means on track. Tap a lane for detail.</p>
   </section>:<section key="recovery" className="poster today-poster" aria-label={score==null?'Recovery not available':`Recovery ${score}. ${ready.label}`}>
    <div className="poster-meta"><span>{now.toLocaleDateString('en-GB',{weekday:'short'})} {dd(now.getDate())}.{dd(now.getMonth()+1)}</span><span>{wx?`${Math.round(wx.temp)}° ${wx.word}`:`Week ${weekNo}`}</span><span>{goalDays!=null?`${goal.name.split(' ')[0]} · ${goalDays} days`:`${dist(weekM,settings,1)} ${u} this week`}</span></div>
    <Bend progress={lap} score={score}/>
    <button className="poster-score" onClick={whoopOk?()=>nav('recovery'):connectWhoop} aria-label={whoopOk?'Open recovery detail':'Connect a recovery source'}>
     <small>Recovery</small><b>{score==null?'—':Math.round(lap)}</b><em>{ready.word}</em>
    </button>
-   <p className="poster-signals">{whoopOk?<>{asleep&&<span><small>Sleep</small>{hm(asleep)}</span>}{Number.isFinite(rec?.hrv_rmssd_milli)&&<span><small>HRV</small>{Math.round(rec.hrv_rmssd_milli)}{hrvDelta!=null?<em>{hrvDelta>=0?'+':''}{hrvDelta}%</em>:null}</span>}{rec?.resting_heart_rate!=null&&<span><small>RHR</small>{Math.round(rec.resting_heart_rate)}</span>}</>:<span>Connect WHOOP<br/>to read recovery</span>}</p>
+   <p className="poster-signals">{whoopOk?<>{asleep&&<span><small>Sleep</small>{hm(asleep)}</span>}{Number.isFinite(rec?.hrv_rmssd_milli)&&<span><small>HRV</small>{Math.round(rec.hrv_rmssd_milli)}{hrvDelta!=null?<em>{hrvDelta>=0?'+':''}{hrvDelta}%</em>:null}</span>}{rec?.resting_heart_rate!=null&&<span><small>RHR</small>{Math.round(rec.resting_heart_rate)}</span>}</>:<span>Connect a sleep tracker<br/>to read recovery</span>}</p>
   </section>,
   session:<section key="session" className={`start-line call-${call.tone}`} aria-label="Today’s session">
    {options.length>1?<CallDeck options={options} chosen={chosen} onChoose={saveCall} why={[score!=null&&`${score} recovery`,last&&`${last.tsb>=0?'+':''}${Math.round(last.tsb)} form`,energy&&`${energy}/5 energy`].filter(Boolean)}/>:<>

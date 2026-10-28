@@ -3,6 +3,7 @@
 // at the door: a heart-rate cap, the shoe to wear and a heat-adjusted pace.
 import {useEffect,useRef,useState} from 'react';
 import {localDate,addDays} from './apexDates';
+import {readyFor} from './ApexTrack';
 
 const isRun=a=>a.type==='Run'||a.sport_type==='Run'||a.sport_type==='TrailRun';
 const HARD=['Interval','Tempo','Long Run'];
@@ -14,7 +15,7 @@ function usualHour(acts){
  const hrs=acts.filter(isRun).slice(0,20).map(a=>{const d=new Date(a.start_date_local||a.start_date);return a.start_date_local?d.getUTCHours():d.getHours();}).sort((a,b)=>a-b);
  return hrs.length?hrs[Math.floor(hrs.length/2)]:7;
 }
-const WX_WORDS=[[0,'Clear'],[1,'Mostly clear'],[2,'Partly cloudy'],[3,'Overcast'],[45,'Fog'],[51,'Drizzle'],[61,'Rain'],[66,'Freezing rain'],[71,'Snow'],[80,'Showers'],[95,'Thunder']];
+const WX_WORDS=[[0,'Clear'],[1,'Fair'],[2,'Cloudy'],[3,'Overcast'],[45,'Fog'],[51,'Drizzle'],[61,'Rain'],[66,'Sleet'],[71,'Snow'],[80,'Showers'],[95,'Thunder']];
 const wxWord=c=>{let w='—';WX_WORDS.forEach(([k,v])=>{if(c>=k)w=v;});return w;};
 
 export function useWeather(acts){
@@ -95,7 +96,8 @@ export function laneRace({score,asleepMs,tsb,weekM,plannedKm,fmt}){
   {key:'week',label:'Week',t:plannedKm?weekM/(plannedKm*1000):0,value:plannedKm?`${fmt.km(weekM)} / ${Math.round(plannedKm)} km`:`${fmt.km(weekM)} km`,go:'plan',quiet:!plannedKm},
  ].filter(Boolean).map(l=>({...l,t:clamp(l.t),lead:l.key!=='week'&&clamp(l.t)>=.7}));
  const scored=lanes.filter(l=>l.key!=='week'),leads=scored.filter(l=>l.lead).length;
- const head=!scored.length?['Your morning,','in four lanes.']:leads===scored.length?['Readiness','is winning.']:leads*2>=scored.length?['Mostly','ready.']:leads?['Hold','back today.']:['A slow','start today.'];
+ // With a recovery score, the headline is that score's verdict (same words as Recovery); without one, the lanes decide.
+ const head=score!=null?readyFor(score).head:!scored.length?['Your morning,','in four lanes.']:leads===scored.length?['Ready','to run.']:leads?['Train','steady.']:['Recover','first.'];
  return {lanes,head};
 }
 
