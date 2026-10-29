@@ -12,6 +12,7 @@ import Strength from './ApexStrength';
 import Coach from './ApexCoach';
 import Profile from './ApexProfile';
 import Journal,{JournalPage} from './ApexJournal';
+import {ProPage} from './ApexPro';
 import Performance from './ApexPerformance';
 import Settings,{readSettings,heartRate} from './ApexSettings';
 import Shoes from './ApexShoes';
@@ -117,7 +118,7 @@ function ApexApp({account}={}){
   journal:<JournalPage userPrefs={userPrefs} onSavePrefs={savePrefs}/>,
   shoes:<Shoes gear={gear} acts={shownActs} userPrefs={userPrefs} onSavePrefs={savePrefs}/>,
   settings:<Settings userPrefs={userPrefs} onSavePrefs={savePrefs} acts={acts} whoop={whoop} gear={gear} theme={theme} setTheme={setTheme} nav={navigate}/>,
-  performance:<Performance acts={shownActs} gear={gear} whoop={whoop} userPrefs={userPrefs} nav={navigate}/>,
+  performance:<ProPage feature="performance" nav={navigate}><Performance acts={shownActs} gear={gear} whoop={whoop} userPrefs={userPrefs} nav={navigate}/></ProPage>,
   nutrition:<Nutrition userPrefs={userPrefs} onSavePrefs={savePrefs}/>,
   plan:<Training acts={shownActs} races={userPrefs?.races} openRaces={()=>navigate('races')} plan={savedPlan} onChange={savePlan} openCoach={()=>navigate('coach')}/>,
   activity:<Activity acts={shownActs} gear={gear} initialId={activityId} nav={navigate} userPrefs={userPrefs} onSavePrefs={savePrefs} settings={readSettings(userPrefs)} hr={heartRate(readSettings(userPrefs),shownActs,whoop)}/>,

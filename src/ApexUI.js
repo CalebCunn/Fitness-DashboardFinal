@@ -10,6 +10,8 @@ import {DayLap,dayStops} from './ApexDay';
 import {bodyRead} from './ApexBody';
 import {RaceDay,raceWindow} from './ApexRaceDay';
 import {usualHour,useWeather,heatCost,easyCap,shoeToWear,todaysCall,coachDraft,laneRace,LaneRace,callOptions,CallDeck} from './ApexToday';
+import {ProStrip} from './ApexPro';
+import {usePlan} from './apexPlan';
 import './ApexUI.css';
 
 const paths={
@@ -166,6 +168,7 @@ export function Home({acts=[],gear=[],whoop,whoopOk,connectWhoop,plan,nav,userPr
  const runDay=session&&!['Rest','Gym'].includes(session.type),hardDay=['Interval','Tempo','Long Run'].includes(session?.type);
  // The body check-in can overrule the numbers: pain means rest, a sore lower leg means no hard running.
  const call=todayRun||!runDay||!body.level?baseCall:body.level>=3?{tone:'swap',head:'Rest it.',line:body.line}:body.level===2&&(hardDay||body.lower)?{tone:'swap',head:hardDay?'Swap it.':'Shorten it.',line:body.line}:{...baseCall,line:`${baseCall.line} ${body.line}`};
+ const tier=usePlan();
  const raceDays=raceWindow(goal,today),tomorrow=sessions.find(s=>s.date===addDays(today,1)&&s.type!=='Rest')||null;
  const stops=dayStops({now,score,asleep,hrvDelta,sleepEnd:sleep?whoop?.sleeps?.records?.[0]?.end:null,journal:journalToday,session,tomorrow,todayRun,wx,usual:usualHour(runs),fmt:{hm,km:m=>`${dist(m,settings)} ${unitsOf(settings)}`}});
  const options=prefsUnavailable?[]:callOptions({session,call,score,cap,sessions,today,todayRun,hasPlan:!!plan}),chosen=journalToday?.call||null;
@@ -249,8 +252,8 @@ export function Home({acts=[],gear=[],whoop,whoopOk,connectWhoop,plan,nav,userPr
   </section>,
  };
  return <div className="today">
-  {raceDays!=null&&<RaceDay goal={goal} days={raceDays} wx={wx} nav={nav}/>}
-  {settings.home.order.filter(k=>!settings.home.hidden.includes(k)).map(k=>modules[k])}
+  {raceDays!=null&&tier.pro&&<RaceDay goal={goal} days={raceDays} wx={wx} nav={nav}/>}
+  {settings.home.order.filter(k=>!settings.home.hidden.includes(k)).map((k,i)=><Fragment key={k}>{modules[k]}{i===0&&raceDays!=null&&tier.ready&&!tier.pro&&<ProStrip feature="raceday" nav={nav}/>}</Fragment>)}
   <button className="customise-link" onClick={()=>nav('settings')}><Icon name="settings" size={17}/>Customise Today</button>
  </div>;
 }

@@ -1,5 +1,6 @@
 // APEX · Settings. Every choice lives in userPrefs.settings, so it syncs with the
 // rest of your saved data. Missing values always fall back to DEFAULTS.
+import {refreshPlan} from './apexPlan';
 import {useEffect,useMemo,useState} from 'react';
 import {Icon} from './ApexUI';
 import {historyInfo,clearHistory} from './strava';
@@ -136,18 +137,20 @@ function PasswordRow(){
 }
 
 // Apex Pro: Stripe Payment Link for upgrading, Stripe customer portal for managing or cancelling.
-export const PAY_LINK=process.env.REACT_APP_STRIPE_PAYMENT_LINK||'',PORTAL=process.env.REACT_APP_STRIPE_PORTAL_URL||'',PRO_PRICE=process.env.REACT_APP_PRO_PRICE||'£3.99 a month';
+export const PAY_LINK=process.env.REACT_APP_STRIPE_PAYMENT_LINK||'',PORTAL=process.env.REACT_APP_STRIPE_PORTAL_URL||'',PRO_PRICE=process.env.REACT_APP_PRO_PRICE||'£4.99 a month';
 function ProRow({me}){
  if(!PAY_LINK||!me)return null;
- if(me.plan==='pro')return <div className="set-row"><span><b>Apex Pro</b><small>Thank you for backing Apex. {PRO_LIMIT} coach messages a month.</small></span>{PORTAL&&<a className="secondary-action" href={PORTAL} target="_blank" rel="noreferrer">Manage</a>}</div>;
- return <div className="pro-offer"><div><b>Apex Pro · founding member</b><p>{PRO_LIMIT} coach messages a month instead of {FREE_LIMIT}, and you keep this price for as long as you stay. You’re also funding a one-person app.</p></div>
-  <a className="primary-action" href={`${PAY_LINK}?client_reference_id=${me.id}`} target="_blank" rel="noreferrer">Go Pro · {PRO_PRICE}</a><small>Cancel any time. Payments by Stripe.</small></div>;
+ const buy=<a className="primary-action" href={`${PAY_LINK}?client_reference_id=${me.id}`} target="_blank" rel="noreferrer">{me.plan==='pro'?'Keep Pro':'Go Pro'} · {PRO_PRICE}</a>;
+ const list=<ul className="pro-list">{['Coach: '+PRO_LIMIT+' messages a month (Free: '+FREE_LIMIT+')','Performance: race predictor, PB wall, form, pace band','Race day mode: race morning planned, pace band','Race your ghost on routes you repeat','Meal photo estimates'].map(x=><li key={x}>{x}</li>)}</ul>;
+ if(me.plan==='pro'&&me.paid)return <div className="set-row"><span><b>Apex Pro</b><small>Thank you for backing Apex.</small></span>{PORTAL&&<a className="secondary-action" href={PORTAL} target="_blank" rel="noreferrer">Manage</a>}</div>;
+ if(me.plan==='pro')return <div className="pro-offer"><div><b>Founding member · Pro{me.until?` until ${me.until.toLocaleDateString('en-GB',{day:'numeric',month:'long',year:'numeric'})}`:''}</b><p>Thanks for being one of the first. You have everything below{me.until?'. Keep it after that for':' for'} {PRO_PRICE}, locked for as long as you stay.</p></div>{list}{me.until&&buy}</div>;
+ return <div className="pro-offer"><div><b>Apex Pro</b><p>Everything in Free, plus:</p></div>{list}{buy}<small>Cancel any time. Payments by Stripe.</small></div>;
 }
 function Account(){
  const [busy,setBusy]=useState(false),[err,setErr]=useState(''),[confirm,setConfirm]=useState(false),[me,setMe]=useState(null);
  // Back from Stripe (?pro=1): Stripe tells our server a moment later, so check again a few times.
  useEffect(()=>{let live=true,n=0;const back=/[?&]pro=1/.test(window.location.search);
-  const load=()=>accountSummary().then(m=>{if(!live)return;setMe(m);if(back&&m?.plan!=='pro'&&n++<8)setTimeout(load,2500);else if(back)window.history.replaceState({},'',window.location.pathname+window.location.hash);});
+  const load=()=>accountSummary().then(m=>{if(!live)return;setMe(m);refreshPlan();if(back&&m?.plan!=='pro'&&n++<8)setTimeout(load,2500);else if(back)window.history.replaceState({},'',window.location.pathname+window.location.hash);});
   load();return()=>{live=false;};},[]);
  const used=me?me.used:null,limit=me?.plan==='pro'?PRO_LIMIT:FREE_LIMIT;
  return <Section title="Sign-in and plan">

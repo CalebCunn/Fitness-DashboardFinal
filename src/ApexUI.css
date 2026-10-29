@@ -1636,3 +1636,15 @@
 .pro-offer p{font-size:14px;line-height:1.45;color:var(--ink-2);margin-top:4px}
 .pro-offer .primary-action{justify-self:start;text-decoration:none}
 .pro-offer small{font-size:12px;color:var(--ink-2)}
+/* Pro locks */
+.pro-tag{display:inline-block;font:700 11px var(--sans);letter-spacing:.12em;text-transform:uppercase;padding:4px 8px;border-radius:3px;background:var(--gold,#FFC94A);color:#0F3D2F}
+.pro-lock{display:grid;gap:14px;justify-items:start;padding:8px 0 24px}
+.pro-lock h2{font-size:34px;line-height:1.05}
+.pro-lock p{font-size:16px;line-height:1.5;color:var(--ink-2);max-width:38ch}
+.pro-lock ul{list-style:none;padding:0;margin:4px 0 6px;display:grid;gap:8px}
+.pro-lock li{display:flex;gap:10px;align-items:center;font-size:15px}
+.pro-lock li svg{color:var(--accent)}
+.pro-strip{display:grid;grid-template-columns:auto 1fr auto;gap:12px;align-items:center;width:100%;text-align:left;padding:14px 0;border-top:1px solid var(--rule);border-bottom:1px solid var(--rule);color:var(--ink)}
+.pro-strip b{display:block;font-size:16px}
+.pro-strip small{display:block;font-size:13px;color:var(--ink-2);margin-top:2px;line-height:1.4}
+.pro-list{margin:0;padding-left:18px;display:grid;gap:4px;font-size:14px;line-height:1.4}

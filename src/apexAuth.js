@@ -130,10 +130,11 @@ export async function accountSummary() {
   const month = new Date(); month.setDate(1);
   const m = `${month.getFullYear()}-${String(month.getMonth() + 1).padStart(2, '0')}-01`;
   const [{ data: prof }, { data: use }] = await Promise.all([
-    c.from('apex_profiles').select('plan').eq('user_id', user.id).maybeSingle(),
+    c.from('apex_profiles').select('*').eq('user_id', user.id).maybeSingle(), // '*' keeps working before the payments migration adds pro_until
     c.from('apex_usage').select('coach,food').eq('user_id', user.id).eq('month', m).maybeSingle(),
   ]);
-  return { id: user.id, email: user.email, plan: prof?.plan || 'free', used: (use?.coach || 0) + (use?.food || 0) };
+  const until = prof?.pro_until ? new Date(prof.pro_until) : null, pro = prof?.plan === 'pro' && (!until || until > new Date());
+  return { id: user.id, email: user.email, plan: pro ? 'pro' : 'free', until: pro && until ? until : null, paid: !!prof?.stripe_subscription, used: (use?.coach || 0) + (use?.food || 0) };
 }
 
 // Public-site helpers (Strava capacity / waitlist / feedback).

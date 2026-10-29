@@ -11,6 +11,7 @@ import {rememberEfforts} from './ApexPerformance';
 import {PosterSheet} from './ApexPoster';
 import {ShoePicker} from './ApexShoes';
 import {findGhost,GhostRace,HrPulse} from './ApexGhost';
+import {ProStrip} from './ApexPro';
 import {easyCap} from './ApexToday';
 import {dist as distU,paceOf,perUnit,unitsOf} from './ApexSettings';
 
@@ -255,7 +256,7 @@ function ActivityDetail({summary,acts=[],hrSet,onClose,maxHr,restHr,settings,gea
     {a.description&&<p className="detail-description">{a.description}</p>}
     {photo&&<img className="detail-photo" src={photo} alt={`Photo from ${a.name}`}/>}
 
-    {isRun&&<GhostRace ghost={findGhost({...summary,...a,start_latlng:a.start_latlng||summary.start_latlng},acts)} a={a}/>}
+    {isRun&&(()=>{const g=findGhost({...summary,...a,start_latlng:a.start_latlng||summary.start_latlng},acts);return g?<ProStrip feature="ghost"><GhostRace ghost={g} a={a}/></ProStrip>:null;})()}
     {isRun&&<HrPulse hr={hr} time={st.time?.data||[]} cap={easyCap(hrSet)}/>}
     {notes.length>0&&<section className="detail-section"><h3>What the run says</h3>{notes.map(([b,t])=><p key={b} className="insight"><b>{b}</b> {t}</p>)}</section>}
 

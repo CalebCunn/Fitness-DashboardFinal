@@ -30,7 +30,7 @@ exports.handler = async (event) => {
   if (ev.type === "checkout.session.completed" && uuid.test(o.client_reference_id || "")) {
     const id = o.client_reference_id;
     await fetch(`${url}/rest/v1/apex_profiles`, { method: "POST", headers: { ...svc, Prefer: "resolution=merge-duplicates" }, body: JSON.stringify({ user_id: id }) });
-    await setPlan(`user_id=eq.${id}`, { plan: "pro", stripe_customer: o.customer || null, stripe_subscription: o.subscription || null, pro_since: new Date().toISOString() });
+    await setPlan(`user_id=eq.${id}`, { plan: "pro", stripe_customer: o.customer || null, stripe_subscription: o.subscription || null, pro_since: new Date().toISOString(), pro_until: null });
   }
   if ((ev.type === "customer.subscription.deleted" || ev.type === "customer.subscription.updated") && o.id) {
     const live = ["active", "trialing", "past_due"].includes(o.status) && ev.type !== "customer.subscription.deleted";
