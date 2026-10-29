@@ -135,14 +135,26 @@ function PasswordRow(){
  </div>;
 }
 
+// Apex Pro: Stripe Payment Link for upgrading, Stripe customer portal for managing or cancelling.
+export const PAY_LINK=process.env.REACT_APP_STRIPE_PAYMENT_LINK||'',PORTAL=process.env.REACT_APP_STRIPE_PORTAL_URL||'',PRO_PRICE=process.env.REACT_APP_PRO_PRICE||'£3.99 a month';
+function ProRow({me}){
+ if(!PAY_LINK||!me)return null;
+ if(me.plan==='pro')return <div className="set-row"><span><b>Apex Pro</b><small>Thank you for backing Apex. {PRO_LIMIT} coach messages a month.</small></span>{PORTAL&&<a className="secondary-action" href={PORTAL} target="_blank" rel="noreferrer">Manage</a>}</div>;
+ return <div className="pro-offer"><div><b>Apex Pro · founding member</b><p>{PRO_LIMIT} coach messages a month instead of {FREE_LIMIT}, and you keep this price for as long as you stay. You’re also funding a one-person app.</p></div>
+  <a className="primary-action" href={`${PAY_LINK}?client_reference_id=${me.id}`} target="_blank" rel="noreferrer">Go Pro · {PRO_PRICE}</a><small>Cancel any time. Payments by Stripe.</small></div>;
+}
 function Account(){
  const [busy,setBusy]=useState(false),[err,setErr]=useState(''),[confirm,setConfirm]=useState(false),[me,setMe]=useState(null);
- useEffect(()=>{let live=true;accountSummary().then(m=>{if(live)setMe(m);});return()=>{live=false;};},[]);
+ // Back from Stripe (?pro=1): Stripe tells our server a moment later, so check again a few times.
+ useEffect(()=>{let live=true,n=0;const back=/[?&]pro=1/.test(window.location.search);
+  const load=()=>accountSummary().then(m=>{if(!live)return;setMe(m);if(back&&m?.plan!=='pro'&&n++<8)setTimeout(load,2500);else if(back)window.history.replaceState({},'',window.location.pathname+window.location.hash);});
+  load();return()=>{live=false;};},[]);
  const used=me?me.used:null,limit=me?.plan==='pro'?PRO_LIMIT:FREE_LIMIT;
  return <Section title="Sign-in and plan">
   <div className="set-row"><span><b>Signed in as</b><small>{me?.email||'…'}</small></span><span className={`plan-badge${me?.plan==='pro'?' is-pro':''}`}>{me?.plan==='pro'?'Pro':'Free'}</span></div>
   <div className="set-row" style={{display:'block'}}><span><b>Coach this month</b><small>{used==null?'…':`${used} of ${limit} messages used · resets on the 1st`}</small></span>
    {used!=null&&<div className="usage-bar" aria-hidden="true"><i style={{width:`${Math.min(100,used/limit*100)}%`}}/></div>}</div>
+  <ProRow me={me}/>
   <PasswordRow/>
   <div className="set-row"><span><b>Sign out</b><small>Removes your data and connections from this device.</small></span><button className="secondary-action" onClick={()=>signOut()}>Sign out</button></div>
   <div className="set-row"><span><b>Help and legal</b></span><span style={{display:'flex',gap:14}}><a className="text-button" href="#support">Support</a><a className="text-button" href="#privacy">Privacy</a><a className="text-button" href="#terms">Terms</a></span></div>

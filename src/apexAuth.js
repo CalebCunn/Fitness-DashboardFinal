@@ -133,7 +133,7 @@ export async function accountSummary() {
     c.from('apex_profiles').select('plan').eq('user_id', user.id).maybeSingle(),
     c.from('apex_usage').select('coach,food').eq('user_id', user.id).eq('month', m).maybeSingle(),
   ]);
-  return { email: user.email, plan: prof?.plan || 'free', used: (use?.coach || 0) + (use?.food || 0) };
+  return { id: user.id, email: user.email, plan: prof?.plan || 'free', used: (use?.coach || 0) + (use?.food || 0) };
 }
 
 // Public-site helpers (Strava capacity / waitlist / feedback).

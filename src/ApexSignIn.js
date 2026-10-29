@@ -111,6 +111,7 @@ export function Legal({kind}){
    <P h="Your account">Keep your password and your email secure: anyone who can get into your email can reset your password. You must be 16 or over to use Apex.</P>
    <P h="Connected services">Strava, WHOOP, Oura, Google and COROS are separate services with their own terms. Apex isn’t affiliated with or endorsed by them. Data from them is shown to you and used to run Apex.</P>
    <P h="The coach">The coach is AI and can be wrong. Check anything important. Free accounts include a monthly allowance; we may change allowances with notice.</P>
+   <P h="Apex Pro and payments">Apex Pro is an optional monthly subscription that raises your coach allowance. Payments are handled by Stripe; Apex never sees or stores your card details. The price is shown before you pay. You can cancel any time from Settings → Account → Manage, and Pro stays on until the end of the period you’ve paid for. If something goes wrong with a payment, email {CONTACT} and we’ll put it right, including a refund where it’s fair.</P>
    <P h="Fair use">Don’t misuse Apex, try to access other people’s data, or overload the service. We can suspend accounts that do.</P>
    <P h="Changes and contact">We’ll tell you about material changes before they apply. Questions: {CONTACT}.</P>
   </>}
