@@ -176,6 +176,8 @@ export function Home({acts=[],gear=[],whoop,whoopOk,connectWhoop,plan,nav,userPr
  const saveCall=key=>onSavePrefs?.({...userPrefs,journal:{...(userPrefs?.journal||{}),[today]:{soreness:1,stress:3,notes:'',...journalToday,call:key,updatedAt:new Date().toISOString()}}});
  const askCoach=()=>{try{localStorage.setItem('apex-coach-draft',swapped?`I’m going with “${chosenOpt.title}” today instead of “${recOpt?.title}”. ${score!=null?`Recovery ${score}. `:''}Can you adjust the rest of my week around that?`:coachDraft({score,energy,session,call,wx}));}catch{}nav('coach');};
  const race=laneRace({score,asleepMs:asleep,tsb:last?.tsb,weekM,plannedKm:planned,fmt:{hm,km:m=>{const k=m/1000;return k>=10?String(Math.round(k)):k.toFixed(1);}}});
+ // When the body check-in overrules the numbers, the headline says what to do, not just how recovered you are.
+ if(call!==baseCall&&call.tone==='swap'){const w=call.head.replace(/\.$/,'').split(' ');race.head=[w[0],(w.slice(1).join(' ')||'')+'.'];}
  const goalSecsM=settings.goals?.Marathon||null;
  const weekNo=Math.ceil(((now-new Date(now.getFullYear(),0,1))/86400000+new Date(now.getFullYear(),0,1).getDay()+1)/7);
  const u=unitsOf(settings);
