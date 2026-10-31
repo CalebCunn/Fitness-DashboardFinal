@@ -146,6 +146,32 @@ function WaitlistView({state,setState=()=>{}}){
  </div>;
 }
 
+// After setup: where runs come from. One source feeds the app, so the same run never shows up twice.
+// Strava can be full while it reviews Apex; everything else gets you straight in.
+export function ConnectRuns({connectStrava,connectCoros,connectWhoop,onSkip,error}){
+ const [full,setFull]=useState(false),[busy,setBusy]=useState(''),[listed,setListed]=useState(false),[err,setErr]=useState('');
+ const strava=async()=>{setBusy('strava');setErr('');const r=await connectStrava();if(r==='full')setFull(true);setBusy('');};
+ const join=async()=>{setBusy('join');setErr('');try{await joinWaitlist();setListed(true);}catch(e){setErr(e.message);}setBusy('');};
+ const Opt=({name,note,onClick,soon,id})=><button className="runs-opt" onClick={onClick} disabled={soon||!!busy}><span><b>{name}</b><small>{note}</small></span><span aria-hidden="true">{soon?'Soon':busy===id?'…':'→'}</span></button>;
+ return <div className="welcome signin waitlist connect-runs">
+  <div className="welcome-poster"><Bend progress={78} score={78}/><em className="welcome-mast" aria-label="APEX">Apex</em></div>
+  <div className="welcome-inner">
+   <h1>Where do your <em>runs</em> come from?</h1>
+   <p>Pick one. Apex reads your runs from just that place, so nothing shows up twice. You can change it any time in You.</p>
+   <div className="runs-opts">
+    <Opt id="strava" name="Strava" note={full?'Full right now while Strava reviews Apex':'Runs, routes, splits and shoes'} onClick={strava}/>
+    {full&&<div className="runs-full">{listed?<p>You’re on the Strava waitlist. We’ll email you when a place opens. Meanwhile, pick another source or skip.</p>:<><p>Every Strava place is taken while Strava reviews Apex. Join the waitlist, and use another source until then.</p><button className="text-button" onClick={join} disabled={!!busy}>{busy==='join'?'Joining…':'Join the Strava waitlist'}</button></>}</div>}
+    <Opt id="coros" name="COROS" note="Runs straight from your watch" onClick={()=>{setBusy('coros');connectCoros();}}/>
+    <Opt id="whoop" name="WHOOP" note="Workouts with heart rate and strain" onClick={()=>{setBusy('whoop');connectWhoop();}}/>
+    <Opt name="Garmin" note="Coming soon" soon/>
+   </div>
+   {(err||error)&&<p className="signin-error" role="alert">{err||error}</p>}
+   <button className="signin-link runs-skip" onClick={onSkip}>Skip for now. Use the plan, gym, journal and coach.</button>
+   <small><a href="#support">Questions?</a> · <button className="signin-link" style={{display:'inline',padding:0,fontSize:'inherit'}} onClick={()=>signOut()}>Sign out</button></small>
+  </div>
+ </div>;
+}
+
 export function Support(){
  const Q=({q,children})=><details className="faq"><summary>{q}</summary><div>{children}</div></details>;
  return <div className="legal">
@@ -156,8 +182,9 @@ export function Support(){
   <Q q="How do I sign in?">With your email and password. The first time, tap <b>Create account</b>; we email you a code to confirm it’s you. After that, just sign in.{GOOGLE&&<> You can also use <b>Continue with Google</b>.</>} If you’d rather not use a password, tap <b>Email me a sign-in code instead</b>.</Q>
   <Q q="I forgot my password">On the sign-in screen, tap <b>Forgot password?</b> and enter your email. We’ll send you a code: enter it with a new password and you’re back in.</Q>
   <Q q="I used to sign in with a code. How do I get a password?">Sign in with a code one more time, then go to <b>Settings → Account → Set password</b>. Or use <b>Forgot password?</b> on the sign-in screen. Your data stays exactly as it is.</Q>
-  <Q q="Which apps and devices work with Apex?">Strava for your activities (required); WHOOP, Oura or Google Health (Fitbit, Pixel Watch) for sleep and recovery; and COROS for training data. Any watch that syncs to Strava works.</Q>
-  <Q q="Why can’t I connect Strava?">Apex is in a small beta while Strava reviews the app, so the number of people who can connect is limited. If it’s full, join the waitlist and we’ll email you when a place opens.</Q>
+  <Q q="Which apps and devices work with Apex?">Your runs come from one of Strava, COROS or WHOOP (Garmin is coming soon). Sleep and recovery come from WHOOP, Oura or Google Health (Fitbit, Pixel Watch). You don’t need any of them to start: the plan, gym, journal and coach work on their own.</Q>
+  <Q q="Why does Apex read runs from only one place?">So the same run never appears twice. If your watch sends runs to Strava and to COROS, Apex reads one of them (you choose in You → Runs from). Apex also folds together copies of the same session inside one source, keeping the one with the most detail.</Q>
+  <Q q="Why can’t I connect Strava?">Strava limits how many people can connect while it reviews Apex. If it’s full, join the Strava waitlist and we’ll email you when a place opens. You can use Apex now with COROS or WHOOP, or with no source at all.</Q>
   <Q q="How do I use Apex on my phone like an app?">iPhone: open apexrunning.app in Safari, tap Share, then Add to Home Screen. Android: open it in Chrome, tap the menu, then Install app.</Q>
   <Q q="How many coach messages do I get?">Free accounts include {process.env.REACT_APP_FREE_MESSAGES||30} a month, shown in Settings → Account. For unlimited use you can add your own Anthropic key in Settings → Coach and AI.</Q>
   <Q q="Does the coach remember what I write in my journal?">Yes. Everything in More → Journal, plus your morning check-ins, is saved to your account and given to the coach with every message, so it can refer back to how runs felt and what you ate. Only you and your coach can read it.</Q>

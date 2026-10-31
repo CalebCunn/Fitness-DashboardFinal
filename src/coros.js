@@ -30,7 +30,7 @@ async function challengeFor(verifier) {
 export const corosSession = () => read(STORE);
 export const isCorosConnected = () => !!read(STORE)?.refresh_token;
 export const isCorosCallback = () => window.location.pathname === COROS_CALLBACK_PATH;
-export function disconnectCoros() { write(STORE, null); write(PENDING, null); }
+export function disconnectCoros() { write(STORE, null); write(PENDING, null); write('apex-runs-coros-v1', null); }
 
 export async function startCorosConnect() {
   const { issuer, mcpUrl, clientId } = await post({ action: 'register', redirectUri: redirectUri() });

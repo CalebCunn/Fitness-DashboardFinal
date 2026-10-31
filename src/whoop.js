@@ -4,7 +4,7 @@ const WHOOP_BASE = "https://api.prod.whoop.com/developer/v1";
 export const isWhoopConnected = () => !!localStorage.getItem("whoop_refresh_token");
 
 export function disconnectWhoop() {
-  ["whoop_access_token","whoop_refresh_token","whoop_token_expiry","whoop_pending","whoop_state"].forEach(k => localStorage.removeItem(k));
+  ["whoop_access_token","whoop_refresh_token","whoop_token_expiry","whoop_pending","whoop_state","apex-runs-whoop-v1"].forEach(k => localStorage.removeItem(k));
   clearConnection("whoop");
 }
 
@@ -112,4 +112,14 @@ export async function getWhoopData() {
     whoopGet("/cycle?limit=14&order=desc"),
   ]);
   return { recoveries, sleeps, workouts, cycles };
+}
+
+// One page (25) of workout history, newest first; pass the previous page's next_token to go further back.
+export async function getWhoopWorkoutPage(next) {
+  const t = await whoopToken();
+  const q = `limit=25${next ? `&nextToken=${encodeURIComponent(next)}` : ""}`;
+  const url = window.location.hostname === "localhost" ? `https://api.prod.whoop.com/developer/v2/activity/workout?${q}` : `/.netlify/functions/whoop-workouts?${q}`;
+  const res = await fetch(url, { headers: { Authorization: `Bearer ${t}` } });
+  if (!res.ok) throw new Error(`Whoop workouts ${res.status}`);
+  return res.json();
 }

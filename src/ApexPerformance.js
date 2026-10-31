@@ -209,7 +209,7 @@ export default function Performance({acts=[],gear=[],whoop,userPrefs,nav}){
  const wall=pbWall(efforts,settings.pbs);
  const shoeList=shoeStats(allShoes(gear,settings),acts,settings).filter(s=>!s.retired).sort((a,b)=>b.km-a.km);
  const runs=acts.filter(isRun).sort((a,b)=>new Date(b.start_date_local||b.start_date)-new Date(a.start_date_local||a.start_date));
- const unscanned=runs.filter(a=>!efforts[a.id]&&a.distance>=1000);
+ const unscanned=runs.filter(a=>!a.source&&!efforts[a.id]&&a.distance>=1000);// best-effort scan reads Strava detail
  const runScan=async()=>{
   if(PREVIEW){setScan({done:0,total:0,msg:'Scanning works with your live Strava data.'});return;}
   const batch=unscanned.slice(0,20);setScan({done:0,total:batch.length});

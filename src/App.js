@@ -1,9 +1,10 @@
 import {useState,useEffect,useCallback,useRef} from 'react';
-import {isConnected,disconnect,exchangeCode,getAthlete,getStats,getActivityHistory,getAllGear} from './strava';
+import {isConnected,disconnect,exchangeCode,getAthlete,getStats,getAllGear} from './strava';
+import {activeRunSource,connectedRunSources,loadRuns,RUN_SOURCES} from './runSources';
 import {exchangeWhoopCode} from './whoop';
 import {connectedSources,activeSource,connectSource,disconnectSource,pendingSource,finishConnect,getRecoveryData,available as recoveryAvailable,SOURCES} from './recoverySources';
 import * as persistence from './supabase';
-import {Frame,Home,Welcome,SyncToast} from './ApexUI';
+import {Frame,Home,SyncToast} from './ApexUI';
 import Recovery from './ApexRecovery';
 import Nutrition from './ApexNutrition';
 import Training from './ApexTraining';
@@ -20,7 +21,8 @@ import {PREVIEW,NEW_USER,fixture,previewStore} from './ApexPreview';
 import {PUBLIC,ownKey,setOwnKey} from './apexAccess';
 import {session,onAuth} from './apexAuth';
 import {setConnectionsUser,restoreConnections} from './apexConnections';
-import {SignIn,NewPassword,Legal,Support,StravaGate,StravaGateDemo} from './ApexSignIn';
+import {SignIn,NewPassword,Legal,Support,StravaGateDemo,ConnectRuns} from './ApexSignIn';
+import {stravaCapacity} from './apexAuth';
 import Onboarding from './ApexOnboarding';
 import {sendWelcome} from './apexAuth';
 import {isCorosConnected,isCorosCallback,finishCorosConnect,startCorosConnect,disconnectCoros} from './coros';
@@ -37,6 +39,7 @@ export default function App(){
  useEffect(()=>{if(!PUBLIC||!uid)return;let live=true;persistence.setUser(uid);setConnectionsUser(uid);restoreConnections().finally(()=>{if(live)setReady(uid);});return()=>{live=false;};},[uid]);
  if(PREVIEW&&/[?&]waitlist/.test(window.location.search))return <StravaGateDemo/>;// sample-mode screenshots only
  if(PREVIEW&&/[?&]support/.test(window.location.search))return <Support/>;
+ if(PREVIEW&&/[?&]connect/.test(window.location.search)){const full=/[?&]full/.test(window.location.search);return <ConnectRuns connectStrava={async()=>full?'full':undefined} connectCoros={()=>{}} connectWhoop={()=>{}} onSkip={()=>{}}/>;}// sample-mode screenshots only
  if(PREVIEW&&/[?&]onboard/.test(window.location.search))return <Onboarding prefs={{}} onDone={()=>{}}/>;// sample-mode screenshots only
  if(!PUBLIC||PREVIEW)return <ApexApp/>;
  if(hash==='#privacy'||hash==='#terms')return <Legal kind={hash.slice(1)}/>;
@@ -78,13 +81,25 @@ function ApexApp({account}={}){
   if(whoopP){setWhoopPending(true);exchangeWhoopCode(code).then(()=>setWhoopOk(true)).catch(()=>setError('WHOOP could not be connected. Please try again.')).finally(()=>{setWhoopPending(false);window.history.replaceState({},'','/');});}
   else if(!isConnected()){exchangeCode(code).then(()=>setConnected(true)).catch(()=>setError('Strava could not be connected. Please try again.')).finally(()=>window.history.replaceState({},'','/'));}
  },[]);
+// Runs come from one source only (Strava, COROS or WHOOP), so nothing is ever loaded twice.
+ const runSource=PREVIEW?'strava':activeRunSource(readSettings(userPrefs));
+ const lastSource=useRef(runSource);
  useEffect(()=>{
-  if(!connected)return;
-  if(PREVIEW){setGear(fixture.gear||[]);setAthlete(fixture.athlete);setActs(fixture.activities);setStats(fixture.stats);setWhoop(fixture.whoop);return;}
+  if(PREVIEW){if(connected){setGear(fixture.gear||[]);setAthlete(fixture.athlete);setActs(fixture.activities);setStats(fixture.stats);setWhoop(fixture.whoop);}return;}
+  if(lastSource.current!==runSource){lastSource.current=runSource;setActs([]);hasActs.current=false;}
+  if(!runSource){setActs([]);return;}
+  // With two sources connected, wait for saved settings so the runner's pick is the one loaded.
+  if(!prefsReady&&connectedRunSources().length>1)return;
   // Full-screen loader only the first time; a pull-to-refresh keeps the page on screen.
   let active=true;if(!hasActs.current)setLoading(true);setError('');
   // History opens instantly from this device, then syncs newer (or, the first time, all older) activities.
-  getActivityHistory({onUpdate:list=>{if(active){setActs(list);setLoading(false);}}}).catch(()=>{if(active)setError('Your activities could not finish syncing. Please try again.');}).finally(()=>{if(active)setLoading(false);});
+  loadRuns(runSource,{onUpdate:list=>{if(active){setActs(list);setLoading(false);}}}).catch(()=>{if(active)setError(`Your ${RUN_SOURCES[runSource]} activities could not finish syncing. Please try again.`);}).finally(()=>{if(active)setLoading(false);});
+  return()=>{active=false;};
+ },[runSource,retry,prefsReady,connected,corosOk]);
+ // Strava profile, stats and shoes, when Strava is connected.
+ useEffect(()=>{
+  if(PREVIEW||!connected){if(!PREVIEW){setAthlete(null);setStats(null);setGear([]);}return;}
+  let active=true;
   getAthlete().then(a=>{if(active)setAthlete(a);return Promise.all([getStats(a.id),getAllGear(a)]);}).then(([s,g])=>{if(active){setStats(s);setGear(g.filter(Boolean));}}).catch(()=>{if(active)setError('Your Strava profile could not load. Please try again.');});return()=>{active=false;};
  },[connected,retry]);
  // Sleep and recovery come from whichever source is chosen (WHOOP, Oura or Google Health).
@@ -103,17 +118,22 @@ function ApexApp({account}={}){
  // With more than one source available, connecting starts on the You page so the runner can pick.
  const connectWhoop=()=>{if(PREVIEW)return;recoveryAvailable().length>1?navigate('profile'):connectSource('whoop');};
  const onSourceChange=()=>{const left=connectedSources();setWhoopOk(left.length>0);if(!left.length)setWhoop(null);setSourcesTick(t=>t+1);};
+ const [runsSkipped,setRunsSkipped]=useState(false);
+ // Strava has a limited number of places while it reviews Apex: 'full' when none are free.
+ const connectStrava=async()=>{if(PREVIEW)return;if(PUBLIC){const c=await stravaCapacity().catch(()=>({open:true}));if(!c.open)return 'full';}window.location.assign(stravaUrl);};
  const stravaUrl=`https://www.strava.com/oauth/authorize?client_id=${process.env.REACT_APP_STRAVA_CLIENT_ID}&redirect_uri=${encodeURIComponent(window.location.origin)}&response_type=code&scope=read,activity:read_all`;
  // Public build: a quick first-run setup before connecting Strava (skipped if saved data couldn't load).
  if(PUBLIC&&!PREVIEW&&!loadFailure?.prefs){
   if(!prefsReady)return <div className="app-loading"><div/></div>;
   if(!userPrefs?.onboarded)return <Onboarding prefs={userPrefs} onDone={p=>{savePrefs(p);sendWelcome(p.profile?.name);}}/>;
  }
- if(!connected){const w=<>{error&&<p className="connection-error" role="alert">{error}</p>}<Welcome url={stravaUrl}/></>;return PUBLIC&&!PREVIEW?<StravaGate>{w}</StravaGate>:w;}
+ // No runs source yet: choose one (or skip) once. Skipping is remembered on the account.
+ if(!PREVIEW&&!runSource&&!runsSkipped&&!userPrefs?.runsChosen&&prefsReady)return <ConnectRuns error={error} connectStrava={connectStrava} connectCoros={connectCoros} connectWhoop={()=>connectSource('whoop')} onSkip={()=>{setRunsSkipped(true);if(!loadFailure?.prefs)savePrefs({...userPrefs,runsChosen:true});}}/>;
+ const me=athlete||(userPrefs?.profile?.name?{firstname:userPrefs.profile.name.split(' ')[0],lastname:userPrefs.profile.name.split(' ').slice(1).join(' ')}:null);
  // Activity types you've hidden (WHOOP walks by default) are left out everywhere except Settings.
  const hidden=readSettings(userPrefs).hiddenTypes,shownActs=acts.filter(a=>!hidden.includes(a.sport_type||a.type));
  const views={
-  home:<Home gear={gear} onSavePrefs={savePrefs} prefsUnavailable={!!loadFailure?.prefs} planUnavailable={!!loadFailure?.plan} acts={shownActs} whoop={whoop} whoopOk={whoopOk} connectWhoop={connectWhoop} athlete={athlete} plan={savedPlan} nav={navigate} userPrefs={userPrefs} checkin={<Journal userPrefs={userPrefs} onSavePrefs={savePrefs} plan={savedPlan} nav={navigate}/>}/>,
+  home:<Home gear={gear} onSavePrefs={savePrefs} prefsUnavailable={!!loadFailure?.prefs} planUnavailable={!!loadFailure?.plan} acts={shownActs} whoop={whoop} whoopOk={whoopOk} connectWhoop={connectWhoop} athlete={me} plan={savedPlan} nav={navigate} userPrefs={userPrefs} checkin={<Journal userPrefs={userPrefs} onSavePrefs={savePrefs} plan={savedPlan} nav={navigate}/>}/>,
   recovery:<><Recovery whoop={whoop} whoopOk={whoopOk} connectWhoop={connectWhoop}/>{!loadFailure?.prefs&&<Journal userPrefs={userPrefs} onSavePrefs={savePrefs} plan={savedPlan} nav={navigate}/>}</>,
   journal:<JournalPage userPrefs={userPrefs} onSavePrefs={savePrefs}/>,
   shoes:<Shoes gear={gear} acts={shownActs} userPrefs={userPrefs} onSavePrefs={savePrefs}/>,
@@ -121,12 +141,12 @@ function ApexApp({account}={}){
   performance:<ProPage feature="performance" nav={navigate}><Performance acts={shownActs} gear={gear} whoop={whoop} userPrefs={userPrefs} nav={navigate}/></ProPage>,
   nutrition:<Nutrition userPrefs={userPrefs} onSavePrefs={savePrefs}/>,
   plan:<Training acts={shownActs} races={userPrefs?.races} openRaces={()=>navigate('races')} plan={savedPlan} onChange={savePlan} openCoach={()=>navigate('coach')}/>,
-  activity:<Activity acts={shownActs} gear={gear} initialId={activityId} nav={navigate} userPrefs={userPrefs} onSavePrefs={savePrefs} settings={readSettings(userPrefs)} hr={heartRate(readSettings(userPrefs),shownActs,whoop)}/>,
+  activity:<Activity source={runSource} acts={shownActs} gear={gear} initialId={activityId} nav={navigate} userPrefs={userPrefs} onSavePrefs={savePrefs} settings={readSettings(userPrefs)} hr={heartRate(readSettings(userPrefs),shownActs,whoop)}/>,
   gym:<Strength userPrefs={userPrefs} onSavePrefs={savePrefs} savedWorkout={savedWorkout} openCoach={()=>navigate('coach')}/>,
   coach:<Coach whoop={whoop} onPlanSaved={savePlan} onGymSaved={saveWorkout} userPrefs={{...userPrefs,currentPlan:savedPlan}} corosOk={corosOk} connectCoros={connectCoros}/>,
-  profile:<Profile athlete={athlete} acts={shownActs} whoopOk={whoopOk} whoop={whoop} connectWhoop={connectWhoop} corosOk={corosOk} connectCoros={connectCoros} onDisconnectCoros={disconnectCorosNow} corosError={corosError} darkMode={darkMode} setDarkMode={setDarkMode} onDisconnect={()=>{if(PREVIEW)return;disconnect();setConnected(false);setActs([]);}} onSourceChange={onSourceChange} userPrefs={userPrefs} onSavePrefs={savePrefs}/>
+  profile:<Profile athlete={me} runSource={runSource} stravaOk={connected} connectStrava={connectStrava} acts={shownActs} whoopOk={whoopOk} whoop={whoop} connectWhoop={connectWhoop} corosOk={corosOk} connectCoros={connectCoros} onDisconnectCoros={disconnectCorosNow} corosError={corosError} darkMode={darkMode} setDarkMode={setDarkMode} onDisconnect={()=>{if(PREVIEW)return;disconnect();setConnected(false);}} onSourceChange={onSourceChange} userPrefs={userPrefs} onSavePrefs={savePrefs}/>
  };
- views.races=<Profile athlete={athlete} acts={shownActs} whoopOk={whoopOk} whoop={whoop} connectWhoop={connectWhoop} darkMode={darkMode} setDarkMode={setDarkMode} onDisconnect={()=>{if(!PREVIEW){disconnect();setConnected(false);}}} onSourceChange={onSourceChange} userPrefs={userPrefs} onSavePrefs={savePrefs} racesOnly/>;
+ views.races=<Profile athlete={me} acts={shownActs} whoopOk={whoopOk} whoop={whoop} connectWhoop={connectWhoop} darkMode={darkMode} setDarkMode={setDarkMode} onDisconnect={()=>{if(!PREVIEW){disconnect();setConnected(false);}}} onSourceChange={onSourceChange} userPrefs={userPrefs} onSavePrefs={savePrefs} racesOnly/>;
  const blocked=loadFailure&&((loadFailure.prefs&&['journal','nutrition','gym','profile','races','settings','shoes'].includes(page))||(['plan','coach'].includes(page)&&(loadFailure.prefs||loadFailure.plan)));
- return <Frame page={page} nav={navigate} athlete={athlete} dark={darkMode} preview={PREVIEW} settings={readSettings(userPrefs)} onRefresh={()=>{setError('');setRetry(r=>r+1);}}>{loadFailure&&prefsReady&&<div className="sync-error" role="alert"><span>Some saved data is unavailable. Connected activities and recovery are still available.</span><button onClick={()=>setLoadAttempt(x=>x+1)}>Retry saved data</button></div>}{!PREVIEW&&!loadFailure&&<SyncToast status={saveStatus} onRetry={()=>persistence.retryPendingSaves()}/>}{error&&<div className="sync-error is-float" role="alert"><span>{error}</span><span className="sync-actions"><button onClick={()=>{setError('');setRetry(retry+1);}}>Retry</button><button aria-label="Dismiss" onClick={()=>setError('')}>×</button></span></div>}{loading||!prefsReady||whoopPending?<div className="app-loading" role="status"><svg viewBox="0 0 120 78" aria-hidden="true">{[18,26,34].map(r=><path key={r} d={`M120,${39+r} H40 A${r},${r} 0 0 1 40,${39-r} H120`}/>)}<path className="loading-lap" d="M100,61 H40 A22,22 0 0 1 40,17 H120"/></svg><p>{whoopPending?'Connecting…':'Bringing your day together…'}</p></div>:blocked?<section className="daily-review"><h2>Your saved records are temporarily unavailable.</h2><p>This section will reopen when its data loads. Your existing records have not been replaced.</p><button className="secondary-action" onClick={()=>navigate('activity')}>View connected activities</button></section>:(views[page]||views.home)}</Frame>;
+ return <Frame page={page} nav={navigate} athlete={me} dark={darkMode} preview={PREVIEW} settings={readSettings(userPrefs)} onRefresh={()=>{setError('');setRetry(r=>r+1);}}>{loadFailure&&prefsReady&&<div className="sync-error" role="alert"><span>Some saved data is unavailable. Connected activities and recovery are still available.</span><button onClick={()=>setLoadAttempt(x=>x+1)}>Retry saved data</button></div>}{!PREVIEW&&!loadFailure&&<SyncToast status={saveStatus} onRetry={()=>persistence.retryPendingSaves()}/>}{error&&<div className="sync-error is-float" role="alert"><span>{error}</span><span className="sync-actions"><button onClick={()=>{setError('');setRetry(retry+1);}}>Retry</button><button aria-label="Dismiss" onClick={()=>setError('')}>×</button></span></div>}{loading||!prefsReady||whoopPending?<div className="app-loading" role="status"><svg viewBox="0 0 120 78" aria-hidden="true">{[18,26,34].map(r=><path key={r} d={`M120,${39+r} H40 A${r},${r} 0 0 1 40,${39-r} H120`}/>)}<path className="loading-lap" d="M100,61 H40 A22,22 0 0 1 40,17 H120"/></svg><p>{whoopPending?'Connecting…':'Bringing your day together…'}</p></div>:blocked?<section className="daily-review"><h2>Your saved records are temporarily unavailable.</h2><p>This section will reopen when its data loads. Your existing records have not been replaced.</p><button className="secondary-action" onClick={()=>navigate('activity')}>View connected activities</button></section>:(views[page]||views.home)}</Frame>;
 }

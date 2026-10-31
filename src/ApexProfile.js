@@ -4,10 +4,13 @@ import {PersonalSettings} from './ApexJournal';
 import {useState} from 'react';
 import {refreshToolCatalog,corosRegion,corosSession} from './coros';
 import {PREVIEW} from './ApexPreview';
+import {RUN_SOURCES,connectedRunSources} from './runSources';
+import {joinWaitlist} from './apexAuth';
 import {available,isSourceConnected,connectSource,disconnectSource,connectedSources,activeSource,SOURCES,SOURCE_NOTES} from './recoverySources';
-export default function Profile({athlete,acts=[],whoopOk,whoop,connectWhoop,corosOk=false,connectCoros,onDisconnectCoros,onSourceChange,corosError,darkMode,setDarkMode,onDisconnect,onDisconnectWhoop,userPrefs,onSavePrefs,racesOnly=false}){
+export default function Profile({athlete,runSource=null,stravaOk=true,connectStrava,acts=[],whoopOk,whoop,connectWhoop,corosOk=false,connectCoros,onDisconnectCoros,onSourceChange,corosError,darkMode,setDarkMode,onDisconnect,onDisconnectWhoop,userPrefs,onSavePrefs,racesOnly=false}){
  const races=userPrefs?.races||[];
- return <div className="profile-page">{!racesOnly&&<><section className="profile-identity"><div className="profile-monogram">{athlete?.firstname?.[0]||'A'}</div><div><span className="eyebrow">APEX athlete</span><h2>{athlete?.firstname?[athlete.firstname,athlete.lastname].filter(Boolean).join(' '):'Your space'}</h2><p>{userPrefs?.profile?.focus||(races.find(r=>r.next&&!r.done)?.name?`Training for ${races.find(r=>r.next&&!r.done).name}`:'Runner')}</p></div><div className="identity-stat"><strong>{acts.length.toLocaleString('en-GB')}</strong><span>activities synced from Strava</span></div></section><div className="profile-columns"><section className="connections-panel"><h2>Connections</h2>{[{name:'Strava',sub:'Running and activities',icon:'activity',connected:true,action:onDisconnect,label:'Disconnect'},...available().map(k=>{const on=!PREVIEW?isSourceConnected(k):k==='whoop'&&whoopOk;return {name:SOURCES[k],sub:SOURCE_NOTES[k],icon:'recovery',connected:on,action:()=>{if(PREVIEW)return;if(on){disconnectSource(k);onSourceChange?.();}else connectSource(k);},label:on?'Disconnect':'Connect'};})].map(c=><div className="connection-row" key={c.name}><span className="connection-icon"><Icon name={c.icon}/></span><div><h3>{c.name}</h3><p>{c.sub}</p><span className={c.connected?'connection-ready':''}>{c.connected?'Connected':'Not connected'}</span></div><button className="text-button" onClick={c.action}>{c.label}</button></div>)}<SourcePicker userPrefs={userPrefs} onSavePrefs={onSavePrefs} onSourceChange={onSourceChange}/><CorosRow corosOk={corosOk} connect={connectCoros} disconnect={onDisconnectCoros} error={corosError}/><div className="connection-row is-soon"><span className="connection-icon"><Icon name="coros"/></span><div><h3>Garmin</h3><p>Runs, sleep, HRV and Body Battery from your Garmin watch.</p><span>Coming soon</span></div><span className="soon-pill">Soon</span></div></section></div></>}{!racesOnly&&<PersonalSettings userPrefs={userPrefs} onSavePrefs={onSavePrefs}/>}{racesOnly&&<Goals userPrefs={userPrefs} onSavePrefs={onSavePrefs}/>}</div>;
+ const [stravaFull,setStravaFull]=useState(false);
+ return <div className="profile-page">{!racesOnly&&<><section className="profile-identity"><div className="profile-monogram">{athlete?.firstname?.[0]||'A'}</div><div><span className="eyebrow">APEX athlete</span><h2>{athlete?.firstname?[athlete.firstname,athlete.lastname].filter(Boolean).join(' '):'Your space'}</h2><p>{userPrefs?.profile?.focus||(races.find(r=>r.next&&!r.done)?.name?`Training for ${races.find(r=>r.next&&!r.done).name}`:'Runner')}</p></div><div className="identity-stat"><strong>{acts.length.toLocaleString('en-GB')}</strong><span>{runSource?`activities from ${RUN_SOURCES[runSource]}`:'no runs source yet'}</span></div></section><div className="profile-columns"><section className="connections-panel"><h2>Connections</h2>{[{name:'Strava',sub:'Running and activities',icon:'activity',connected:PREVIEW||stravaOk,action:PREVIEW||stravaOk?onDisconnect:async()=>{if((await connectStrava?.())==='full')setStravaFull(true);},label:PREVIEW||stravaOk?'Disconnect':'Connect'},...available().map(k=>{const on=!PREVIEW?isSourceConnected(k):k==='whoop'&&whoopOk;return {name:SOURCES[k],sub:SOURCE_NOTES[k],icon:'recovery',connected:on,action:()=>{if(PREVIEW)return;if(on){disconnectSource(k);onSourceChange?.();}else connectSource(k);},label:on?'Disconnect':'Connect'};})].map(c=><div className="connection-row" key={c.name}><span className="connection-icon"><Icon name={c.icon}/></span><div><h3>{c.name}</h3><p>{c.sub}</p><span className={c.connected?'connection-ready':''}>{c.connected?'Connected':'Not connected'}</span></div><button className="text-button" onClick={c.action}>{c.label}</button></div>)}{stravaFull&&<StravaFull/>}<RunsPicker userPrefs={userPrefs} onSavePrefs={onSavePrefs} runSource={runSource}/><SourcePicker userPrefs={userPrefs} onSavePrefs={onSavePrefs} onSourceChange={onSourceChange}/><CorosRow corosOk={corosOk} connect={connectCoros} disconnect={onDisconnectCoros} error={corosError}/><div className="connection-row is-soon"><span className="connection-icon"><Icon name="coros"/></span><div><h3>Garmin</h3><p>Runs, sleep, HRV and Body Battery from your Garmin watch.</p><span>Coming soon</span></div><span className="soon-pill">Soon</span></div></section></div></>}{!racesOnly&&<PersonalSettings userPrefs={userPrefs} onSavePrefs={onSavePrefs}/>}{racesOnly&&<Goals userPrefs={userPrefs} onSavePrefs={onSavePrefs}/>}</div>;
 }
 
 function CorosRow({corosOk,connect,disconnect,error}){
@@ -18,7 +21,7 @@ function CorosRow({corosOk,connect,disconnect,error}){
   <span className="connection-icon"><Icon name="coros"/></span>
   <div>
    <h3>COROS</h3>
-   <p>{corosOk?`Official COROS MCP${corosRegion()?' · '+corosRegion()+' server':''}. Your coach can read activities, sleep, HRV and training load, and save workouts when you allow it.`:'Connect with the official COROS MCP. Sign in on COROS, then your coach can read your COROS data.'}</p>
+   <p>{corosOk?`Official COROS MCP${corosRegion()?' · '+corosRegion()+' server':''}. Your runs can come from here, and your coach can read sleep, HRV and training load and save workouts when you allow it.`:'Connect with the official COROS MCP. Your runs can come straight from your watch, and your coach can read your COROS data.'}</p>
    <span className={corosOk?'connection-ready':''}>{corosOk?`Connected${session?.connectedAt?' since '+new Date(session.connectedAt).toLocaleDateString('en-GB',{day:'numeric',month:'short'}):''}`:'Not connected'}</span>
    {error&&<p className="form-error" role="alert">{error}</p>}
    {check&&<p className={check.ok?'form-note':'form-error'} role="status">{check.ok?`Connection working. ${check.count} COROS tools available (${check.reads} read, ${check.writes} save).`:check.message}</p>}
@@ -34,4 +37,18 @@ function SourcePicker({userPrefs,onSavePrefs,onSourceChange}){
  const cur=activeSource(userPrefs?.settings);
  return <div className="source-picker"><h3>Sleep and recovery from</h3><p>Apex reads one source for your recovery score, sleep, HRV and resting heart rate.</p>
   <div className="apex-segments">{on.map(k=><button key={k} className={cur===k?'active':''} aria-pressed={cur===k} onClick={()=>{onSavePrefs({...userPrefs,settings:{...(userPrefs?.settings||{}),recoverySource:k}});onSourceChange?.();}}>{SOURCES[k]}</button>)}</div></div>;
+}
+
+// Strava is full while it reviews Apex: offer the waitlist, and point at the other sources.
+function StravaFull(){
+ const [state,setState]=useState('');
+ return <div className="source-picker"><h3>Strava is full right now</h3><p>Strava limits how many people can connect while it reviews Apex. Join the waitlist and we’ll email you when a place opens. Until then, COROS or WHOOP can bring your runs in.</p>
+  {state==='done'?<p className="form-note">You’re on the Strava waitlist.</p>:<button className="text-button" disabled={state==='busy'} onClick={async()=>{setState('busy');try{await joinWaitlist();setState('done');}catch{setState('');}}}>{state==='busy'?'Joining…':'Join the Strava waitlist'}</button>}</div>;
+}
+
+// With two or more run sources connected, the runner picks the one Apex reads, so no run appears twice.
+function RunsPicker({userPrefs,onSavePrefs,runSource}){
+ const on=PREVIEW?[]:connectedRunSources();if(on.length<2)return null;
+ return <div className="source-picker"><h3>Runs from</h3><p>Apex reads your runs from one place only, so the same run never shows up twice.</p>
+  <div className="apex-segments">{on.map(k=><button key={k} className={runSource===k?'active':''} aria-pressed={runSource===k} onClick={()=>onSavePrefs({...userPrefs,settings:{...(userPrefs?.settings||{}),runSource:k}})}>{RUN_SOURCES[k]}</button>)}</div></div>;
 }

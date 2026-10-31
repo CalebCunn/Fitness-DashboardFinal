@@ -2,6 +2,7 @@ import {useDialog} from './ApexInteractions';
 import {useState,useEffect,useMemo} from 'react';
 import {createPortal} from 'react-dom';
 import {getActivity,getStreams} from './strava';
+import {corosSplits,RUN_SOURCES} from './runSources';
 import {PREVIEW,previewDetail} from './ApexPreview';
 import {Icon} from './ApexUI';
 import {localDate} from './ApexTraining';
@@ -26,7 +27,7 @@ const typeName=a=>run(a)?(a.workout_type===1?'Race':'Run'):(a.sport_type||a.type
 const longDate=key=>new Date(key+'T12:00:00').toLocaleDateString('en-GB',{weekday:'long',day:'numeric',month:'long'});
 const shortDate=key=>new Date(key+'T12:00:00').toLocaleDateString('en-GB',{weekday:'short',day:'numeric',month:'short'});
 
-export default function Activity({acts=[],gear=[],initialId=null,restHr=null,nav,settings,hr,userPrefs,onSavePrefs}){
+export default function Activity({source='strava',acts=[],gear=[],initialId=null,restHr=null,nav,settings,hr,userPrefs,onSavePrefs}){
  const [hover,setHover]=useState(null),[picked,setPicked]=useState(null);
  const [type,setType]=useState('all'),[query,setQuery]=useState(''),[period,setPeriod]=useState('all'),[selected,setSelected]=useState(()=>acts.find(a=>a.id===initialId)||null);
  useEffect(()=>{if(initialId){const a=acts.find(x=>x.id===initialId);if(a)setSelected(a);}},[initialId,acts]);
@@ -57,7 +58,7 @@ export default function Activity({acts=[],gear=[],initialId=null,restHr=null,nav
   <section className="volume" aria-label="Last 12 weeks">
    <p className="meta">Last 12 weeks · {sessions} sessions · {Math.round(hours)} h</p>
    <p className="hero-figure"><span>{Math.round(runKm)}</span><small>km run</small></p>
-   {!acts.length&&<p className="form-note">Your runs appear here once Strava syncs. Record a run on your watch or phone and pull down to refresh.</p>}
+   {!acts.length&&<p className="form-note">{source?`Your runs appear here once ${RUN_SOURCES[source]} syncs. Record a run on your watch or phone and pull down to refresh.`:'Connect Strava, COROS or WHOOP in You and your runs appear here.'}</p>}
    <div className="grid-wrap">
     <svg className="volume-ridge" viewBox="0 0 400 64" preserveAspectRatio="none" aria-hidden="true"><path d={ridge}/></svg>
     <div className="movement-mosaic" aria-label="Activity minutes by day, last 12 weeks" onMouseLeave={()=>setHover(null)}>
@@ -81,10 +82,10 @@ export default function Activity({acts=[],gear=[],initialId=null,restHr=null,nav
 
   <div className="activity-list">{filtered.map(row)}</div>
   {filtered.length===0&&<div className="empty-block"><h2>Nothing matches.</h2><p>Try another search or time range.</p></div>}
-  <p className="powered-by"><img className="pb-light" src="/strava/powered-black.svg" alt="Powered by Strava" height="24"/><img className="pb-dark" src="/strava/powered-white.svg" alt="Powered by Strava" height="24"/></p>
+  {source==='strava'&&<p className="powered-by"><img className="pb-light" src="/strava/powered-black.svg" alt="Powered by Strava" height="24"/><img className="pb-dark" src="/strava/powered-white.svg" alt="Powered by Strava" height="24"/></p>}
 
   {gear.length>0&&<section className="gear-shelf"><div className="section-head"><h2>Shoes</h2></div>{gear.map(g=><div className="list-row" key={g.id}><span className="row-copy"><small>{g.brand_name||'In your rotation'}</small><b>{g.name||g.nickname}</b></span><span className="row-figure">{Math.round((g.distance||0)/1000)}<small>km</small></span></div>)}</section>}
-  <p className="form-note">From the activities loaded from Strava. This may be a subset of your full history.</p>
+  <p className="form-note">From the activities loaded from {source?RUN_SOURCES[source]:'your runs source'}. This may be a subset of your full history.</p>
   {selected&&<ActivityDetail summary={selected} acts={acts} hrSet={hr} maxHr={maxHr} restHr={rest} settings={settings} gear={gear} userPrefs={userPrefs} onSavePrefs={onSavePrefs} onClose={()=>setSelected(null)}/>}
  </div>;
 }
@@ -194,6 +195,8 @@ function ActivityDetail({summary,acts=[],hrSet,onClose,maxHr,restHr,settings,gea
  const [scrolled,setScrolled]=useState(false),[activity,setActivity]=useState(summary),[st,setSt]=useState({}),[loading,setLoading]=useState(true),[error,setError]=useState(''),[metric,setMetric]=useState('heartrate');
  useEffect(()=>{let active=true;
   if(PREVIEW){const p=previewDetail(summary);setActivity(p.activity);setSt(p.streams);setLoading(false);return;}
+  // COROS and WHOOP runs: the summary is the detail (COROS laps become splits when available).
+  if(summary.source){if(summary.source==='coros')corosSplits(summary).then(sp=>{if(active&&sp.length>1)setActivity({...summary,splits_metric:sp});}).catch(()=>{}).finally(()=>{if(active)setLoading(false);});else setLoading(false);return()=>{active=false;};}
   Promise.all([getActivity(summary.id),getStreams(summary.id).catch(()=>({}))]).then(([a,s])=>{if(active){setActivity(a);setSt(s||{});rememberEfforts(a);window.dispatchEvent(new Event('apex-efforts'));}}).catch(()=>{if(active)setError('Detailed data could not be loaded. Your activity summary is shown.');}).finally(()=>{if(active)setLoading(false);});
   return()=>{active=false;};},[summary.id,summary]);
  const a=activity,isRun=run(a),hasDist=a.distance>0;
@@ -251,7 +254,7 @@ function ActivityDetail({summary,acts=[],hrSet,onClose,maxHr,restHr,settings,gea
    <div className="detail-body">
     {metrics.length>1&&<div className="apex-segments detail-metric" role="tablist" aria-label="Line on the profile">{metrics.map(([id,l])=><button key={id} role="tab" aria-selected={m===id} onClick={()=>setMetric(id)}>{l}</button>)}</div>}
     {(alt.length>1||series.length>1)&&<p className="form-note">Drag across the profile to read any point.{alt.length>1&&a.total_elevation_gain?` Shape is elevation, ${Math.round(a.total_elevation_gain)} m gained.`:''}</p>}
-    {loading&&<p className="form-note">Loading the full detail from Strava…</p>}
+    {loading&&<p className="form-note">Loading the full detail from {RUN_SOURCES[summary.source||'strava']}…</p>}
     {error&&<p className="form-error">{error}</p>}
     {a.description&&<p className="detail-description">{a.description}</p>}
     {photo&&<img className="detail-photo" src={photo} alt={`Photo from ${a.name}`}/>}
@@ -260,7 +263,7 @@ function ActivityDetail({summary,acts=[],hrSet,onClose,maxHr,restHr,settings,gea
     {isRun&&<HrPulse hr={hr} time={st.time?.data||[]} cap={easyCap(hrSet)}/>}
     {notes.length>0&&<section className="detail-section"><h3>What the run says</h3>{notes.map(([b,t])=><p key={b} className="insight"><b>{b}</b> {t}</p>)}</section>}
 
-    <section className="detail-section"><h3>Details</h3><dl className="facts">{facts.map(([k,v])=><div key={k}><dt>{k}</dt><dd>{v}</dd></div>)}</dl>{!PREVIEW&&a.id&&<a className="view-on-strava" href={`https://www.strava.com/activities/${a.id}`} target="_blank" rel="noreferrer">View on Strava</a>}{isRun&&<ShoePicker activity={a} gear={gear} userPrefs={userPrefs} onSavePrefs={onSavePrefs}/>}</section>
+    <section className="detail-section"><h3>Details</h3><dl className="facts">{facts.map(([k,v])=><div key={k}><dt>{k}</dt><dd>{v}</dd></div>)}</dl>{!PREVIEW&&a.id&&!summary.source&&<a className="view-on-strava" href={`https://www.strava.com/activities/${a.id}`} target="_blank" rel="noreferrer">View on Strava</a>}{isRun&&<ShoePicker activity={a} gear={gear} userPrefs={userPrefs} onSavePrefs={onSavePrefs}/>}</section>
 
     {splits.length>1&&hasDist&&<section className="detail-section"><h3>Splits</h3>
      <div className="splits"><div className="split split-head" aria-hidden="true"><span>{mi?'Mi':'Km'}</span><span/><span>Pace</span><span>HR</span><span>Elev</span></div>
