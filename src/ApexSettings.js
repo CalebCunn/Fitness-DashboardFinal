@@ -1,5 +1,6 @@
 // APEX · Settings. Every choice lives in userPrefs.settings, so it syncs with the
 // rest of your saved data. Missing values always fall back to DEFAULTS.
+import {IN_APP} from './native';
 import {refreshPlan} from './apexPlan';
 import {useEffect,useMemo,useState} from 'react';
 import {Icon} from './ApexUI';
@@ -140,6 +141,8 @@ function PasswordRow(){
 export const PAY_LINK=process.env.REACT_APP_STRIPE_PAYMENT_LINK||'',PORTAL=process.env.REACT_APP_STRIPE_PORTAL_URL||'',PRO_PRICE=process.env.REACT_APP_PRO_PRICE||'£4.99 a month';
 function ProRow({me}){
  if(!PAY_LINK||!me)return null;
+ // iPhone app: no purchases (App Store rules). Pro members still see their plan.
+ if(IN_APP)return me.plan==='pro'?<div className="set-row"><span><b>Apex Pro</b><small>{me.paid?'Thank you for backing Apex.':'Founding member. Thanks for being one of the first.'}</small></span></div>:null;
  const buy=<a className="primary-action" href={`${PAY_LINK}?client_reference_id=${me.id}`} target="_blank" rel="noreferrer">{me.plan==='pro'?'Keep Pro':'Go Pro'} · {PRO_PRICE}</a>;
  const list=<ul className="pro-list">{['Coach: '+PRO_LIMIT+' messages a month (Free: '+FREE_LIMIT+')','Performance: race predictor, PB wall, form, pace band','Race day mode: race morning planned, pace band','Race your ghost on routes you repeat','Meal photo estimates'].map(x=><li key={x}>{x}</li>)}</ul>;
  if(me.plan==='pro'&&me.paid)return <div className="set-row"><span><b>Apex Pro</b><small>Thank you for backing Apex.</small></span>{PORTAL&&<a className="secondary-action" href={PORTAL} target="_blank" rel="noreferrer">Manage</a>}</div>;

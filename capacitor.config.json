@@ -1,0 +1,11 @@
+{
+  "appId": "app.apexrunning.ios",
+  "appName": "Apex",
+  "webDir": "ios-shell",
+  "server": {
+    "url": "https://apexrunning.app",
+    "errorPath": "index.html",
+    "allowNavigation": ["apexrunning.app", "www.strava.com", "strava.com", "api.prod.whoop.com", "cloud.ouraring.com", "*.coros.com", "*.supabase.co"]
+  },
+  "ios": { "contentInset": "never", "backgroundColor": "#0F3D2F", "appendUserAgent": "ApexiOS", "limitsNavigationsToAppBoundDomains": false }
+}

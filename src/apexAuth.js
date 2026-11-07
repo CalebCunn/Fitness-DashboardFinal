@@ -1,5 +1,6 @@
 // APEX · accounts (public build only). Email + password, Google, or an emailed code,
 // via Supabase Auth. The client loads lazily, so the owner build never ships it.
+import { IN_APP } from './native';
 const PUBLIC = process.env.REACT_APP_PUBLIC === 'true';
 let clientP = null;
 
@@ -87,7 +88,7 @@ export async function setPassword(password) {
   if (error) throw new Error(/same|different/i.test(error.message) ? 'That’s already your password.' : friendly(error.message));
 }
 // ── Google ── (switch on with REACT_APP_AUTH_GOOGLE=true once the provider is set up in Supabase)
-export const GOOGLE = process.env.REACT_APP_AUTH_GOOGLE === 'true';
+export const GOOGLE = process.env.REACT_APP_AUTH_GOOGLE === 'true' && !IN_APP;
 export async function googleSignIn() {
   const c = await client();
   const { error } = await c.auth.signInWithOAuth({ provider: 'google', options: { redirectTo: window.location.origin } });

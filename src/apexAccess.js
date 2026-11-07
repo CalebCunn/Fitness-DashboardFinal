@@ -4,6 +4,7 @@
 // Either build: "bring your own key" sends requests straight to Anthropic from this device,
 // billed to the user's own Anthropic account. The key never touches our server.
 import {session} from './apexAuth';
+import {IN_APP} from './native';
 
 export const PUBLIC = process.env.REACT_APP_PUBLIC === 'true';
 const CODE_KEY = 'apex-access-code', BYOK_KEY = 'apex-anthropic-key';
@@ -39,7 +40,7 @@ export function anthropicDirect(payload, beta) {
 export function accessMessage(code, fallback) {
   if (code === 'access') return 'The coach is locked on this site. Add your access code in Settings → Coach.';
   if (code === 'signin') return 'Sign in again to use the coach.';
-  if (code === 'limit') return process.env.REACT_APP_STRIPE_PAYMENT_LINK ? 'You’ve used this month’s free coach messages. Go Pro in Settings → Account for more, or add your own Anthropic key in Settings → Coach.' : 'You’ve used this month’s free coach messages. Add your own Anthropic key in Settings → Coach to keep going.';
+  if (code === 'limit') return process.env.REACT_APP_STRIPE_PAYMENT_LINK && !IN_APP ? 'You’ve used this month’s free coach messages. Go Pro in Settings → Account for more, or add your own Anthropic key in Settings → Coach.' : 'You’ve used this month’s free coach messages. Add your own Anthropic key in Settings → Coach to keep going.';
   return fallback;
 }
 
