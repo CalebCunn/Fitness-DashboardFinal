@@ -1,12 +1,10 @@
 // APEX · Free or Pro. Your own site (owner build) is always Pro; the public site reads the account's plan.
 // Nothing is locked until payments are set up (REACT_APP_STRIPE_PAYMENT_LINK), so no one is stuck behind a paywall they can't pay.
-import {IN_APP} from './native';
 import {useEffect,useState} from 'react';
 import {accountSummary} from './apexAuth';
 import {PREVIEW} from './ApexPreview';
 const PUBLIC=process.env.REACT_APP_PUBLIC==='true';
-// The iPhone app has no purchases yet (App Store rules), so nothing is locked there.
-export const PAYWALL=PUBLIC&&!!process.env.REACT_APP_STRIPE_PAYMENT_LINK&&!IN_APP;
+export const PAYWALL=PUBLIC&&!!process.env.REACT_APP_STRIPE_PAYMENT_LINK;
 const preview=()=>PREVIEW&&typeof window!=='undefined'&&/[?&]free\b/.test(window.location.search)?'free':'pro';
 let plan=!PAYWALL?'pro':PREVIEW?preview():null,loading=null;const subs=new Set();
 export function refreshPlan(){if(!PAYWALL||PREVIEW)return Promise.resolve(plan);

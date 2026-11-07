@@ -2,7 +2,6 @@
 // Every source is turned into the same shape as WHOOP's data, so Today, Recovery and the coach
 // work the same whichever one a runner uses. WHOOP and Oura give their own score; Google Health
 // doesn't have one, so Apex estimates it from overnight HRV, resting heart rate and sleep.
-import {IN_APP} from './native';
 import {isWhoopConnected,disconnectWhoop,getWhoopAuthUrl,getWhoopData} from './whoop';
 import {saveConnection,clearConnection,newerRefreshToken} from './apexConnections';
 
@@ -10,8 +9,7 @@ export const SOURCES={whoop:'WHOOP',oura:'Oura',google:'Google Health'};
 export const SOURCE_NOTES={whoop:'Recovery, sleep and strain',oura:'Readiness and sleep from your ring',google:'Fitbit or Pixel Watch: sleep, HRV and resting heart rate'};
 const CLIENT={oura:process.env.REACT_APP_OURA_CLIENT_ID,google:process.env.REACT_APP_GOOGLE_HEALTH_CLIENT_ID};
 // A source shows up once its client ID is set on Netlify.
-// Google blocks its sign-in inside apps, so Google Health is website-only.
-export const available=()=>['whoop',...['oura','google'].filter(k=>CLIENT[k]&&!(k==='google'&&IN_APP))];
+export const available=()=>['whoop',...['oura','google'].filter(k=>CLIENT[k])];
 
 const get=k=>{try{return localStorage.getItem(k);}catch{return null;}};
 const set=(k,v)=>{try{v==null?localStorage.removeItem(k):localStorage.setItem(k,String(v));}catch{}};
