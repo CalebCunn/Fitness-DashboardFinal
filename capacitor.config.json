@@ -5,7 +5,23 @@
   "server": {
     "url": "https://apexrunning.app",
     "errorPath": "index.html",
-    "allowNavigation": ["apexrunning.app", "www.strava.com", "strava.com", "api.prod.whoop.com", "cloud.ouraring.com", "*.coros.com", "*.supabase.co"]
+    "allowNavigation": [
+      "apexrunning.app",
+      "www.strava.com",
+      "strava.com",
+      "api.prod.whoop.com",
+      "cloud.ouraring.com",
+      "*.coros.com",
+      "*.supabase.co",
+      "accounts.google.com",
+      "*.google.com",
+      "*.googleapis.com"
+    ]
   },
-  "ios": { "contentInset": "never", "backgroundColor": "#0F3D2F", "appendUserAgent": "ApexiOS", "limitsNavigationsToAppBoundDomains": false }
+  "ios": {
+    "contentInset": "never",
+    "backgroundColor": "#0F3D2F",
+    "limitsNavigationsToAppBoundDomains": false,
+    "overrideUserAgent": "Mozilla/5.0 (iPhone; CPU iPhone OS 18_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/18.0 Mobile/15E148 Safari/604.1"
+  }
 }
