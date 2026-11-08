@@ -7,6 +7,8 @@ import {historyInfo,clearHistory} from './strava';
 import {PUBLIC,accessCode,setAccessCode,ownKey,setOwnKey,testKey} from './apexAccess';
 import {signOut,deleteAccount,accountSummary,setPassword} from './apexAuth';
 import {Feedback} from './ApexSignIn';
+import {HAS_REMINDERS} from './native';
+import {readReminders,saveReminders,permission,askPermission} from './reminders';
 const FREE_LIMIT=+(process.env.REACT_APP_FREE_MESSAGES||30),PRO_LIMIT=+(process.env.REACT_APP_PRO_MESSAGES||400);
 
 export const HOME_MODULES={
@@ -107,6 +109,20 @@ function HistoryRow(){
  return <div className="set-row"><span><b>Strava history</b><small>{h.count.toLocaleString('en-GB')} activities{h.oldest?` back to ${new Date(h.oldest).toLocaleDateString('en-GB',{month:'short',year:'numeric'})}`:''}{h.complete?'':' · still syncing older runs'}</small></span><button className="secondary-action set-small-btn" onClick={()=>{clearHistory();window.location.reload();}}>Re-sync all</button></div>;
 }
 
+// iPhone app: reminders are scheduled on this phone, so they're saved on this phone too.
+function Reminders(){
+ const [r,setR]=useState(readReminders),[perm,setPerm]=useState(null);
+ useEffect(()=>{permission().then(setPerm).catch(()=>{});},[]);
+ const update=async patch=>{let p=perm;if(p!=='granted'&&Object.values(patch).includes(true)){p=await askPermission().catch(()=>'denied');setPerm(p);}const n={...r,...patch};setR(n);saveReminders(n);};
+ const sw=(k,label,note)=><div className="set-row"><span><b>{label}</b><small>{note}</small></span><button role="switch" aria-checked={perm==='granted'&&!!r[k]} className="set-switch" aria-label={label} onClick={()=>update({[k]:!(perm==='granted'&&r[k])})}><i/></button></div>;
+ return <Section title="Reminders" note="Sent by this phone, so they work offline.">
+  {perm==='denied'&&<p className="form-note">Notifications are off for Apex. Turn them on in the iPhone Settings app → Apex → Notifications.</p>}
+  {sw('session','Today’s session','A morning note with what’s planned, on days you have a session.')}
+  {r.session&&perm==='granted'&&<label className="set-field">Time<input type="time" value={r.time} onChange={e=>e.target.value&&update({time:e.target.value})}/></label>}
+  {sw('race','Race countdown','A week, three days and the night before your next race, then race morning.')}
+ </Section>;
+}
+
 function Group({id,title,note,children}){return <div className="set-group" id={`set-${id}`}><div className="set-group-head"><h2>{title}</h2>{note&&<p>{note}</p>}</div>{children}</div>;}
 function Section({title,note,children}){return <section className="set-section"><div className="set-head"><h2>{title}</h2>{note&&<p>{note}</p>}</div>{children}</section>;}
 
@@ -178,7 +194,7 @@ export default function Settings({userPrefs,onSavePrefs,acts=[],whoop,theme,setT
  const addPb=e=>{e.preventDefault();const t=parseTime(pb.time);if(!t){setPbError('Type the time as digits, for example 1842 for 18:42 or 12410 for 1:24:10.');return;}setPbError('');update({pbs:[...s.pbs,{id:Date.now(),dist:pb.dist,time:t,date:pb.date||null,race:pb.race.trim()}]});setPb({...pb,time:'',race:''});};
  const exportData=()=>{const blob=new Blob([JSON.stringify({format:'apex-personal-export-v1',exportedAt:new Date().toISOString(),preferences:(({aiKey,...rest})=>rest)(userPrefs||{})},null,2)],{type:'application/json'}),url=URL.createObjectURL(blob),a=document.createElement('a');a.href=url;a.download='apex-personal-data.json';a.click();setTimeout(()=>URL.revokeObjectURL(url),1000);};
  return <div className="settings-page">
-  <nav className="set-jump" aria-label="Settings sections">{[PUBLIC&&['account','Account'],['customise','Customise'],['running','Running'],['coach','Coach'],['help','Help']].filter(Boolean).map(([id,l])=><a key={id} href={`#set-${id}`} onClick={e=>{e.preventDefault();document.getElementById('set-'+id)?.scrollIntoView({behavior:'smooth',block:'start'});}}>{l}</a>)}</nav>
+  <nav className="set-jump" aria-label="Settings sections">{[PUBLIC&&['account','Account'],['customise','Customise'],['running','Running'],HAS_REMINDERS&&['notifications','Notifications'],['coach','Coach'],['help','Help']].filter(Boolean).map(([id,l])=><a key={id} href={`#set-${id}`} onClick={e=>{e.preventDefault();document.getElementById('set-'+id)?.scrollIntoView({behavior:'smooth',block:'start'});}}>{l}</a>)}</nav>
   {PUBLIC&&<Group id="account" title="Account"><Account/></Group>}
   <Group id="customise" title="Customise" note="Make Apex yours. Every change saves straight to your account.">
 
@@ -244,6 +260,7 @@ export default function Settings({userPrefs,onSavePrefs,acts=[],whoop,theme,setT
 
  <Section title="Shoes" note="Rotation, roles and retire limits live on the Shoes screen."><button className="secondary-action" onClick={()=>nav?.('shoes')}>Open Shoes<Icon name="arrow" size={17}/></button></Section>
   </Group>
+  {HAS_REMINDERS&&<Group id="notifications" title="Notifications"><Reminders/></Group>}
   <Group id="coach" title="Coach"><CoachAccess userPrefs={userPrefs} onSavePrefs={onSavePrefs}/></Group>
   <Group id="help" title="Help">
    {PUBLIC&&<Section title="Send feedback" note="Goes straight to the person who built Apex."><Feedback/></Section>}

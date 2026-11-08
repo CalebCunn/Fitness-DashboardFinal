@@ -20,6 +20,8 @@ Keep instructions to Caleb short and step by step; he isn't a developer.
 ## iPhone app (`ios/`, Capacitor 8)
 - Native shell that loads the live https://apexrunning.app (`capacitor.config.json`), so web deploys reach it instantly. Bundle id `app.apexrunning.ios`, iPhone portrait only, Apex icon and launch screen in `ios/App/App/Assets.xcassets`.
 - Behaves exactly like the website (Stripe and Google kept; it's for Caleb's own testing, not the App Store yet).
+- In-app only features (`src/native.js` `HAS_HEALTH`/`HAS_REMINDERS`, so the website and older builds never show them): Apple Health as a run and recovery source (`src/appleHealth.js`), on-phone reminders (`src/reminders.js`, Settings → Notifications), haptics.
+- New native plugin or iOS setting = new TestFlight build: raise Build in Xcode, Archive, Upload.
 - After changing `capacitor.config.json`, run `npx cap sync ios`.
 - Open in Xcode: `ios/App/App.xcodeproj`. Signing team `WGCFQDWQMG` (Caleb's personal team).
 

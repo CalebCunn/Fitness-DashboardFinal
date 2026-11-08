@@ -3,6 +3,7 @@ import {useState,useEffect,useMemo} from 'react';
 import {createPortal} from 'react-dom';
 import {getActivity,getStreams} from './strava';
 import {corosSplits,RUN_SOURCES} from './runSources';
+import {HAS_HEALTH} from './native';
 import {PREVIEW,previewDetail} from './ApexPreview';
 import {Icon} from './ApexUI';
 import {localDate} from './ApexTraining';
@@ -58,7 +59,7 @@ export default function Activity({source='strava',acts=[],gear=[],initialId=null
   <section className="volume" aria-label="Last 12 weeks">
    <p className="meta">Last 12 weeks · {sessions} sessions · {Math.round(hours)} h</p>
    <p className="hero-figure"><span>{Math.round(runKm)}</span><small>km run</small></p>
-   {!acts.length&&<p className="form-note">{source?`Your runs appear here once ${RUN_SOURCES[source]} syncs. Record a run on your watch or phone and pull down to refresh.`:'Connect Strava, COROS or WHOOP in You and your runs appear here.'}</p>}
+   {!acts.length&&<p className="form-note">{source?`Your runs appear here once ${RUN_SOURCES[source]} syncs. Record a run on your watch or phone and pull down to refresh.`:`Connect ${HAS_HEALTH?'Apple Health, ':''}Strava, COROS or WHOOP in You and your runs appear here.`}</p>}
    <div className="grid-wrap">
     <svg className="volume-ridge" viewBox="0 0 400 64" preserveAspectRatio="none" aria-hidden="true"><path d={ridge}/></svg>
     <div className="movement-mosaic" aria-label="Activity minutes by day, last 12 weeks" onMouseLeave={()=>setHover(null)}>

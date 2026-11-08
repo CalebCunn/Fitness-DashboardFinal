@@ -2,7 +2,7 @@
 import {useEffect,useState} from 'react';
 import {sendCode,verifyCode,signOut,stravaCapacity,joinWaitlist,sendFeedback,signUpPassword,signInPassword,verifySignup,resendSignup,sendReset,verifyReset,setPassword,googleSignIn,GOOGLE} from './apexAuth';
 import {Bend} from './ApexTrack';
-import {SHOW_APP_LINK,TESTFLIGHT} from './native';
+import {SHOW_APP_LINK,TESTFLIGHT,HAS_HEALTH} from './native';
 
 // The public support address (the Apex mailbox), shown on Support, Privacy and Terms.
 const CONTACT = 'hello@apexrunning.app';
@@ -150,7 +150,7 @@ function WaitlistView({state,setState=()=>{}}){
 
 // After setup: where runs come from. One source feeds the app, so the same run never shows up twice.
 // Strava can be full while it reviews Apex; everything else gets you straight in.
-export function ConnectRuns({connectStrava,connectCoros,connectWhoop,onSkip,error}){
+export function ConnectRuns({connectStrava,connectCoros,connectWhoop,connectHealth,onSkip,error}){
  const [full,setFull]=useState(false),[busy,setBusy]=useState(''),[listed,setListed]=useState(false),[err,setErr]=useState('');
  const strava=async()=>{setBusy('strava');setErr('');const r=await connectStrava();if(r==='full')setFull(true);setBusy('');};
  const join=async()=>{setBusy('join');setErr('');try{await joinWaitlist();setListed(true);}catch(e){setErr(e.message);}setBusy('');};
@@ -161,6 +161,7 @@ export function ConnectRuns({connectStrava,connectCoros,connectWhoop,onSkip,erro
    <h1>Where do your <em>runs</em> come from?</h1>
    <p>Pick one. Apex reads your runs from just that place, so nothing shows up twice. You can change it any time in You.</p>
    <div className="runs-opts">
+    {HAS_HEALTH&&<Opt id="health" name="Apple Health" note="Runs from your Apple Watch, plus sleep and HRV" onClick={async()=>{setBusy('health');setErr('');try{await connectHealth();}catch(e){setErr(e.message||'Apple Health could not be connected.');}setBusy('');}}/>}
     <Opt id="strava" name="Strava" note={full?'Full right now while Strava reviews Apex':'Runs, routes, splits and shoes'} onClick={strava}/>
     {full&&<div className="runs-full">{listed?<p>You’re on the Strava waitlist. We’ll email you when a place opens. Meanwhile, pick another source or skip.</p>:<><p>Every Strava place is taken while Strava reviews Apex. Join the waitlist, and use another source until then.</p><button className="text-button" onClick={join} disabled={!!busy}>{busy==='join'?'Joining…':'Join the Strava waitlist'}</button></>}</div>}
     <Opt id="coros" name="COROS" note="Runs straight from your watch" onClick={()=>{setBusy('coros');connectCoros();}}/>

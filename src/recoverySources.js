@@ -1,26 +1,29 @@
-// APEX · where sleep and recovery come from: WHOOP, Oura or Google Health (Fitbit, Pixel Watch).
+// APEX · where sleep and recovery come from: WHOOP, Oura, Google Health (Fitbit, Pixel Watch), or Apple Health in the iPhone app.
 // Every source is turned into the same shape as WHOOP's data, so Today, Recovery and the coach
 // work the same whichever one a runner uses. WHOOP and Oura give their own score; Google Health
 // doesn't have one, so Apex estimates it from overnight HRV, resting heart rate and sleep.
 import {isWhoopConnected,disconnectWhoop,getWhoopAuthUrl,getWhoopData} from './whoop';
 import {saveConnection,clearConnection,newerRefreshToken} from './apexConnections';
+import {HAS_HEALTH} from './native';
+import {isHealthConnected,connectHealth,disconnectHealth,healthRecovery} from './appleHealth';
 
-export const SOURCES={whoop:'WHOOP',oura:'Oura',google:'Google Health'};
-export const SOURCE_NOTES={whoop:'Recovery, sleep and strain',oura:'Readiness and sleep from your ring',google:'Fitbit or Pixel Watch: sleep, HRV and resting heart rate'};
+export const SOURCES={whoop:'WHOOP',oura:'Oura',google:'Google Health',health:'Apple Health'};
+export const SOURCE_NOTES={whoop:'Recovery, sleep and strain',oura:'Readiness and sleep from your ring',google:'Fitbit or Pixel Watch: sleep, HRV and resting heart rate',health:'Apple Watch: runs, sleep, HRV and resting heart rate'};
 const CLIENT={oura:process.env.REACT_APP_OURA_CLIENT_ID,google:process.env.REACT_APP_GOOGLE_HEALTH_CLIENT_ID};
-// A source shows up once its client ID is set on Netlify.
-export const available=()=>['whoop',...['oura','google'].filter(k=>CLIENT[k])];
+// A source shows up once its client ID is set on Netlify. Apple Health only inside the iPhone app.
+export const available=()=>[...(HAS_HEALTH?['health']:[]),'whoop',...['oura','google'].filter(k=>CLIENT[k])];
 
 const get=k=>{try{return localStorage.getItem(k);}catch{return null;}};
 const set=(k,v)=>{try{v==null?localStorage.removeItem(k):localStorage.setItem(k,String(v));}catch{}};
 const PENDING='recovery_pending';
 
-export const isSourceConnected=k=>k==='whoop'?isWhoopConnected():!!get(`${k}_refresh_token`);
+export const isSourceConnected=k=>k==='whoop'?isWhoopConnected():k==='health'?isHealthConnected():!!get(`${k}_refresh_token`);
 export const connectedSources=()=>available().filter(isSourceConnected);
 // The chosen source if it's connected, otherwise the first connected one.
 export function activeSource(settings){const c=connectedSources(),pick=settings?.recoverySource;return c.includes(pick)?pick:c[0]||null;}
 
 export function connectSource(k){
+ if(k==='health')return connectHealth();
  if(k==='whoop'){window.location.assign(getWhoopAuthUrl());return;}
  const state=`${k}_${Math.random().toString(36).slice(2,12)}`;set(PENDING,k);set(`${PENDING}_state`,state);
  const redirect=window.location.origin;
@@ -31,6 +34,7 @@ export function connectSource(k){
 }
 export function disconnectSource(k){
  if(k==='whoop'){disconnectWhoop();return;}
+ if(k==='health'){disconnectHealth();return;}
  [`${k}_refresh_token`,`${k}_access_token`,`${k}_token_expiry`].forEach(x=>set(x,null));clearConnection(k);
 }
 
@@ -136,5 +140,6 @@ export async function getRecoveryData(k){
  if(k==='whoop')return {source:'whoop',...(await getWhoopData())};
  if(k==='oura')return oura();
  if(k==='google')return google();
+ if(k==='health')return healthRecovery();
  return null;
 }

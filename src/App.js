@@ -26,6 +26,8 @@ import {stravaCapacity} from './apexAuth';
 import Onboarding from './ApexOnboarding';
 import {sendWelcome} from './apexAuth';
 import {isCorosConnected,isCorosCallback,finishCorosConnect,startCorosConnect,disconnectCoros} from './coros';
+import {IN_APP,installHaptics} from './native';
+import {scheduleReminders,onReminderTap} from './reminders';
 const {loadUserPrefs,saveUserPrefs,loadTrainingPlan,saveTrainingPlan}=PREVIEW?previewStore:persistence;
 
 // Public build: sign in first, then the app runs against that user's private data.
@@ -40,7 +42,7 @@ export default function App(){
  if(PREVIEW&&/[?&]waitlist/.test(window.location.search))return <StravaGateDemo/>;// sample-mode screenshots only
  if(PREVIEW&&/[?&]support/.test(window.location.search))return <Support/>;
  if(PREVIEW&&/[?&]signin/.test(window.location.search))return <SignIn/>;// sample-mode screenshots only
- if(PREVIEW&&/[?&]connect/.test(window.location.search)){const full=/[?&]full/.test(window.location.search);return <ConnectRuns connectStrava={async()=>full?'full':undefined} connectCoros={()=>{}} connectWhoop={()=>{}} onSkip={()=>{}}/>;}// sample-mode screenshots only
+ if(PREVIEW&&/[?&]connect/.test(window.location.search)){const full=/[?&]full/.test(window.location.search);return <ConnectRuns connectStrava={async()=>full?'full':undefined} connectCoros={()=>{}} connectWhoop={()=>{}} connectHealth={()=>connectSource('health')} onSkip={()=>{}}/>;}// sample-mode screenshots only
  if(PREVIEW&&/[?&]onboard/.test(window.location.search))return <Onboarding prefs={{}} onDone={()=>{}}/>;// sample-mode screenshots only
  if(!PUBLIC||PREVIEW)return <ApexApp/>;
  if(hash==='#privacy'||hash==='#terms')return <Legal kind={hash.slice(1)}/>;
@@ -119,6 +121,14 @@ function ApexApp({account}={}){
  // With more than one source available, connecting starts on the You page so the runner can pick.
  const connectWhoop=()=>{if(PREVIEW)return;recoveryAvailable().length>1?navigate('profile'):connectSource('whoop');};
  const onSourceChange=()=>{const left=connectedSources();setWhoopOk(left.length>0);if(!left.length)setWhoop(null);setSourcesTick(t=>t+1);};
+ // iPhone app: reminders follow the plan and races (and come back each time the app does).
+ const [remindTick,setRemindTick]=useState(0);
+ useEffect(()=>{if(!IN_APP)return;installHaptics();onReminderTap(id=>navigate(id));const f=()=>setRemindTick(t=>t+1),v=()=>{if(document.visibilityState==='visible')f();};window.addEventListener('apex-reminders-changed',f);document.addEventListener('visibilitychange',v);return()=>{window.removeEventListener('apex-reminders-changed',f);document.removeEventListener('visibilitychange',v);};
+ },[]);
+ const units=readSettings(userPrefs).units;
+ useEffect(()=>{if(IN_APP&&prefsReady)scheduleReminders({plan:savedPlan,races:userPrefs?.races||[],miles:units==='mi'});},[savedPlan,userPrefs?.races,units,prefsReady,remindTick]);
+ // Apple Health connects without leaving the page, so it announces itself (iPhone app only).
+ useEffect(()=>{window.addEventListener('apex-sources-changed',onSourceChange);return()=>window.removeEventListener('apex-sources-changed',onSourceChange);});
  const [runsSkipped,setRunsSkipped]=useState(false);
  // Strava has a limited number of places while it reviews Apex: 'full' when none are free.
  const connectStrava=async()=>{if(PREVIEW)return;if(PUBLIC){const c=await stravaCapacity().catch(()=>({open:true}));if(!c.open)return 'full';}window.location.assign(stravaUrl);};
@@ -129,7 +139,7 @@ function ApexApp({account}={}){
   if(!userPrefs?.onboarded)return <Onboarding prefs={userPrefs} onDone={p=>{savePrefs(p);sendWelcome(p.profile?.name);}}/>;
  }
  // No runs source yet: choose one (or skip) once. Skipping is remembered on the account.
- if(!PREVIEW&&!runSource&&!runsSkipped&&!userPrefs?.runsChosen&&prefsReady)return <ConnectRuns error={error} connectStrava={connectStrava} connectCoros={connectCoros} connectWhoop={()=>connectSource('whoop')} onSkip={()=>{setRunsSkipped(true);if(!loadFailure?.prefs)savePrefs({...userPrefs,runsChosen:true});}}/>;
+ if(!PREVIEW&&!runSource&&!runsSkipped&&!userPrefs?.runsChosen&&prefsReady)return <ConnectRuns error={error} connectStrava={connectStrava} connectCoros={connectCoros} connectWhoop={()=>connectSource('whoop')} connectHealth={()=>connectSource('health')} onSkip={()=>{setRunsSkipped(true);if(!loadFailure?.prefs)savePrefs({...userPrefs,runsChosen:true});}}/>;
  const me=athlete||(userPrefs?.profile?.name?{firstname:userPrefs.profile.name.split(' ')[0],lastname:userPrefs.profile.name.split(' ').slice(1).join(' ')}:null);
  // Activity types you've hidden (WHOOP walks by default) are left out everywhere except Settings.
  const hidden=readSettings(userPrefs).hiddenTypes,shownActs=acts.filter(a=>!hidden.includes(a.sport_type||a.type));

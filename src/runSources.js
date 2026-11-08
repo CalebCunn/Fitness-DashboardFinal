@@ -1,14 +1,15 @@
-// APEX · where runs come from. Exactly one source feeds the app at a time (Strava, COROS or WHOOP),
+// APEX · where runs come from. Exactly one source feeds the app at a time (Strava, COROS, WHOOP, or Apple Health in the iPhone app),
 // so the same run is never loaded twice from two services. Within that source, copies of the same
 // session (e.g. Strava holding both the COROS and the WHOOP upload) are folded into one as well.
 import {isConnected as stravaConnected,getActivityHistory} from './strava';
 import {isCorosConnected,callCorosTool} from './coros';
 import {isWhoopConnected,getWhoopWorkoutPage} from './whoop';
+import {isHealthConnected,healthHistory} from './appleHealth';
 
-export const RUN_SOURCES={strava:'Strava',coros:'COROS',whoop:'WHOOP'};
-export const RUN_NOTES={strava:'Runs, routes, splits and shoes',coros:'Runs and workouts straight from your watch',whoop:'Workouts with heart rate and strain (no maps)'};
-const ORDER=['strava','coros','whoop'];
-export const isRunSourceConnected=k=>k==='strava'?stravaConnected():k==='coros'?isCorosConnected():k==='whoop'?isWhoopConnected():false;
+export const RUN_SOURCES={strava:'Strava',coros:'COROS',whoop:'WHOOP',health:'Apple Health'};
+export const RUN_NOTES={strava:'Runs, routes, splits and shoes',coros:'Runs and workouts straight from your watch',whoop:'Workouts with heart rate and strain (no maps)',health:'Workouts from your Apple Watch or iPhone (no maps)'};
+const ORDER=['strava','coros','whoop','health'];
+export const isRunSourceConnected=k=>k==='strava'?stravaConnected():k==='coros'?isCorosConnected():k==='whoop'?isWhoopConnected():k==='health'?isHealthConnected():false;
 export const connectedRunSources=()=>ORDER.filter(isRunSourceConnected);
 export function activeRunSource(settings){const c=connectedRunSources(),pick=settings?.runSource;return c.includes(pick)?pick:c[0]||null;}
 
@@ -137,6 +138,6 @@ export async function corosSplits(a){
 // Loads the chosen source's history (cached copy first), with duplicates folded away.
 export async function loadRuns(source,{onUpdate}={}){
  const up=list=>onUpdate?.(dedupe(list));
- const list=source==='strava'?await getActivityHistory({onUpdate:up}):source==='coros'?await corosHistory(up):source==='whoop'?await whoopHistory(up):[];
+ const list=source==='strava'?await getActivityHistory({onUpdate:up}):source==='coros'?await corosHistory(up):source==='whoop'?await whoopHistory(up):source==='health'?await healthHistory(up):[];
  return dedupe(list);
 }

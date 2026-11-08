@@ -10,6 +10,7 @@ import {DayLap,dayStops} from './ApexDay';
 import {bodyRead} from './ApexBody';
 import {RaceDay,raceWindow} from './ApexRaceDay';
 import {usualHour,useWeather,heatCost,easyCap,shoeToWear,todaysCall,coachDraft,laneRace,LaneRace,callOptions,CallDeck} from './ApexToday';
+import {tap} from './native';
 import {ProStrip} from './ApexPro';
 import {usePlan} from './apexPlan';
 import './ApexUI.css';
@@ -59,8 +60,8 @@ function usePullToRefresh(ref,onRefresh){
  useEffect(()=>{
   const el=ref.current;if(!el||!onRefresh)return;
   const down=e=>{if(busy||el.scrollTop>0||e.touches.length!==1||e.target.closest('.coach-log,.call-track,input,textarea,select,[role=dialog]'))return;start.current=e.touches[0].clientY;dist.current=0;};
-  const move=e=>{if(start.current==null)return;const dy=e.touches[0].clientY-start.current;if(dy<=0||el.scrollTop>0){if(dist.current){dist.current=0;setPull(0);}return;}dist.current=Math.min(120,dy*.5);setPull(dist.current);};
-  const up=()=>{if(start.current==null)return;start.current=null;if(dist.current>=64){setBusy(true);setPull(56);try{navigator.vibrate?.(8);}catch{}Promise.resolve(onRefresh()).finally(()=>setTimeout(()=>{setBusy(false);setPull(0);},900));}else setPull(0);dist.current=0;};
+  const move=e=>{if(start.current==null)return;const dy=e.touches[0].clientY-start.current;if(dy<=0||el.scrollTop>0){if(dist.current){dist.current=0;setPull(0);}return;}const was=dist.current;dist.current=Math.min(120,dy*.5);if(was<64&&dist.current>=64)tap('MEDIUM');setPull(dist.current);};
+  const up=()=>{if(start.current==null)return;start.current=null;if(dist.current>=64){setBusy(true);setPull(56);Promise.resolve(onRefresh()).finally(()=>setTimeout(()=>{setBusy(false);setPull(0);},900));}else setPull(0);dist.current=0;};
   el.addEventListener('touchstart',down,{passive:true});el.addEventListener('touchmove',move,{passive:true});el.addEventListener('touchend',up);el.addEventListener('touchcancel',up);
   return()=>{el.removeEventListener('touchstart',down);el.removeEventListener('touchmove',move);el.removeEventListener('touchend',up);el.removeEventListener('touchcancel',up);};
  },[ref,onRefresh,busy]);
