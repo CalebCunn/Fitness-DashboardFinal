@@ -28,6 +28,8 @@
 	<true/>
 	<key>NSHealthShareUsageDescription</key>
 	<string>Apex reads your workouts, heart rate, sleep, HRV and resting heart rate to show your runs and how recovered you are.</string>
+	<key>NSHealthUpdateUsageDescription</key>
+	<string>Apex only saves to Apple Health if you ask it to, for example a workout you log in Apex.</string>
 	<key>UIApplicationSceneManifest</key>
 	<dict>
 		<key>UIApplicationSupportsMultipleScenes</key>
