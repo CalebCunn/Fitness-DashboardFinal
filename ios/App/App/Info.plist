@@ -26,10 +26,16 @@
 	<false/>
 	<key>LSRequiresIPhoneOS</key>
 	<true/>
+	<key>NSCameraUsageDescription</key>
+	<string>Take a photo of a meal for a nutrition estimate, or of anything you want to show the coach.</string>
 	<key>NSHealthShareUsageDescription</key>
 	<string>Apex reads your workouts, heart rate, sleep, HRV and resting heart rate to show your runs and how recovered you are.</string>
 	<key>NSHealthUpdateUsageDescription</key>
 	<string>Apex only saves to Apple Health if you ask it to, for example a workout you log in Apex.</string>
+	<key>NSMicrophoneUsageDescription</key>
+	<string>Only used if you record a video while choosing a photo. Apex doesn’t record audio.</string>
+	<key>NSPhotoLibraryUsageDescription</key>
+	<string>Choose a meal photo for a nutrition estimate, or a photo to show the coach.</string>
 	<key>UIApplicationSceneManifest</key>
 	<dict>
 		<key>UIApplicationSupportsMultipleScenes</key>
