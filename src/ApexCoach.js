@@ -11,7 +11,8 @@ import {aiHeaders,ownKey,anthropicDirect,accessMessage} from './apexAccess';
 const COROS_HOSTS=new Set(['mcp.coros.com','mcpeu.coros.com','mcpus.coros.com','mcpcn.coros.com']);
 const COROS_WRITES=['createTrainingPlan','updateTrainingPlan','createSingleWorkout','updateWorkoutDetails','scheduleWorkout','createScheduledWorkout','updateScheduledWorkout'];
 function coachDirect({system,messages,coros,allowCorosWrites}){
- const payload={model:'claude-sonnet-5-5',max_tokens:4096,stream:true,system,messages:messages.slice(-24)};let beta;
+ // The model thinks before it writes (hidden), so leave room for both; medium effort keeps chat quick.
+ const payload={model:'claude-sonnet-5-5',max_tokens:16000,output_config:{effort:'medium'},stream:true,system,messages:messages.slice(-24)};let beta;
  let url=null;try{const u=new URL(coros?.url||'');if(u.protocol==='https:'&&COROS_HOSTS.has(u.hostname))url=u.href;}catch{}
  if(url&&coros?.token){const has=new Set(coros.tools||[]),set={type:'mcp_toolset',mcp_server_name:'coros'};if(!allowCorosWrites){const off=COROS_WRITES.filter(t=>has.has(t));if(off.length)set.configs=Object.fromEntries(off.map(t=>[t,{enabled:false}]));}
   payload.mcp_servers=[{type:'url',url,name:'coros',authorization_token:coros.token}];payload.tools=[set];beta='mcp-client-2025-11-20';}
@@ -166,7 +167,7 @@ Saving to COROS is ${writes?'ENABLED for this message only. Save only what the u
     }}
    const proposal=parsePlanBlock(raw,today),gym=extractGym(raw);
    let shown=visible(raw);
-   if(!shown&&!proposal&&!gym)shown=stop==='pause_turn'?'That COROS lookup took longer than expected. Ask again with a shorter date range.':'No reply came back. Please try again.';
+   if(!shown&&!proposal&&!gym)shown=stop==='pause_turn'?'That COROS lookup took longer than expected. Ask again with a shorter date range.':stop==='max_tokens'?'The coach ran out of room before answering. Try a shorter or more specific question.':stop==='refusal'?'The coach couldn’t answer that one. Try asking it a different way.':'No reply came back. Please try again.';
    if(stop==='max_tokens'&&raw.includes('PLAN_START')&&!proposal)shown+=(shown?'\n\n':'')+'The plan was cut short. Ask for one week at a time.';
    setMsgs([...history,{role:'assistant',at:new Date().toISOString(),content:shown,raw,plan:proposal||undefined,gym:gym||undefined,tools}]);
   }catch(e){setMsgs([...history,{role:'assistant',content:e.message||'Something went wrong. Please try again.',error:true}]);}

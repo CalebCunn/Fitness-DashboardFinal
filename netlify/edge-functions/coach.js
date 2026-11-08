@@ -46,7 +46,9 @@ export default async request => {
 
   const payload = {
     model: Netlify.env.get('APEX_COACH_MODEL') || 'claude-sonnet-5-5',
-    max_tokens: 4096,
+    // The model thinks before it writes (hidden), so leave room for both; medium effort keeps chat quick.
+    max_tokens: 16000,
+    output_config: { effort: 'medium' },
     stream: true,
     system,
     messages: messages.slice(-24),

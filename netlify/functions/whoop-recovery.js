@@ -9,8 +9,11 @@ exports.handler = async (event) => {
       "https://api.prod.whoop.com/developer/v1/cycle?limit=7&order=desc",
     ];
     
+    // WHOOP saying the token is bad (401) is passed on, so the app renews it instead of giving up.
+    let rejected = false;
     for (const url of urls) {
       const res = await fetch(url, { headers: { Authorization: token } });
+      if (res.status === 401) rejected = true;
       const text = await res.text();
       console.log(`${url} -> ${res.status}: ${text.substring(0, 400)}`);
       if (res.status === 200) {
@@ -18,7 +21,7 @@ exports.handler = async (event) => {
       }
     }
     
-    return { statusCode: 404, headers: { "Content-Type": "application/json", "Access-Control-Allow-Origin": "*" }, body: JSON.stringify({ records: [] }) };
+    return { statusCode: rejected ? 401 : 404, headers: { "Content-Type": "application/json", "Access-Control-Allow-Origin": "*" }, body: JSON.stringify({ records: [] }) };
   } catch (err) {
     console.error(err.message);
     return { statusCode: 500, body: JSON.stringify({ error: err.message }) };

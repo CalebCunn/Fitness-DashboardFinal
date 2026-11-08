@@ -35,22 +35,28 @@ async function refreshWhoopToken(retried = false) {
   // WHOOP rotates refresh tokens: if another device used ours, take the account's newer one once.
   const newer = !retried && await newerRefreshToken("whoop");
   if (newer) { localStorage.setItem("whoop_refresh_token", newer); return refreshWhoopToken(true); }
-  throw new Error("Whoop refresh failed");
+  throw new Error("WHOOP needs reconnecting. Disconnect and connect it again in You.");
 }
 
 // One refresh at a time: WHOOP rotates refresh tokens, so parallel refreshes (four requests on
 // app open) made all but the first fail, which is why WHOOP needed a manual retry every morning.
 let refreshing = null;
-async function whoopToken() {
+async function whoopToken(force = false) {
   const t = localStorage.getItem("whoop_access_token");
   const exp = localStorage.getItem("whoop_token_expiry");
-  if (t && exp && Date.now() < parseInt(exp) - 60000) return t;
+  if (!force && t && exp && Date.now() < parseInt(exp) - 60000) return t;
   if (!refreshing) refreshing = refreshWhoopToken().finally(() => { refreshing = null; });
   return refreshing;
 }
 
+// WHOOP can reject a token before its stated expiry: renew it once and try again.
+async function whoopFetch(url) {
+  let res = await fetch(url, { headers: { Authorization: `Bearer ${await whoopToken()}` } });
+  if (res.status === 401) res = await fetch(url, { headers: { Authorization: `Bearer ${await whoopToken(true)}` } });
+  return res;
+}
+
 async function whoopGet(path) {
-  const t = await whoopToken();
   const isNetlify = window.location.hostname !== "localhost";
 
   if (isNetlify) {
@@ -61,15 +67,11 @@ async function whoopGet(path) {
       "/cycle?limit=14&order=desc": "whoop-cycles",
     };
     const fn = endpointMap[path] || "whoop-recovery";
-    const res = await fetch(`/.netlify/functions/${fn}`, {
-      headers: { Authorization: `Bearer ${t}` },
-    });
+    const res = await whoopFetch(`/.netlify/functions/${fn}`);
     if (!res.ok) throw new Error(`Whoop proxy ${res.status}`);
     return res.json();
   } else {
-    const res = await fetch(`${WHOOP_BASE}${path}`, {
-      headers: { Authorization: `Bearer ${t}` },
-    });
+    const res = await whoopFetch(`${WHOOP_BASE}${path}`);
     if (!res.ok) throw new Error(`Whoop ${res.status}`);
     return res.json();
   }
@@ -116,10 +118,9 @@ export async function getWhoopData() {
 
 // One page (25) of workout history, newest first; pass the previous page's next_token to go further back.
 export async function getWhoopWorkoutPage(next) {
-  const t = await whoopToken();
   const q = `limit=25${next ? `&nextToken=${encodeURIComponent(next)}` : ""}`;
   const url = window.location.hostname === "localhost" ? `https://api.prod.whoop.com/developer/v2/activity/workout?${q}` : `/.netlify/functions/whoop-workouts?${q}`;
-  const res = await fetch(url, { headers: { Authorization: `Bearer ${t}` } });
+  const res = await whoopFetch(url);
   if (!res.ok) throw new Error(`Whoop workouts ${res.status}`);
   return res.json();
 }
