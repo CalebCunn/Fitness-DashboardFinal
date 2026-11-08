@@ -2,6 +2,7 @@
 import {useEffect,useState} from 'react';
 import {sendCode,verifyCode,signOut,stravaCapacity,joinWaitlist,sendFeedback,signUpPassword,signInPassword,verifySignup,resendSignup,sendReset,verifyReset,setPassword,googleSignIn,GOOGLE} from './apexAuth';
 import {Bend} from './ApexTrack';
+import {SHOW_APP_LINK,TESTFLIGHT} from './native';
 
 // The public support address (the Apex mailbox), shown on Support, Privacy and Terms.
 const CONTACT = 'hello@apexrunning.app';
@@ -70,6 +71,7 @@ export function SignIn(){
    {mode==='code-verify'&&<form onSubmit={verifyC} className="signin-form"><p>We sent a code to <b>{E}</b>. Enter it below, or tap the link in the email on this device.</p>{codeF}{cta('Sign in',code.length<6)}{back}</form>}
    {err&&<p className="signin-error" role="alert">{err}</p>}
    {note&&<p className="si-note" role="status">{note}</p>}
+   {SHOW_APP_LINK&&<a className="signin-link si-center si-app" href={TESTFLIGHT}>Get the iPhone app (beta) →</a>}
    <small>By continuing you agree to the <a href="#terms">terms</a> and <a href="#privacy">privacy policy</a>. Apex gives training guidance, not medical advice. <a href="#support">Support</a></small>
   </div>
  </div>;

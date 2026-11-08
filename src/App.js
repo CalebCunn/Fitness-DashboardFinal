@@ -39,6 +39,7 @@ export default function App(){
  useEffect(()=>{if(!PUBLIC||!uid)return;let live=true;persistence.setUser(uid);setConnectionsUser(uid);restoreConnections().finally(()=>{if(live)setReady(uid);});return()=>{live=false;};},[uid]);
  if(PREVIEW&&/[?&]waitlist/.test(window.location.search))return <StravaGateDemo/>;// sample-mode screenshots only
  if(PREVIEW&&/[?&]support/.test(window.location.search))return <Support/>;
+ if(PREVIEW&&/[?&]signin/.test(window.location.search))return <SignIn/>;// sample-mode screenshots only
  if(PREVIEW&&/[?&]connect/.test(window.location.search)){const full=/[?&]full/.test(window.location.search);return <ConnectRuns connectStrava={async()=>full?'full':undefined} connectCoros={()=>{}} connectWhoop={()=>{}} onSkip={()=>{}}/>;}// sample-mode screenshots only
  if(PREVIEW&&/[?&]onboard/.test(window.location.search))return <Onboarding prefs={{}} onDone={()=>{}}/>;// sample-mode screenshots only
  if(!PUBLIC||PREVIEW)return <ApexApp/>;

@@ -1597,6 +1597,7 @@
 .si-or::before,.si-or::after{content:'';flex:1;height:1px;background:rgba(243,237,226,.18)}
 .si-google{display:flex;align-items:center;justify-content:center;gap:10px;min-height:52px;max-width:420px;width:100%;border-radius:999px;border:0;background:#fff;color:#1f1f1f;font:600 16px 'Inter Tight',sans-serif;cursor:pointer}
 .si-center{text-align:center;max-width:420px}
+.si-app{display:block;margin:4px auto 14px;text-decoration:none}
 .si-note{color:#9EE0B5;font-weight:600;margin:0}
 .si .signin-form{max-width:420px}
 
