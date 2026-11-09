@@ -11,6 +11,7 @@ import {bodyRead} from './ApexBody';
 import {RaceDay,raceWindow} from './ApexRaceDay';
 import {usualHour,useWeather,heatCost,easyCap,shoeToWear,todaysCall,coachDraft,laneRace,LaneRace,callOptions,CallDeck} from './ApexToday';
 import {tap} from './native';
+import {DailyStrip} from './ApexDaily';
 import {ProStrip} from './ApexPro';
 import {usePlan} from './apexPlan';
 import './ApexUI.css';
@@ -22,6 +23,7 @@ const paths={
  plan:'M5 5h14v15H5z M5 10h14 M9 3v4 M15 3v4',
  nutrition:'M7 3v8a3 3 0 0 0 6 0V3 M10 3v18 M17 3c-2.5 2-2.5 9 0 10v8',
  recovery:'M20 14.5A8 8 0 1 1 9.5 4a6.5 6.5 0 0 0 10.5 10.5z',
+ daily:'M12 21a9 9 0 1 1 9-9 M12 7v5l3 2 M21 12h-3',
  gym:'M2 12h2 M20 12h2 M5 8v8 M19 8v8 M8 6v12 M16 6v12 M8 12h8',
  coach:'M5 18V8a3 3 0 0 1 3-3h8a3 3 0 0 1 3 3v6a3 3 0 0 1-3 3H9l-4 3z M9 10.5h6 M9 13.5h4',
  profile:'M12 12a4 4 0 1 0 0-8 4 4 0 0 0 0 8z M4 20a8 8 0 0 1 16 0',
@@ -47,11 +49,11 @@ export function Icon({name,size=22}){return <svg width={size} height={size} view
 // The mark: the end of a track, lane 1 drawn heavy.
 export function Mark({size=26}){return <svg width={size} height={size} viewBox="0 0 64 64" aria-hidden="true"><g fill="none" stroke="currentColor" strokeLinecap="butt"><path d="M62 46H28a14 14 0 0 1 0-28h34" strokeWidth="6"/><path d="M62 55H28a23 23 0 0 1 0-46h34" strokeWidth="2.4"/></g></svg>;}
 
-const MORE_ALL=[['performance','Performance','Form, predictor, PBs, pace band'],['shoes','Shoes','Mileage, rotation and retirement'],['recovery','Recovery','Sleep, HRV and the last 30 mornings'],['nutrition','Fuel','Meals, targets and body weight'],['gym','Strength','Live workouts, rest timer, history'],['journal','Journal','Write anything. Your coach remembers it'],['races','Races','Your calendar and primary goal'],['settings','Settings','Account, customise Today, heart rate, coach'],['profile','You','Profile and connections'],['plan','Training','Your plan, week by week'],['activity','Activity','Every run and the 12-week grid'],['coach','Coach','Plans, questions, adjustments']];
+const MORE_ALL=[['daily','Daily','Steps, heart rate and calories through the day'],['performance','Performance','Form, predictor, PBs, pace band'],['shoes','Shoes','Mileage, rotation and retirement'],['recovery','Recovery','Sleep, HRV and the last 30 mornings'],['nutrition','Fuel','Meals, targets and body weight'],['gym','Strength','Live workouts, rest timer, history'],['journal','Journal','Write anything. Your coach remembers it'],['races','Races','Your calendar and primary goal'],['settings','Settings','Account, customise Today, heart rate, coach'],['profile','You','Profile and connections'],['plan','Training','Your plan, week by week'],['activity','Activity','Every run and the 12-week grid'],['coach','Coach','Plans, questions, adjustments']];
 // The More sheet in three short groups (pages already on the tab bar are left out).
 const MORE_GROUPS=[['Training',['plan','activity','coach','performance','races','gym','shoes']],['Body',['recovery','nutrition','journal']],['You',['profile','settings']]];
 const STAT_SHORT={marathon:'Marathon',half:'Half',tenk:'10K',fivek:'5K',week:'Week',month:'Month',year:'Year',streak:'Streak',shoe:'Shoe',race:'Race',rhr:'RHR'};
-const TITLES={shoes:'Shoes',performance:'Performance',plan:'Training',activity:'Activity',recovery:'Recovery',nutrition:'Fuel',gym:'Strength',coach:'Coach',profile:'You',races:'Races',journal:'Journal',settings:'Settings'};
+const TITLES={daily:'Daily',shoes:'Shoes',performance:'Performance',plan:'Training',activity:'Activity',recovery:'Recovery',nutrition:'Fuel',gym:'Strength',coach:'Coach',profile:'You',races:'Races',journal:'Journal',settings:'Settings'};
 
 // Pull down at the top of any page to refresh Strava and WHOOP. The app shell locks native
 // overscroll, so this is drawn by hand: a lane line that fills as you pull, then a spinner.
@@ -133,7 +135,7 @@ function sessionHeadline(session,plan,planUnavailable){
  return {meta:[session.pace&&session.pace!=='N/A'?session.pace.replace(/\/?km$/,'')+' /km':'',session.shoe&&session.shoe!=='N/A'?session.shoe:''].filter(Boolean).join(' · ')||'Today',big:[`${num(km,km%1?1:0)} km `,surfaceFor(type).name.toLowerCase()],line:session.notes};
 }
 
-export function Home({acts=[],gear=[],whoop,whoopOk,connectWhoop,plan,nav,userPrefs,onSavePrefs,prefsUnavailable=false,planUnavailable=false,checkin=null}){
+export function Home({acts=[],gear=[],whoop,whoopOk,connectWhoop,plan,nav,userPrefs,daily=null,onSavePrefs,prefsUnavailable=false,planUnavailable=false,checkin=null}){
  const settings=readSettings(userPrefs);
  const now=new Date(),today=localDate(now),monday=mondayOf(today);
  const sessions=datedPlan(plan);
@@ -196,12 +198,14 @@ export function Home({acts=[],gear=[],whoop,whoopOk,connectWhoop,plan,nav,userPr
   hrv:[Number.isFinite(rec?.hrv_rmssd_milli)?Math.round(rec.hrv_rmssd_milli):'—',hrvDelta!=null?`ms · ${hrvDelta>=0?'+':''}${hrvDelta}%`:'ms','recovery'],
   sleep:[asleep?hm(asleep):'—','asleep','recovery'],
   rhr:[rec?.resting_heart_rate!=null?Math.round(rec.resting_heart_rate):'—','bpm resting','recovery'],
+  steps:[num(daily?.days?.find(d=>d.day===today)?.steps),'steps today','daily'],
   shoe:[topShoe?dist(topShoe.km*1000,settings,0):'—',topShoe?`${u} · ${topShoe.name}`:'No shoes','shoes'],
   race:[goalDays!=null?goalDays:'—',goal?`days to ${goal.name}`:'No race set','races'],
  };
  const weekDays=Array.from({length:7},(_,i)=>{const key=addDays(monday,i),ds=sessions.filter(s=>s.date===key),main=ds.find(s=>s.type!=='Rest')||ds[0],d=new Date(key+'T12:00:00');
   return {key,short:d.toLocaleDateString('en-GB',{weekday:'short'}),date:d.getDate(),plannedKm:ds.filter(s=>!['Rest','Gym'].includes(s.type)).reduce((n,s)=>n+(parseFloat(s.dist)||0),0),km:ranBetween(key,key)/1000,strength:ds.some(s=>s.type==='Gym'),effort:{'Long Run':'long',Tempo:'tempo',Interval:'int'}[main?.type]||'easy',aria:`${d.toLocaleDateString('en-GB',{weekday:'long'})}: ${main?main.type:'nothing planned'}`};});
  const modules={
+  move:<DailyStrip key="move" daily={daily} userPrefs={userPrefs} nav={nav}/>,
   recovery:settings.todayPoster!=='track'?<section key="recovery" className="poster lanes-poster" aria-label={score==null?'Your morning':`Recovery ${score}. ${race.head.join(' ')}`}>
    <div className="poster-meta"><span>{now.toLocaleDateString('en-GB',{weekday:'short'})} {dd(now.getDate())}.{dd(now.getMonth()+1)}</span><span>{wx?`${Math.round(wx.temp)}° ${wx.word}`:`Week ${weekNo}`}</span><span>{goalDays!=null?`${goal.name.split(' ')[0]} · ${goalDays} days`:`${dist(weekM,settings,1)} ${u} this week`}</span></div>
    <div className="lp-top">

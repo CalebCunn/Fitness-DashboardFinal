@@ -6,7 +6,7 @@ import {HAS_HEALTH} from './native';
 import {estimateRecovery} from './recoverySources';
 
 const FLAG='apple_health_connected';
-const READ=['workouts','heartRate','restingHeartRate','heartRateVariability','sleep','distance'];
+const READ=['workouts','heartRate','restingHeartRate','heartRateVariability','sleep','distance','steps','calories','exerciseTime'];
 const get=k=>{try{return localStorage.getItem(k);}catch{return null;}};
 const set=(k,v)=>{try{v==null?localStorage.removeItem(k):localStorage.setItem(k,String(v));}catch{}};
 
@@ -14,6 +14,7 @@ const set=(k,v)=>{try{v==null?localStorage.removeItem(k):localStorage.setItem(k,
 // never the plugin itself: a plugin object looks like a promise, so awaiting it hangs.
 let plugin=null;
 const mod=()=>plugin||(plugin=import('@capgo/capacitor-health'));
+export const healthModule=mod;
 
 export const isHealthConnected=()=>HAS_HEALTH&&get(FLAG)==='1';
 // iPhone asks once; a "no" can only be changed in the Settings app, so Apex can't tell yes from no.

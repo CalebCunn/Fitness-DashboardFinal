@@ -1664,3 +1664,44 @@
 .connect-runs .runs-full p{font-size:15px}
 .runs-full .text-button{color:#FFC94A;font-weight:700;padding:8px 0;background:none;border:0;text-decoration:underline}
 .runs-skip{display:block;margin:14px 0 18px;color:#F3EDE2!important;text-decoration:underline}
+
+/* ── Daily (all-day tracker) ── */
+.daily-page{display:grid;gap:28px}
+.dy-hero{display:grid;gap:22px;justify-items:center}
+.dy-ring{position:relative;width:190px;height:190px;display:grid;place-items:center}
+.dy-ring svg{position:absolute;inset:0;width:100%;height:100%}
+.dy-ring-track{fill:none;stroke:var(--fill-2,var(--rule));stroke-width:10}
+.dy-ring-fill{fill:none;stroke:var(--accent);stroke-width:10;stroke-linecap:round;transition:stroke-dasharray .6s var(--spring,ease)}
+.look-apex .dy-ring-fill{stroke:var(--gold,var(--accent))}
+.dy-ring>div{display:grid;text-align:center;gap:2px}
+.dy-ring strong{font-size:38px;font-weight:500;letter-spacing:-.03em;line-height:1;font-variant-numeric:tabular-nums}
+.dy-ring span{font-size:13px;color:var(--ink-2)}
+.dy-ring em{font-style:normal;font-size:12px;color:var(--ink-3);margin-top:2px}
+.dy-ring.is-strain{border-radius:50%;box-shadow:inset 0 0 0 10px var(--fill-2,var(--rule))}
+.dy-tiles{width:100%;display:grid;grid-template-columns:1fr 1fr;border-top:1px solid var(--rule-strong)}
+.dy-tile{display:grid;gap:3px;align-content:start;padding:10px 8px 12px 0;border-bottom:1px solid var(--rule);min-width:0}
+.dy-tile:nth-child(even){padding-left:12px;box-shadow:inset 1px 0 0 var(--rule)}
+.dy-tile>span{font-size:11px;font-weight:500;letter-spacing:.06em;text-transform:uppercase;color:var(--ink-2)}
+.dy-tile strong{font-weight:400;font-size:26px;line-height:1;letter-spacing:-.03em;font-variant-numeric:tabular-nums}
+.dy-tile small{font-size:12px;color:var(--ink-2);letter-spacing:0}
+.dy-tile p{font-size:12px;color:var(--ink-2)}
+.dy-source{margin-top:-14px}
+.dy-goal-btn{display:inline;padding:0;font-size:inherit;text-decoration:underline;text-underline-offset:3px}
+.dy-goal-form{display:flex;align-items:end;gap:10px;margin-top:8px}
+.dy-goal-form label{display:grid;gap:4px;font-size:12px;color:var(--ink-2)}
+.dy-goal-form input{width:120px;min-height:38px;padding:0 10px;border-radius:3px;border:1px solid var(--rule-strong);background:transparent;color:var(--ink);font-size:16px}
+.dy-chart{display:grid;gap:10px}
+.dy-chart .section-label p{font-size:14px;color:var(--ink-2)}
+.dy-chart .section-label strong{font-size:20px;color:var(--ink);font-weight:700}
+.dy-chart svg{width:100%;height:140px;display:block}
+.dy-band{fill:color-mix(in srgb,var(--ink) 18%,transparent)}
+.dy-band.is-peak{fill:var(--bad)}
+.dy-line{fill:none;stroke:var(--accent);stroke-width:1.8;vector-effect:non-scaling-stroke;stroke-linejoin:round}
+.dy-bar{fill:color-mix(in srgb,var(--ink) 22%,transparent)}
+.dy-bar.is-goal{fill:var(--accent)}
+.dy-bar.is-today{fill:var(--ink)}
+.look-apex .dy-bar.is-today{fill:var(--gold,var(--ink))}
+.dy-goal{stroke:var(--ink-3);stroke-dasharray:4 4;vector-effect:non-scaling-stroke}
+.dy-axis{display:flex;justify-content:space-between;gap:8px;font-size:11px;color:var(--ink-2)}
+
+@media (min-width:760px){.dy-tiles{grid-template-columns:repeat(4,1fr)}.dy-tile:nth-child(n){padding-left:12px;box-shadow:inset 1px 0 0 var(--rule)}.dy-tile:first-child{padding-left:0;box-shadow:none}}

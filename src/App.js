@@ -28,6 +28,8 @@ import {sendWelcome} from './apexAuth';
 import {isCorosConnected,isCorosCallback,finishCorosConnect,startCorosConnect,disconnectCoros} from './coros';
 import {IN_APP,installHaptics} from './native';
 import {scheduleReminders,onReminderTap} from './reminders';
+import Daily from './ApexDaily';
+import {loadDaily,sampleDaily} from './dailyActivity';
 const {loadUserPrefs,saveUserPrefs,loadTrainingPlan,saveTrainingPlan}=PREVIEW?previewStore:persistence;
 
 // Public build: sign in first, then the app runs against that user's private data.
@@ -61,7 +63,7 @@ function ApexApp({account}={}){
  useEffect(()=>{if(PREVIEW)return;const update=()=>setSaveStatus(persistence.getSaveStatus());window.addEventListener('apex-save-status',update);return()=>window.removeEventListener('apex-save-status',update);},[]);
  const [activityId,setActivityId]=useState(null);
  const navigate=(id,activity=null)=>{setActivityId(activity);if(window.location.hash!=='#'+id)window.history.pushState({},'', '#'+id);setPage(id);};
- useEffect(()=>{const back=()=>{const id=window.location.hash.slice(1);setPage(['home','plan','activity','performance','recovery','nutrition','gym','coach','profile','races','journal','settings','shoes'].includes(id)?id:'home');};window.addEventListener('popstate',back);back();return()=>window.removeEventListener('popstate',back);},[]);
+ useEffect(()=>{const back=()=>{const id=window.location.hash.slice(1);setPage(['home','daily','plan','activity','performance','recovery','nutrition','gym','coach','profile','races','journal','settings','shoes'].includes(id)?id:'home');};window.addEventListener('popstate',back);back();return()=>window.removeEventListener('popstate',back);},[]);
  const [page,setPage]=useState(()=>/[?&]pro=1/.test(window.location.search)?'settings':'home'),[connected,setConnected]=useState(PREVIEW||isConnected()),[whoopOk,setWhoopOk]=useState((PREVIEW&&!NEW_USER)||connectedSources().length>0),[sourcesTick,setSourcesTick]=useState(0);
  const [acts,setActs]=useState([]),[stats,setStats]=useState(null),[athlete,setAthlete]=useState(null),[gear,setGear]=useState([]),[whoop,setWhoop]=useState(null),[loading,setLoading]=useState(false),[whoopPending,setWhoopPending]=useState(false),[error,setError]=useState(''),[retry,setRetry]=useState(0);
  const hasActs=useRef(false);useEffect(()=>{hasActs.current=acts.length>0;},[acts]);
@@ -127,6 +129,9 @@ function ApexApp({account}={}){
  },[]);
  const units=readSettings(userPrefs).units;
  useEffect(()=>{if(IN_APP&&prefsReady)scheduleReminders({plan:savedPlan,races:userPrefs?.races||[],miles:units==='mi'});},[savedPlan,userPrefs?.races,units,prefsReady,remindTick]);
+ // Daily activity (steps, calories, heart rate) from Apple Health, Oura or WHOOP; refreshed with everything else.
+ const [daily,setDaily]=useState(null),[dailyLoading,setDailyLoading]=useState(false);
+ useEffect(()=>{if(PREVIEW){if(!NEW_USER)setDaily(sampleDaily());return;}let active=true;setDailyLoading(true);loadDaily(whoop).then(d=>{if(active)setDaily(d);}).catch(()=>{}).finally(()=>{if(active)setDailyLoading(false);});return()=>{active=false;};},[whoop,retry,sourcesTick,remindTick]);
  // Apple Health connects without leaving the page, so it announces itself (iPhone app only).
  useEffect(()=>{window.addEventListener('apex-sources-changed',onSourceChange);return()=>window.removeEventListener('apex-sources-changed',onSourceChange);});
  const [runsSkipped,setRunsSkipped]=useState(false);
@@ -144,7 +149,8 @@ function ApexApp({account}={}){
  // Activity types you've hidden (WHOOP walks by default) are left out everywhere except Settings.
  const hidden=readSettings(userPrefs).hiddenTypes,shownActs=acts.filter(a=>!hidden.includes(a.sport_type||a.type));
  const views={
-  home:<Home gear={gear} onSavePrefs={savePrefs} prefsUnavailable={!!loadFailure?.prefs} planUnavailable={!!loadFailure?.plan} acts={shownActs} whoop={whoop} whoopOk={whoopOk} connectWhoop={connectWhoop} athlete={me} plan={savedPlan} nav={navigate} userPrefs={userPrefs} checkin={<Journal userPrefs={userPrefs} onSavePrefs={savePrefs} plan={savedPlan} nav={navigate}/>}/>,
+  home:<Home daily={daily} gear={gear} onSavePrefs={savePrefs} prefsUnavailable={!!loadFailure?.prefs} planUnavailable={!!loadFailure?.plan} acts={shownActs} whoop={whoop} whoopOk={whoopOk} connectWhoop={connectWhoop} athlete={me} plan={savedPlan} nav={navigate} userPrefs={userPrefs} checkin={<Journal userPrefs={userPrefs} onSavePrefs={savePrefs} plan={savedPlan} nav={navigate}/>}/>,
+  daily:<Daily daily={daily} loading={dailyLoading} userPrefs={userPrefs} onSavePrefs={savePrefs}/>,
   recovery:<><Recovery whoop={whoop} whoopOk={whoopOk} connectWhoop={connectWhoop}/>{!loadFailure?.prefs&&<Journal userPrefs={userPrefs} onSavePrefs={savePrefs} plan={savedPlan} nav={navigate}/>}</>,
   journal:<JournalPage userPrefs={userPrefs} onSavePrefs={savePrefs}/>,
   shoes:<Shoes gear={gear} acts={shownActs} userPrefs={userPrefs} onSavePrefs={savePrefs}/>,

@@ -70,6 +70,7 @@ async function access(k,retried=false){
  })().finally(()=>{refreshing[k]=null;});
  return refreshing[k];
 }
+export const pullHealthData=(k,path)=>pull(k,path);
 async function pull(k,path){
  const r=await fetch(`/.netlify/functions/health-data?provider=${k}&path=${encodeURIComponent(path)}`,{headers:{Authorization:`Bearer ${await access(k)}`}});
  if(!r.ok)throw new Error(`${SOURCES[k]} ${r.status}`);

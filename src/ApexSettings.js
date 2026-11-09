@@ -15,6 +15,7 @@ export const HOME_MODULES={
  recovery:['Recovery poster','Score, sleep and HRV'],
  session:['Today’s session','The plan, the call, energy'],
  day:['Your day','Run window, refuel and bedtime on one lap'],
+ move:['Daily activity','Steps, calories and heart rate so far'],
  stats:['Stats row','Three numbers of your choice'],
  week:['This week','Planned and run, by day'],
  race:['Next race','Countdown and goal'],
@@ -24,9 +25,9 @@ export const HOME_MODULES={
 };
 export const STATS={
  form:'Form',fitness:'Fitness',marathon:'Marathon prediction',half:'Half prediction',tenk:'10K prediction',fivek:'5K prediction',
- week:'This week',month:'This month',year:'This year',streak:'Run streak',hrv:'HRV',sleep:'Sleep',rhr:'Resting HR',shoe:'Shoe mileage',race:'Race countdown',
+ week:'This week',month:'This month',year:'This year',streak:'Run streak',hrv:'HRV',sleep:'Sleep',rhr:'Resting HR',steps:'Steps today',shoe:'Shoe mileage',race:'Race countdown',
 };
-export const TAB_CHOICES={plan:'Training',activity:'Activity',coach:'Coach',performance:'Performance',shoes:'Shoes',recovery:'Recovery',nutrition:'Fuel',gym:'Strength'};
+export const TAB_CHOICES={plan:'Training',activity:'Activity',coach:'Coach',daily:'Daily',performance:'Performance',shoes:'Shoes',recovery:'Recovery',nutrition:'Fuel',gym:'Strength'};
 export const ACCENTS={
  cobalt:{name:'Cobalt',light:'#1C3BDB',dark:'#3553F5'},
  red:{name:'Signal red',light:'#D2311E',dark:'#F0533E'},

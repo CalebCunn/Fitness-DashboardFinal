@@ -2,7 +2,7 @@
 // and the user's own access token is passed straight through.
 const BASES = { oura: "https://api.ouraring.com/v2/usercollection/", google: "https://health.googleapis.com/v4/users/me/dataTypes/" };
 const PATHS = {
-  oura: /^(daily_readiness|daily_sleep|sleep)\?[\w=&.-]+$/,
+  oura: /^(daily_readiness|daily_sleep|sleep|daily_activity|heartrate)\?[\w=&.:+-]+$/,
   google: /^(sleep|daily-heart-rate-variability|daily-resting-heart-rate)\/dataPoints\?[\w=&.%+-]+$/,
 };
 
