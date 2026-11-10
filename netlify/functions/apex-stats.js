@@ -6,8 +6,10 @@ const env = k => process.env[k];
 const json = (statusCode, body) => ({ statusCode, headers: { "Content-Type": "application/json", "Cache-Control": "no-store" }, body: JSON.stringify(body) });
 const ADMINS = (env("APEX_ADMIN_EMAILS") || "caleb.cunn7@gmail.com,hello@apexrunning.app").split(",").map(s => s.trim().toLowerCase()).filter(Boolean);
 // The owner's own and test accounts don't count (APEX_STATS_EXCLUDE adds more; "+review" catches App Store review logins).
-const EXCLUDE = (env("APEX_STATS_EXCLUDE") || "caleb.cunn7@gmail.com,cableinstallguy@gmail.com").split(",").map(s => s.trim().toLowerCase()).filter(Boolean);
-const isTest = e => { e = String(e || "").toLowerCase(); return EXCLUDE.includes(e) || e.includes("+review@"); };
+// Kept as short SHA-256 fingerprints, not addresses, because this repo is public. Includes friends and family.
+const EXCLUDE = new Set(["4c12cdbcc55de796","0247d859833189a5","7953a0f90a284180","070e6ec137a9a8c9","2ddd56923cfe33ba","cbc2ff4c41ae2d77", ...(env("APEX_STATS_EXCLUDE") || "").split(",").map(s => s.trim()).filter(Boolean)]);
+const fingerprint = e => crypto.createHash("sha256").update(String(e || "").trim().toLowerCase()).digest("hex").slice(0, 16);
+const isTest = e => EXCLUDE.has(fingerprint(e)) || String(e || "").toLowerCase().includes("+review@");
 const DAY = 86400000, PRICE = 4.99;
 
 exports.handler = async (event) => {
