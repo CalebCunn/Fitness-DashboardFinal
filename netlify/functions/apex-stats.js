@@ -5,6 +5,9 @@ const crypto = require("crypto");
 const env = k => process.env[k];
 const json = (statusCode, body) => ({ statusCode, headers: { "Content-Type": "application/json", "Cache-Control": "no-store" }, body: JSON.stringify(body) });
 const ADMINS = (env("APEX_ADMIN_EMAILS") || "caleb.cunn7@gmail.com,hello@apexrunning.app").split(",").map(s => s.trim().toLowerCase()).filter(Boolean);
+// The owner's own and test accounts don't count (APEX_STATS_EXCLUDE adds more; "+review" catches App Store review logins).
+const EXCLUDE = (env("APEX_STATS_EXCLUDE") || "caleb.cunn7@gmail.com,cableinstallguy@gmail.com").split(",").map(s => s.trim().toLowerCase()).filter(Boolean);
+const isTest = e => { e = String(e || "").toLowerCase(); return EXCLUDE.includes(e) || e.includes("+review@"); };
 const DAY = 86400000, PRICE = 4.99;
 
 exports.handler = async (event) => {
@@ -29,7 +32,7 @@ exports.handler = async (event) => {
   for (let page = 1; page <= 20; page++) {
     const d = await get(`/auth/v1/admin/users?page=${page}&per_page=1000`);
     const list = d?.users || [];
-    users.push(...list);
+    users.push(...list.filter(u => !isTest(u.email)));
     if (list.length < 1000) break;
   }
   // Rows, without the heavy fields. Oura and Google columns only exist on newer databases, so fall back.
