@@ -1,7 +1,7 @@
 // Owner-only email to Apex users, from hello@apexrunning.app via Resend (replies go to the hello@ inbox).
 // POST { subject, text, to: [emails], send: true } with the owner key. Without send:true it only reports who would get it.
 // It can only email people with an Apex account, never the owner's own, test, review, friends or family accounts,
-// and each person gets their own email (no shared BCC). Max 50 a call.
+// and each person gets their own email (no shared BCC). Max 50 a call. Caleb gets a copy of every send.
 const { isTest, hasOwnerKey } = require("../lib/owner");
 const env = k => process.env[k];
 const json = (statusCode, body) => ({ statusCode, headers: { "Content-Type": "application/json", "Cache-Control": "no-store" }, body: JSON.stringify(body) });
@@ -40,6 +40,12 @@ exports.handler = async (event) => {
     }).catch(() => null);
     (r && r.ok ? sent : failed).push(to);
   }
-  console.log(`apex-mail "${subject}": sent ${sent.length}, failed ${failed.length}, refused ${refused.length}`);
-  return json(200, { sent, failed, refused });
+  // Caleb always gets a copy of what went out, so he can see it arrived and what it said.
+  const copyTo = env("APEX_MAIL_COPY") || "caleb.cunn7@gmail.com";
+  const copy = await fetch("https://api.resend.com/emails", {
+    method: "POST", headers: { Authorization: `Bearer ${resend}`, "Content-Type": "application/json" },
+    body: JSON.stringify({ from, to: [copyTo], reply_to: "hello@apexrunning.app", subject: `[Copy sent to ${sent.length}] ${subject}`, text, html: html(text) + `<p style="font:12px Arial;color:#888">Sent to ${sent.length}${failed.length ? `, ${failed.length} failed` : ""}${refused.length ? `, ${refused.length} refused` : ""}.</p>` }),
+  }).then(r => r.ok).catch(() => false);
+  console.log(`apex-mail "${subject}": sent ${sent.length}, failed ${failed.length}, refused ${refused.length}, copy ${copy ? "ok" : "failed"}`);
+  return json(200, { sent, failed, refused, copy });
 };
