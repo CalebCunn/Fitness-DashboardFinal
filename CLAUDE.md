@@ -11,6 +11,9 @@ Keep instructions to Caleb short and step by step; he isn't a developer.
 - Public preview with sample data: `REACT_APP_PUBLIC=true REACT_APP_APEX_PREVIEW=true CI=true BUILD_PATH=<scratch> npx react-scripts build`, serve the folder, open `/?new`, `/?free`, `/?connect`, `#activity`, `#profile`, etc.
 - `CI=true` builds fail on lint warnings, so always build before committing.
 
+## Live numbers
+`scripts/apex-stats.sh` prints sign-ups, active users, connections, coach use and Pro (JSON) from `netlify/functions/apex-stats.js`. Key in `~/.config/apex/stats-key`, matching `APEX_STATS_KEY` on Netlify. Owner page: `#stats`.
+
 ## Where things are
 - `src/App.js`: sign-in gate, onboarding, then `ApexApp`. Runs come from ONE source at a time (`src/runSources.js`: Strava, COROS, WHOOP) and duplicates are folded (`dedupe`). No Strava wall: new runners pick a source or skip (`ConnectRuns` in `src/ApexSignIn.js`).
 - Recovery sources: `src/recoverySources.js` (WHOOP, Oura, Google Health). COROS: `src/coros.js` (official COROS MCP).
