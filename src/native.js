@@ -6,7 +6,7 @@ export const hasPlugin = name => IN_APP && !!window.Capacitor?.isPluginAvailable
 export const HAS_HEALTH = hasPlugin('Health'), HAS_REMINDERS = hasPlugin('LocalNotifications');
 const IPHONE = typeof navigator !== 'undefined' && /iPhone/.test(navigator.userAgent || '');
 // Public TestFlight link. Empty hides the button.
-export const TESTFLIGHT = '';
+export const TESTFLIGHT = 'https://testflight.apple.com/join/gjrXwzhr';
 // "Get the iPhone app" shows only on an iPhone browser, never inside the app itself.
 export const SHOW_APP_LINK = !!TESTFLIGHT && IPHONE && !IN_APP;
 
