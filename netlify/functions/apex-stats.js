@@ -11,8 +11,10 @@ exports.handler = async (event) => {
   const url = env("SUPABASE_URL") || env("REACT_APP_SUPABASE_URL"), anon = env("SUPABASE_ANON_KEY") || env("REACT_APP_SUPABASE_KEY"), service = env("SUPABASE_SERVICE_ROLE_KEY");
   if (env("APEX_PUBLIC") !== "true" || !url || !anon || !service) return json(404, { error: "Not found" });
   // Either the owner signed in, or Claude with the private stats key (APEX_STATS_KEY on Netlify, a copy on Caleb's Mac).
-  const key = event.headers["x-apex-stats-key"] || "", secret = env("APEX_STATS_KEY") || "";
+  // Trimmed: a key pasted into Netlify often brings a line break with it.
+  const key = String(event.headers["x-apex-stats-key"] || "").trim(), secret = String(env("APEX_STATS_KEY") || "").trim();
   const keyOk = secret.length >= 32 && key.length === secret.length && crypto.timingSafeEqual(Buffer.from(key), Buffer.from(secret));
+  if (key && !keyOk) console.log(`stats key refused: sent ${key.length} chars, Netlify has ${secret.length}`);
   if (!keyOk) {
     const token = (event.headers.authorization || event.headers.Authorization || "").replace(/^Bearer\s+/i, "");
     const who = token ? await fetch(`${url}/auth/v1/user`, { headers: { apikey: anon, Authorization: `Bearer ${token}` } }) : null;
