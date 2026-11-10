@@ -8,6 +8,7 @@ import {PUBLIC,accessCode,setAccessCode,ownKey,setOwnKey,testKey} from './apexAc
 import {signOut,deleteAccount,accountSummary,setPassword} from './apexAuth';
 import {Feedback} from './ApexSignIn';
 import {HAS_REMINDERS} from './native';
+import {ADMIN_EMAILS} from './ApexStats';
 import {readReminders,saveReminders,permission,askPermission} from './reminders';
 const FREE_LIMIT=+(process.env.REACT_APP_FREE_MESSAGES||30),PRO_LIMIT=+(process.env.REACT_APP_PRO_MESSAGES||400);
 
@@ -174,6 +175,7 @@ function Account(){
   <div className="set-row"><span><b>Signed in as</b><small>{me?.email||'…'}</small></span><span className={`plan-badge${me?.plan==='pro'?' is-pro':''}`}>{me?.plan==='pro'?'Pro':'Free'}</span></div>
   <div className="set-row" style={{display:'block'}}><span><b>Coach this month</b><small>{used==null?'…':`${used} of ${limit} messages used · resets on the 1st`}</small></span>
    {used!=null&&<div className="usage-bar" aria-hidden="true"><i style={{width:`${Math.min(100,used/limit*100)}%`}}/></div>}</div>
+  {me&&ADMIN_EMAILS.includes(String(me.email).toLowerCase())&&<div className="set-row"><span><b>Apex stats</b><small>Sign-ups, active users and Pro. Only you can see this.</small></span><a className="secondary-action set-small-btn" href="#stats">Open</a></div>}
   <ProRow me={me}/>
   <PasswordRow/>
   <div className="set-row"><span><b>Sign out</b><small>Removes your data and connections from this device.</small></span><button className="secondary-action" onClick={()=>signOut()}>Sign out</button></div>

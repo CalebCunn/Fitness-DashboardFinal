@@ -3,12 +3,6 @@
   publish = "build"
   functions = "netlify/functions"
 
-# Short link for videos and bios: apexrunning.app/iphone opens the TestFlight beta.
-[[redirects]]
-  from = "/iphone"
-  to = "https://testflight.apple.com/join/gjrXwzhr"
-  status = 302
-
 [[redirects]]
   from = "/*"
   to = "/index.html"

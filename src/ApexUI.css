@@ -1705,3 +1705,10 @@
 .dy-axis{display:flex;justify-content:space-between;gap:8px;font-size:11px;color:var(--ink-2)}
 
 @media (min-width:760px){.dy-tiles{grid-template-columns:repeat(4,1fr)}.dy-tile:nth-child(n){padding-left:12px;box-shadow:inset 1px 0 0 var(--rule)}.dy-tile:first-child{padding-left:0;box-shadow:none}}
+/* ── Owner stats ── */
+.st-list{display:grid;border-top:1px solid var(--rule-strong)}
+.st-row{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:12px 0;border-bottom:1px solid var(--rule);min-width:0}
+.st-row span{display:grid;gap:2px;min-width:0}
+.st-row b{font-weight:500;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.st-row small{font-size:12px;color:var(--ink-2)}
+.st-row em{font-style:normal;flex:none}

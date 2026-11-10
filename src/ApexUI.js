@@ -53,7 +53,7 @@ const MORE_ALL=[['daily','Daily','Steps, heart rate and calories through the day
 // The More sheet in three short groups (pages already on the tab bar are left out).
 const MORE_GROUPS=[['Training',['plan','activity','coach','performance','races','gym','shoes']],['Body',['recovery','nutrition','journal']],['You',['profile','settings']]];
 const STAT_SHORT={marathon:'Marathon',half:'Half',tenk:'10K',fivek:'5K',week:'Week',month:'Month',year:'Year',streak:'Streak',shoe:'Shoe',race:'Race',rhr:'RHR'};
-const TITLES={daily:'Daily',shoes:'Shoes',performance:'Performance',plan:'Training',activity:'Activity',recovery:'Recovery',nutrition:'Fuel',gym:'Strength',coach:'Coach',profile:'You',races:'Races',journal:'Journal',settings:'Settings'};
+const TITLES={stats:'Stats',daily:'Daily',shoes:'Shoes',performance:'Performance',plan:'Training',activity:'Activity',recovery:'Recovery',nutrition:'Fuel',gym:'Strength',coach:'Coach',profile:'You',races:'Races',journal:'Journal',settings:'Settings'};
 
 // Pull down at the top of any page to refresh Strava and WHOOP. The app shell locks native
 // overscroll, so this is drawn by hand: a lane line that fills as you pull, then a spinner.
