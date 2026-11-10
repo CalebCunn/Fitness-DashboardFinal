@@ -1,26 +1,17 @@
 // Owner-only numbers for the public site: sign-ups, who's active, connections, coach use and Pro.
 // Answers only for the owner's accounts (APEX_ADMIN_EMAILS, comma separated; defaults below), using the
 // service key server-side. Everyone else gets a 404, as if it didn't exist.
-const crypto = require("crypto");
+const { isTest, hasOwnerKey } = require("../lib/owner");
 const env = k => process.env[k];
 const json = (statusCode, body) => ({ statusCode, headers: { "Content-Type": "application/json", "Cache-Control": "no-store" }, body: JSON.stringify(body) });
 const ADMINS = (env("APEX_ADMIN_EMAILS") || "caleb.cunn7@gmail.com,hello@apexrunning.app").split(",").map(s => s.trim().toLowerCase()).filter(Boolean);
-// The owner's own and test accounts don't count (APEX_STATS_EXCLUDE adds more; "+review" catches App Store review logins).
-// Kept as short SHA-256 fingerprints, not addresses, because this repo is public. Includes friends and family.
-const EXCLUDE = new Set(["4c12cdbcc55de796","0247d859833189a5","7953a0f90a284180","070e6ec137a9a8c9","2ddd56923cfe33ba","cbc2ff4c41ae2d77", ...(env("APEX_STATS_EXCLUDE") || "").split(",").map(s => s.trim()).filter(Boolean)]);
-const fingerprint = e => crypto.createHash("sha256").update(String(e || "").trim().toLowerCase()).digest("hex").slice(0, 16);
-const isTest = e => EXCLUDE.has(fingerprint(e)) || String(e || "").toLowerCase().includes("+review@");
 const DAY = 86400000, PRICE = 4.99;
 
 exports.handler = async (event) => {
   const url = env("SUPABASE_URL") || env("REACT_APP_SUPABASE_URL"), anon = env("SUPABASE_ANON_KEY") || env("REACT_APP_SUPABASE_KEY"), service = env("SUPABASE_SERVICE_ROLE_KEY");
   if (env("APEX_PUBLIC") !== "true" || !url || !anon || !service) return json(404, { error: "Not found" });
   // Either the owner signed in, or Claude with the private stats key (APEX_STATS_KEY on Netlify, a copy on Caleb's Mac).
-  // Trimmed: a key pasted into Netlify often brings a line break with it.
-  const key = String(event.headers["x-apex-stats-key"] || "").trim(), secret = String(env("APEX_STATS_KEY") || "").trim();
-  const keyOk = secret.length >= 32 && key.length === secret.length && crypto.timingSafeEqual(Buffer.from(key), Buffer.from(secret));
-  if (key && !keyOk) console.log(`stats key refused: sent ${key.length} chars, Netlify has ${secret.length}`);
-  if (!keyOk) {
+  if (!hasOwnerKey(event)) {
     const token = (event.headers.authorization || event.headers.Authorization || "").replace(/^Bearer\s+/i, "");
     const who = token ? await fetch(`${url}/auth/v1/user`, { headers: { apikey: anon, Authorization: `Bearer ${token}` } }) : null;
     const me = who && who.ok ? await who.json() : null;

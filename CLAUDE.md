@@ -12,7 +12,7 @@ Keep instructions to Caleb short and step by step; he isn't a developer.
 - `CI=true` builds fail on lint warnings, so always build before committing.
 
 ## Live numbers
-`scripts/apex-stats.sh` prints sign-ups, active users, connections, coach use and Pro (JSON) from `netlify/functions/apex-stats.js`. Key in `~/.config/apex/stats-key`, matching `APEX_STATS_KEY` on Netlify. Owner page: `#stats`.
+`scripts/apex-stats.sh` prints sign-ups, active users, connections, coach use and Pro (JSON) from `netlify/functions/apex-stats.js`. Key in `~/.config/apex/stats-key`, matching `APEX_STATS_KEY` on Netlify. Owner page: `#stats`. `scripts/apex-mail.sh msg.json` emails Apex users from hello@apexrunning.app (dry run unless `"send":true`; refuses non-users and anyone in `netlify/lib/owner.js` exclusions, which include Caleb's friends and family).
 
 ## Where things are
 - `src/App.js`: sign-in gate, onboarding, then `ApexApp`. Runs come from ONE source at a time (`src/runSources.js`: Strava, COROS, WHOOP) and duplicates are folded (`dedupe`). No Strava wall: new runners pick a source or skip (`ConnectRuns` in `src/ApexSignIn.js`).
