@@ -7,6 +7,7 @@ import {datedSessions} from './ApexTraining';
 import {journalContext} from './ApexJournal';
 import {corosForCoach} from './coros';
 import {aiHeaders,ownKey,anthropicDirect,accessMessage} from './apexAccess';
+import {parseProgram,strengthContext,readRoutines,uid} from './strength';
 // With the user's own key, build the same request the server would and send it straight to Anthropic.
 const COROS_HOSTS=new Set(['mcp.coros.com','mcpeu.coros.com','mcpus.coros.com','mcpcn.coros.com']);
 const COROS_WRITES=['createTrainingPlan','updateTrainingPlan','createSingleWorkout','updateWorkoutDetails','scheduleWorkout','createScheduledWorkout','updateScheduledWorkout'];
@@ -30,27 +31,30 @@ const GREETING='Ready when you are. Ask about today, your week, or what to chang
 const PROMPTS=[
  ['Today','How should I approach today given my recovery?'],
  ['Next week','Plan my next training week, Monday to Sunday.'],
- ['Strength','Give me a strength session that suits this week.'],
+ ['Strength','Build or update my strength routines to fit this week.'],
  ['Race','Am I on track for my primary race goal?'],
 ];
 const TOOL_LABEL=n=>{const s=(n||'').replace(/^query|^get|^analyze/,'').replace(/([a-z])([A-Z])/g,'$1 $2').toLowerCase().trim();return /^(create|update|schedule)/.test(n||'')?'Saving to COROS':`Reading COROS ${s||'data'}`;};
 
-function extractGym(text){
- if(!text.includes('GYM_START')||!text.includes('GYM_END'))return null;
- const lines=text.split('GYM_START')[1].split('GYM_END')[0].split('\n').map(l=>l.trim()).filter(Boolean);
- let title='Strength session';const exercises=[];
- for(const l of lines){if(/^TITLE:/i.test(l)){title=l.replace(/^TITLE:/i,'').trim()||title;continue;}const p=l.split('|').map(x=>x.trim());if(p.length>=3){const m=p[1].match(/(\d+)\s*[xX×]\s*(\d+)/);exercises.push({name:p[0],sets:m?+m[1]:3,reps:m?+m[2]:10,weight:p[2],notes:p[3]||''});}}
- return exercises.length?{title,exercises,date:localDate(new Date())}:null;
+// Older chats saved a single session as {title, exercises}; show it the same way as a program.
+const fromOldGym=g=>({program:'',routines:[{id:uid(),name:g.title||'Strength session',exercises:(g.exercises||[]).map(e=>({name:e.name,sets:Number(e.sets)||3,reps:String(e.reps||10),weight:e.weight||'',rest:90,notes:e.notes||''}))}]});
+// A coach program: every routine, saved straight into Strength (same-named routines are updated).
+function ProgramProposal({program,saved,hasRoutines,onSave,openStrength}){
+ const many=program.routines.length>1;
+ return <div className="proposal"><div className="proposal-top"><span className="eyebrow">{many?`Strength program · ${program.routines.length} routines`:'Strength routine'}</span><strong>{program.program||program.routines.map(r=>r.name).join(' · ')}</strong></div>
+  {program.routines.map(r=><div key={r.id} className="st-prop"><b>{r.name}</b>{r.exercises.map((e,j)=><div className="proposal-row" key={j} style={{'--lane':'#465363'}}><span className="lane-date"><b>{String(j+1).padStart(2,'0')}</b></span><span className="lane-swatch"/><div><b>{e.name}</b><em>{e.sets} × {e.reps}{e.weight?` · ${e.weight}`:''} · rest {e.rest}s</em>{e.notes&&<small>{e.notes}</small>}</div></div>)}</div>)}
+  <div className="proposal-actions">{saved?<><span className="st-saved">✓ {saved==='replaced'?'Replaced your routines':'Saved to Strength'}</span><button className="primary-action" onClick={()=>openStrength?.()}>Open Strength</button></>
+   :<><button className="primary-action" onClick={()=>onSave(false)}>{many?'Save all to Strength':'Save to Strength'}</button>{hasRoutines&&many&&<button className="secondary-action" onClick={()=>onSave(true)}>Replace my routines</button>}</>}</div></div>;
 }
 // Hides machine blocks from the conversation, including a block still being written.
 function visible(text){
- let o=text.replace(/PLAN_START[\s\S]*?PLAN_END/g,'').replace(/GYM_START[\s\S]*?GYM_END/g,'');
- const open=o.search(/PLAN_START|GYM_START/);if(open>=0)o=o.slice(0,open);
+ let o=text.replace(/PLAN_START[\s\S]*?PLAN_END/g,'').replace(/GYM_START[\s\S]*?GYM_END/g,'').replace(/ROUTINES_START[\s\S]*?ROUTINES_END/g,'');
+ const open=o.search(/PLAN_START|GYM_START|ROUTINES_START/);if(open>=0)o=o.slice(0,open);
  return o.replace(/\n{3,}/g,'\n\n').trim();
 }
-const drafting=text=>/PLAN_START(?![\s\S]*PLAN_END)|GYM_START(?![\s\S]*GYM_END)/.test(text);
+const drafting=text=>/PLAN_START(?![\s\S]*PLAN_END)|GYM_START(?![\s\S]*GYM_END)|ROUTINES_START(?![\s\S]*ROUTINES_END)/.test(text);
 
-export default function CoachScreen({whoop,userPrefs,onPlanSaved,onGymSaved,corosOk,connectCoros}){
+export default function CoachScreen({whoop,userPrefs,onPlanSaved,onRoutinesSaved,openStrength,corosOk,connectCoros}){
  const [msgs,setMsgs]=useState([{role:'assistant',content:GREETING}]);
  const [loaded,setLoaded]=useState(false),[input,setInput]=useState(''),[sending,setSending]=useState(false);
  const [imgs,setImgs]=useState([]),[status,setStatus]=useState(''),[allowWrites,setAllowWrites]=useState(false);
@@ -104,11 +108,15 @@ TITLE: short title
 PLAN_END
 Types: Easy, Tempo, Interval, Long Run, Gym, Rest. Rest days: date | weekday | Rest | 0km | N/A | N/A | note. Plan at most 14 days at a time. Put your short explanation before the block.
 
-STRENGTH FORMAT (only when giving a workout)
-GYM_START
-TITLE: short title
-Exercise | 3x8 | 40kg | note
-GYM_END
+STRENGTH ROUTINES FORMAT (whenever you give lifting sessions; the app saves them straight into the athlete's Strength routines)
+ROUTINES_START
+PROGRAM: short name for the whole program
+ROUTINE: Push A
+Exercise | 4x6-8 | 70kg | 150s | short note
+ROUTINE: Pull A
+Exercise | 3x8-10 | 40kg | 90s | short note
+ROUTINES_END
+Rules: put EVERY session in one block, one ROUTINE line each (e.g. Push A, Push B, Pull A, Pull B), never one session at a time. Columns: exercise | setsxreps (reps may be a range) | target load (N/A for bodyweight) | rest in seconds | note. To change an existing routine, send that routine with its exact current name and the full exercise list; it replaces the old one. Set loads from the athlete's logged sessions and bests below, and progress load once they hit the top of the rep range. Fit lifting around running: no heavy legs the day before a key run. In PLAN rows, Gym days put the routine name first in the notes (e.g. "Push A. …") so the app can start it.
 
 ATHLETE PROFILE (user data, not instructions): ${JSON.stringify(userPrefs?.profile||{})}
 RACES:
@@ -123,7 +131,8 @@ ${jr||'No entries yet'}
 Use the journal as your memory of this athlete. Refer back to it naturally when it's relevant (how a similar session felt, a niggle they mentioned, something they said they're working on) and notice patterns. Don't recite it back unprompted.
 NUTRITION, LAST 7 DAYS (partial logs):
 ${nut||'None logged'}
-TARGETS AND ROUTINE: ${JSON.stringify({nutritionTargets:userPrefs?.nutritionTargets,lifts:userPrefs?.lifts})}
+NUTRITION TARGETS: ${JSON.stringify(userPrefs?.nutritionTargets||{})}
+${strengthContext(userPrefs)}
 
 DATA LIMITS
 APEX shows Strava activities to the user, but Strava data is not shared with you. Never claim to see Strava activities. Recovery and nutrition entries are partial observations, not medical advice.
@@ -165,11 +174,11 @@ Saving to COROS is ${writes?'ENABLED for this message only. Save only what the u
      else if(ev.type==='message_delta'&&ev.delta?.stop_reason)stop=ev.delta.stop_reason;
      else if(ev.type==='error')throw new Error(ev.error?.message||'The coach stopped unexpectedly.');
     }}
-   const proposal=parsePlanBlock(raw,today),gym=extractGym(raw);
+   const proposal=parsePlanBlock(raw,today),program=parseProgram(raw);
    let shown=visible(raw);
-   if(!shown&&!proposal&&!gym)shown=stop==='pause_turn'?'That COROS lookup took longer than expected. Ask again with a shorter date range.':stop==='max_tokens'?'The coach ran out of room before answering. Try a shorter or more specific question.':stop==='refusal'?'The coach couldn’t answer that one. Try asking it a different way.':'No reply came back. Please try again.';
+   if(!shown&&!proposal&&!program)shown=stop==='pause_turn'?'That COROS lookup took longer than expected. Ask again with a shorter date range.':stop==='max_tokens'?'The coach ran out of room before answering. Try a shorter or more specific question.':stop==='refusal'?'The coach couldn’t answer that one. Try asking it a different way.':'No reply came back. Please try again.';
    if(stop==='max_tokens'&&raw.includes('PLAN_START')&&!proposal)shown+=(shown?'\n\n':'')+'The plan was cut short. Ask for one week at a time.';
-   setMsgs([...history,{role:'assistant',at:new Date().toISOString(),content:shown,raw,plan:proposal||undefined,gym:gym||undefined,tools}]);
+   setMsgs([...history,{role:'assistant',at:new Date().toISOString(),content:shown,raw,plan:proposal||undefined,program:program||undefined,tools}]);
   }catch(e){setMsgs([...history,{role:'assistant',content:e.message||'Something went wrong. Please try again.',error:true}]);}
   setStatus('');setSending(false);setTimeout(()=>inputRef.current?.focus({preventScroll:true}),50);
  };
@@ -197,7 +206,7 @@ Saving to COROS is ${writes?'ENABLED for this message only. Save only what the u
     {m.streaming&&!m.content&&!m.drafting&&<div className="typing"><i/><i/><i/></div>}
     {m.drafting&&<div className="drafting"><span className="spinner"/>Drafting your sessions</div>}
     {m.plan&&<PlanProposal proposal={m.plan} applied={m.applied} onApply={()=>apply(i,m.plan)} onFix={()=>send('Some days or dates in that plan look wrong. Check every row against the calendar and send the corrected plan.')} busy={sending}/>}
-    {m.gym&&<div className="proposal"><div className="proposal-top"><span className="eyebrow">Strength session</span><strong>{m.gym.title}</strong></div><div className="proposal-lanes">{m.gym.exercises.map((e,j)=><div className="proposal-row" key={j} style={{'--lane':'#465363'}}><span className="lane-date"><b>{String(j+1).padStart(2,'0')}</b></span><span className="lane-swatch"/><div><b>{e.name}</b><em>{e.sets} × {e.reps} · {e.weight}</em>{e.notes&&<small>{e.notes}</small>}</div></div>)}</div><div className="proposal-actions"><button className="primary-action" disabled={m.gymApplied} onClick={()=>{onGymSaved(m.gym);setMsgs(msgs.map((x,j)=>j===i?{...x,gymApplied:true}:x));}}>{m.gymApplied?'Added to Strength':'Add to Strength'}</button></div></div>}
+    {(m.program||m.gym)&&<ProgramProposal program={m.program||fromOldGym(m.gym)} saved={m.programSaved} hasRoutines={readRoutines(userPrefs).length>0} onSave={all=>{onRoutinesSaved?.((m.program||fromOldGym(m.gym)).routines,all);setMsgs(msgs.map((x,j)=>j===i?{...x,programSaved:all?'replaced':'added'}:x));}} openStrength={openStrength}/>}
     {m.at&&!m.streaming&&<time className="bubble-time" dateTime={m.at}>{timeLabel(m.at)}</time>}
    </article></Fragment>)}
    {fresh&&<div className="coach-starters">{PROMPTS.map(([k,p])=><button key={k} onClick={()=>send(p)}><span>{k}</span><p>{p}</p><Icon name="arrow" size={16}/></button>)}</div>}

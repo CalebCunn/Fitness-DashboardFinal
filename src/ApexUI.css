@@ -1712,3 +1712,49 @@
 .st-row b{font-weight:500;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .st-row small{font-size:12px;color:var(--ink-2)}
 .st-row em{font-style:normal;flex:none}
+
+/* ── Strength (routines, live workout, progress) ── */
+.st-train{display:grid;gap:26px}
+.st-next{display:grid;gap:10px;border-top:1px solid var(--rule-strong);padding-top:12px}
+.st-next h2{font-family:var(--serif);font-weight:400;font-size:44px;line-height:1}
+.st-next p{font-size:15px;color:var(--ink-2);line-height:1.45}
+.st-next .primary-action{justify-self:start}
+.st-list,.st-routine{display:grid;gap:0}
+.st-item{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:12px 0;border-top:1px solid var(--rule)}
+.st-item span{display:grid;gap:2px;min-width:0}
+.st-item b{font-weight:500;font-size:17px}
+.st-item small,.st-ex small{font-size:13px;color:var(--ink-2)}
+.st-routine{border-top:1px solid var(--rule-strong);padding-top:10px}
+.st-rhead{display:flex;justify-content:space-between;align-items:flex-start;gap:10px;margin-bottom:6px}
+.st-rhead h2{font-family:var(--serif);font-weight:400;font-size:30px;line-height:1.05}
+.st-ex{display:flex;justify-content:space-between;gap:12px;padding:9px 0;border-top:1px solid var(--rule);font-size:15px}
+.st-ex small{text-align:right;flex:none}
+.st-rbtns{display:flex;flex-wrap:wrap;gap:14px;align-items:center;padding-top:10px}
+.st-eact{display:flex;gap:6px}
+.st-eact button{width:38px;height:38px;border-radius:3px;background:var(--fill-2,var(--fill));color:var(--ink);font-size:16px}
+.st-eact button:disabled{opacity:.35}
+.st-editor{display:grid;gap:12px}
+.st-erow{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px;padding:12px 0;border-top:1px solid var(--rule);align-items:end}
+.st-erow label{display:grid;gap:4px;font-size:11px;font-weight:500;letter-spacing:.04em;color:var(--ink-2);text-transform:uppercase;min-width:0}
+.st-erow input{min-height:42px;padding:0 10px;border-radius:3px;border:1px solid var(--rule-strong);background:transparent;color:var(--ink);font-size:16px;width:100%;min-width:0}
+.st-erow .st-ename{grid-column:1/-1}
+.st-erow .st-eact{grid-column:1/-1;justify-content:flex-end}
+.st-x{margin-left:auto;width:36px;height:36px;border-radius:50%;color:var(--ink-2);font-size:20px;flex:none}
+.st-last{color:var(--ink)!important;font-weight:500}
+.st-note{font-style:italic}
+.st-setbtns{display:flex;gap:16px;flex-wrap:wrap}
+.st-add{display:flex;gap:10px}
+.st-add input{flex:1;min-width:0;min-height:46px;padding:0 12px;border-radius:3px;border:1px solid var(--rule-strong);background:transparent;color:var(--ink);font-size:16px}
+.st-rest{position:sticky;top:calc(env(safe-area-inset-top) + 64px);z-index:5;justify-self:center;box-shadow:0 8px 24px rgba(0,0,0,.18)}
+.st-prog{display:flex;align-items:center;justify-content:space-between;gap:14px;padding:12px 0;border-top:1px solid var(--rule)}
+.st-prog span{display:grid;gap:3px;min-width:0}
+.st-prog b{font-weight:500;font-size:16px}
+.st-prog small{font-size:13px;color:var(--ink-2)}
+.st-trend{width:110px;height:38px;flex:none}
+.st-trend path{fill:none;stroke:var(--accent);stroke-width:2;vector-effect:non-scaling-stroke;stroke-linejoin:round}
+.look-apex .st-trend path{stroke:var(--ink)}
+.workout-history .text-button{margin:6px 0 10px;color:var(--bad)}
+.is-armed{color:var(--bad)!important;font-weight:600}
+.st-prop{display:grid;gap:4px;margin-top:10px}
+.st-prop>b{font-size:15px}
+.st-saved{font-size:14px;font-weight:600;align-self:center}

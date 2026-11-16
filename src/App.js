@@ -30,6 +30,7 @@ import {IN_APP,installHaptics} from './native';
 import {scheduleReminders,onReminderTap} from './reminders';
 import Daily from './ApexDaily';
 import Stats from './ApexStats';
+import {readRoutines,mergeRoutines} from './strength';
 import {loadDaily,sampleDaily} from './dailyActivity';
 const {loadUserPrefs,saveUserPrefs,loadTrainingPlan,saveTrainingPlan}=PREVIEW?previewStore:persistence;
 
@@ -68,7 +69,7 @@ function ApexApp({account}={}){
  const [page,setPage]=useState(()=>/[?&]pro=1/.test(window.location.search)?'settings':'home'),[connected,setConnected]=useState(PREVIEW||isConnected()),[whoopOk,setWhoopOk]=useState((PREVIEW&&!NEW_USER)||connectedSources().length>0),[sourcesTick,setSourcesTick]=useState(0);
  const [acts,setActs]=useState([]),[stats,setStats]=useState(null),[athlete,setAthlete]=useState(null),[gear,setGear]=useState([]),[whoop,setWhoop]=useState(null),[loading,setLoading]=useState(false),[whoopPending,setWhoopPending]=useState(false),[error,setError]=useState(''),[retry,setRetry]=useState(0);
  const hasActs=useRef(false);useEffect(()=>{hasActs.current=acts.length>0;},[acts]);
- const [savedPlan,setSavedPlan]=useState(null),[savedWorkout,setSavedWorkout]=useState(null),[userPrefs,setUserPrefs]=useState(null),[prefsReady,setPrefsReady]=useState(false);
+ const [savedPlan,setSavedPlan]=useState(null),[userPrefs,setUserPrefs]=useState(null),[prefsReady,setPrefsReady]=useState(false);
  // Appearance: 'light', 'dark' or 'auto' (follow the phone).
  const [theme,setTheme]=useState(()=>{const t=localStorage.getItem('theme');return t==='light'||t==='dark'?t:'auto';});
  const [systemDark,setSystemDark]=useState(()=>!!window.matchMedia?.('(prefers-color-scheme: dark)').matches);
@@ -113,14 +114,16 @@ function ApexApp({account}={}){
  useEffect(()=>{if(PREVIEW||!whoopOk||!recSource)return;let active=true;const name=SOURCES[recSource];const load=()=>getRecoveryData(recSource).then(d=>{if(active){setWhoop(d);setError(e=>e.startsWith(name)?'':e);}});
   // One quiet retry before showing anything: a phone waking up often has no signal for a second.
   load().catch(()=>new Promise(r=>setTimeout(r,1500)).then(()=>active&&load())).catch(e=>{if(active)setError(/reconnect/i.test(e?.message||'')?e.message:`${name} data could not be refreshed. Pull down to try again.`);});return()=>{active=false;};},[whoopOk,retry,recSource,sourcesTick]);
- useEffect(()=>{let active=true;setPrefsReady(false);Promise.allSettled([loadUserPrefs(),loadTrainingPlan()]).then(([prefsResult,planResult])=>{if(!active)return;const p=prefsResult.status==='fulfilled'?prefsResult.value:null;if(prefsResult.status==='fulfilled'){setUserPrefs(p||{});setSavedWorkout(p?.currentWorkout||null);}if(planResult.status==='fulfilled')setSavedPlan(planResult.value||p?.currentPlan||null);else if(p?.currentPlan)setSavedPlan(p.currentPlan);const failed={prefs:prefsResult.status==='rejected',plan:planResult.status==='rejected'&&!p?.currentPlan};setLoadFailure(failed.prefs||failed.plan?failed:null);setPrefsReady(true);});return()=>{active=false;};},[loadAttempt]);
+ useEffect(()=>{let active=true;setPrefsReady(false);Promise.allSettled([loadUserPrefs(),loadTrainingPlan()]).then(([prefsResult,planResult])=>{if(!active)return;const p=prefsResult.status==='fulfilled'?prefsResult.value:null;if(prefsResult.status==='fulfilled'){setUserPrefs(p||{});}if(planResult.status==='fulfilled')setSavedPlan(planResult.value||p?.currentPlan||null);else if(p?.currentPlan)setSavedPlan(p.currentPlan);const failed={prefs:prefsResult.status==='rejected',plan:planResult.status==='rejected'&&!p?.currentPlan};setLoadFailure(failed.prefs||failed.plan?failed:null);setPrefsReady(true);});return()=>{active=false;};},[loadAttempt]);
  // A key saved to the account reaches every device the user signs in on.
  useEffect(()=>{if(PUBLIC&&userPrefs?.aiKey&&!ownKey())setOwnKey(userPrefs.aiKey);},[userPrefs?.aiKey]);
  // Another device saved journal entries this one didn't have: show them too.
  useEffect(()=>{const on=e=>setUserPrefs(e.detail);window.addEventListener('apex-prefs-merged',on);return()=>window.removeEventListener('apex-prefs-merged',on);},[]);
  const savePrefs=useCallback(p=>{if(!prefsReady||loadFailure?.prefs)return;setUserPrefs(p);saveUserPrefs(p);},[prefsReady,loadFailure]);
  const savePlan=p=>{if(!prefsReady||loadFailure)return;setSavedPlan(p);saveTrainingPlan(p);savePrefs({...userPrefs,currentPlan:p});};
- const saveWorkout=w=>{if(!prefsReady||loadFailure?.prefs)return;setSavedWorkout(w);savePrefs({...userPrefs,currentWorkout:w});};
+ // The coach's routines go straight into Strength: same-named ones are updated, new ones added (or everything replaced).
+ const saveRoutines=(list,replaceAll)=>{if(!prefsReady||loadFailure?.prefs)return;savePrefs({...userPrefs,routines:mergeRoutines(readRoutines(userPrefs),list,replaceAll)});};
+ const openCoachWith=p=>{if(p)try{localStorage.setItem('apex-coach-draft',p);}catch{}navigate('coach');};
  // With more than one source available, connecting starts on the You page so the runner can pick.
  const connectWhoop=()=>{if(PREVIEW)return;recoveryAvailable().length>1?navigate('profile'):connectSource('whoop');};
  const onSourceChange=()=>{const left=connectedSources();setWhoopOk(left.length>0);if(!left.length)setWhoop(null);setSourcesTick(t=>t+1);};
@@ -161,8 +164,8 @@ function ApexApp({account}={}){
   nutrition:<Nutrition userPrefs={userPrefs} onSavePrefs={savePrefs}/>,
   plan:<Training acts={shownActs} races={userPrefs?.races} openRaces={()=>navigate('races')} plan={savedPlan} onChange={savePlan} openCoach={()=>navigate('coach')}/>,
   activity:<Activity source={runSource} acts={shownActs} gear={gear} initialId={activityId} nav={navigate} userPrefs={userPrefs} onSavePrefs={savePrefs} settings={readSettings(userPrefs)} hr={heartRate(readSettings(userPrefs),shownActs,whoop)}/>,
-  gym:<Strength userPrefs={userPrefs} onSavePrefs={savePrefs} savedWorkout={savedWorkout} openCoach={()=>navigate('coach')}/>,
-  coach:<Coach whoop={whoop} onPlanSaved={savePlan} onGymSaved={saveWorkout} userPrefs={{...userPrefs,currentPlan:savedPlan}} corosOk={corosOk} connectCoros={connectCoros}/>,
+  gym:<Strength userPrefs={userPrefs} onSavePrefs={savePrefs} plan={savedPlan} openCoach={openCoachWith}/>,
+  coach:<Coach whoop={whoop} onPlanSaved={savePlan} onRoutinesSaved={saveRoutines} openStrength={()=>navigate('gym')} userPrefs={{...userPrefs,currentPlan:savedPlan}} corosOk={corosOk} connectCoros={connectCoros}/>,
   profile:<Profile athlete={me} runSource={runSource} stravaOk={connected} connectStrava={connectStrava} acts={shownActs} whoopOk={whoopOk} whoop={whoop} connectWhoop={connectWhoop} corosOk={corosOk} connectCoros={connectCoros} onDisconnectCoros={disconnectCorosNow} corosError={corosError} darkMode={darkMode} setDarkMode={setDarkMode} onDisconnect={()=>{if(PREVIEW)return;disconnect();setConnected(false);}} onSourceChange={onSourceChange} userPrefs={userPrefs} onSavePrefs={savePrefs}/>
  };
  views.races=<Profile athlete={me} acts={shownActs} whoopOk={whoopOk} whoop={whoop} connectWhoop={connectWhoop} darkMode={darkMode} setDarkMode={setDarkMode} onDisconnect={()=>{if(!PREVIEW){disconnect();setConnected(false);}}} onSourceChange={onSourceChange} userPrefs={userPrefs} onSavePrefs={savePrefs} racesOnly/>;
