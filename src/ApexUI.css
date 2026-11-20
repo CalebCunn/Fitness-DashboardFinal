@@ -1792,3 +1792,26 @@
 .fd-suggest{display:grid;gap:10px;padding:14px;background:var(--fill);border-radius:3px;margin-bottom:14px}
 .fd-suggest p{font-size:15px;line-height:1.45}
 .fd-suggest .set-small-btn{justify-self:start}
+/* Strength v2: set types, supersets, progression hint, plates, muscles, per-lift log */
+.st-kind{width:44px;height:44px;border-radius:3px;font-size:20px;font-variant-numeric:tabular-nums;color:var(--ink);background:var(--fill);justify-self:start}
+.kind-W .st-kind{background:color-mix(in srgb,var(--gold,var(--accent)) 35%,transparent);font-size:15px;font-weight:700}
+.kind-D .st-kind{background:color-mix(in srgb,var(--accent) 25%,transparent);font-size:15px;font-weight:700}
+.kind-F .st-kind{background:color-mix(in srgb,var(--bad) 25%,transparent);font-size:15px;font-weight:700}
+.exercise-card.is-superset{box-shadow:inset 4px 0 0 var(--gold,var(--accent)),inset 0 0 0 1px var(--rule)}
+.st-ss{font-size:11px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--ink-2)}
+.st-hint{color:var(--good)!important;font-weight:600}
+.st-plates{font-variant-numeric:tabular-nums}
+.st-sscheck{grid-column:1/-1;display:flex!important;align-items:center;gap:8px;text-transform:none!important;letter-spacing:0!important;font-size:14px!important;color:var(--ink)!important}
+.st-sscheck input{width:20px!important;min-height:20px!important;height:20px}
+.st-muscles{display:grid;gap:8px;margin-bottom:26px}
+.st-mrow{display:grid;grid-template-columns:90px 1fr 28px;align-items:center;gap:10px;font-size:14px}
+.st-mrow i{display:block;height:10px;border-radius:5px;background:var(--accent);min-width:4px}
+.look-apex .st-mrow i{background:var(--gold,var(--accent))}
+.st-mrow b{text-align:right;font-variant-numeric:tabular-nums}
+details.st-prog{display:block;padding:0}
+details.st-prog summary{display:flex;align-items:center;justify-content:space-between;gap:14px;padding:12px 0;list-style:none;cursor:pointer}
+details.st-prog summary::-webkit-details-marker{display:none}
+details.st-prog summary span{display:grid;gap:3px;min-width:0}
+.st-log{display:grid;padding:0 0 12px}
+.st-log>div{display:flex;justify-content:space-between;gap:12px;padding:6px 0;border-top:1px dashed var(--rule);font-size:13px}
+.st-log small{color:var(--ink-2);text-align:right}

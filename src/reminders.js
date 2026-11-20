@@ -73,3 +73,12 @@ export async function onReminderTap(go){
  if(!HAS_REMINDERS)return;
  try{(await notes()).n.addListener('localNotificationActionPerformed',e=>{const page=e?.notification?.extra?.page;if(page)go(page);});}catch{}
 }
+
+// Rest timer: a notification when rest ends, in case the phone is locked or Apex is in the background.
+const REST_ID=7095;
+export async function restAlert(at,name){
+ if(!HAS_REMINDERS)return;
+ try{const {n}=await notes();await n.cancel({notifications:[{id:REST_ID}]});
+  if(!at||(await n.checkPermissions()).display!=='granted')return;
+  await n.schedule({notifications:[{id:REST_ID,title:'Rest over',body:name?`Next set: ${name}`:'Time for your next set.',schedule:{at:new Date(at),allowWhileIdle:true},extra:{page:'gym'}}]});}catch{}
+}

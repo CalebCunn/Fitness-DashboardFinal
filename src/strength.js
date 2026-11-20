@@ -37,7 +37,7 @@ export function lastSets(history,name){
 export function progress(history){
  const by={};
  history.forEach(w=>(w.exercises||[]).forEach(e=>{
-  const done=(e.sets||[]).filter(s=>s.done&&Number(s.reps)>0);if(!done.length)return;
+  const done=(e.sets||[]).filter(s=>s.done&&s.kind!=='W'&&Number(s.reps)>0);if(!done.length)return;
   const k=key(e.name),p=by[k]||(by[k]={name:e.name,sessions:0,best:null,bestE1:0,bestScore:0,trend:[],last:null});
   const top=done.reduce((a,s)=>score(s)>score(a)?s:a,done[0]),v=e1rm(top.weight,top.reps),sc=score(top);
   p.sessions++;p.last=w.date;p.trend.push({date:w.date,e1:v||Number(top.reps),weight:Number(top.weight)||0,reps:Number(top.reps)});
@@ -48,7 +48,7 @@ export function progress(history){
 // New bests in a just-finished session, compared with everything before it.
 export function newBests(history,session){
  const before=Object.fromEntries(progress(history).map(p=>[key(p.name),p.bestScore]));
- return (session.exercises||[]).map(e=>{const done=(e.sets||[]).filter(s=>s.done&&Number(s.reps)>0);if(!done.length)return null;const top=done.reduce((a,s)=>score(s)>score(a)?s:a,done[0]),was=before[key(e.name)];
+ return (session.exercises||[]).map(e=>{const done=(e.sets||[]).filter(s=>s.done&&s.kind!=='W'&&Number(s.reps)>0);if(!done.length)return null;const top=done.reduce((a,s)=>score(s)>score(a)?s:a,done[0]),was=before[key(e.name)];
   if(!was||score(top)<=was)return null;return `${e.name} ${setLabel(top)}`;}).filter(Boolean);
 }
 
@@ -77,7 +77,7 @@ function exerciseLine(l){
  const m=p[1].match(/(\d+)\s*[xX×]\s*([\w–\-–\s]+)/);if(!m)return null;
  let rest=null,notes='';const extra=p.slice(3);
  if(extra.length&&toRest(extra[0])!=null){rest=toRest(extra[0]);notes=extra.slice(1).join(' | ');}else notes=extra.join(' | ');
- return {name:p[0],sets:Math.min(10,+m[1]||3),reps:m[2].replace('–','-').trim(),weight:p[2]&&!/^n\/?a$/i.test(p[2])?p[2]:'',rest:rest||90,notes};
+ return {name:p[0],sets:Math.min(10,+m[1]||3),reps:m[2].replace('–','-').trim(),weight:p[2]&&!/^n\/?a$/i.test(p[2])?p[2]:'',rest:rest||90,notes,...(/^superset/i.test(notes)?{superset:true}:{})};
 }
 export function parseProgram(text){
  const block=(a,b)=>text.includes(a)&&text.includes(b)?text.split(a)[1].split(b)[0]:null;
@@ -102,8 +102,48 @@ export function mergeRoutines(existing,incoming,replaceAll=false){
 // What the coach sees: the routines, the last sessions (best set per exercise) and bests.
 export function strengthContext(userPrefs){
  const routines=readRoutines(userPrefs),history=historyOf(userPrefs);
- const r=routines.map(x=>`ROUTINE: ${x.name}\n${x.exercises.map(e=>`${e.name} | ${e.sets}x${e.reps} | ${e.weight||'N/A'} | ${e.rest||90}s${e.notes?` | ${e.notes}`:''}`).join('\n')}`).join('\n');
- const recent=history.slice(-10).reverse().map(w=>{const ex=(w.exercises||[]).map(e=>{const d=(e.sets||[]).filter(s=>s.done);return d.length?`${e.name} ${d.map(s=>`${s.weight}×${s.reps}`).join(', ')}`:null;}).filter(Boolean);return `${w.date} ${w.title}: ${ex.join('; ')||'no completed sets'}`;}).join('\n');
+ const r=routines.map(x=>`ROUTINE: ${x.name}\n${x.exercises.map(e=>`${e.name} | ${e.sets}x${e.reps} | ${e.weight||'N/A'} | ${e.rest||90}s${e.superset?' | Superset with next':e.notes?` | ${e.notes}`:''}`).join('\n')}`).join('\n');
+ const recent=history.slice(-10).reverse().map(w=>{const ex=(w.exercises||[]).map(e=>{const d=(e.sets||[]).filter(s=>s.done);return d.length?`${e.name} ${d.map(s=>`${s.kind?s.kind+':':''}${s.weight}×${s.reps}`).join(', ')}`:null;}).filter(Boolean);return `${w.date} ${w.title}: ${ex.join('; ')||'no completed sets'}`;}).join('\n');
  const bests=progress(history).slice(0,15).map(p=>`${p.name}: best ${setLabel(p.best)}${p.bestE1?` (e1RM ${p.bestE1})`:''}, ${p.sessions} sessions, last ${p.last}`).join('\n');
- return `STRENGTH ROUTINES (the athlete's saved routines; the app rotates through them in this order):\n${r||'None yet'}\nRECENT STRENGTH SESSIONS (newest first, completed sets as kg×reps):\n${recent||'None logged'}\nSTRENGTH BESTS:\n${bests||'None yet'}`;
+ const muscles=weeklyMuscleSets(history).map(([m,n])=>`${m} ${n}`).join(', ');
+ return `STRENGTH ROUTINES (the athlete's saved routines; the app rotates through them in this order):\n${r||'None yet'}\nRECENT STRENGTH SESSIONS (newest first, completed sets as kg×reps):\n${recent||'None logged'}\nSTRENGTH BESTS:\n${bests||'None yet'}\nWORKING SETS PER MUSCLE, LAST 7 DAYS (W: warm-up, D: drop, F: failure above): ${muscles||'none'}`;
 }
+
+// ── Set types ── W warm-up, D drop set, F to failure. Warm-ups don't count towards volume or bests.
+export const SET_KINDS=['','W','D','F'];
+export const SET_KIND_NAMES={'':'Working set',W:'Warm-up',D:'Drop set',F:'To failure'};
+export const working=s=>s.done&&s.kind!=='W';
+
+// ── Progression ── hit the top of the rep range on every working set last time → add load.
+export const topReps=r=>{const m=String(r||'').match(/(\d+)\s*[-–]\s*(\d+)/);return m?+m[2]:(String(r).match(/\d+/)?+String(r).match(/\d+/)[0]:null);};
+const lower=/squat|deadlift|rdl|leg press|hip thrust|lunge|split squat|step.?up|calf/i,dumbbell=/\bdb\b|dumbbell/i;
+export const increment=name=>dumbbell.test(name)?2:lower.test(name)?5:2.5;
+export function suggestion(history,e){
+ const last=lastSets(history,e.name);if(!last)return null;
+ const sets=last.sets.filter(s=>s.kind!=='W'),top=topReps(e.reps),w=Math.max(...sets.map(s=>Number(s.weight)||0));
+ if(!top||!w||sets.length<(Number(e.sets)||1)||!sets.every(s=>Number(s.reps)>=top&&Number(s.weight)>=w))return null;
+ const next=Math.round((w+increment(e.name))*4)/4;
+ return {weight:next,reps:String(e.reps).match(/\d+/)?.[0]||String(top),why:`You hit ${top} on every set at ${w} kg last time`};
+}
+
+// ── Plates ── per side, for barbell lifts (20 kg bar).
+const barbell=/barbell|bench press|\bbench\b|squat|deadlift|overhead press|\bohp\b|military|bent.?over row|barbell row|hip thrust|good morning/i;
+export const isBarbell=name=>barbell.test(name)&&!/\bdb\b|dumbbell|machine|smith|cable|goblet|split|bulgarian|hack|leg press/i.test(name);
+export function plates(total,bar=20){
+ let side=(Number(total)-bar)/2;if(!(side>0))return null;const out=[];
+ for(const p of [25,20,15,10,5,2.5,1.25]){while(side>=p-1e-9){out.push(p);side-=p;}}
+ return side>0.01?null:out;
+}
+
+// ── Muscles ── rough groups by exercise name, for weekly sets per muscle.
+const MUSCLES=[['Chest',/bench|chest|pec|fly|push.?up|dip/i],['Back',/row|pull.?up|chin|pulldown|lat\b|deadlift|face pull|shrug/i],['Shoulders',/overhead|shoulder|lateral|raise|ohp|military|arnold|face pull|rear delt/i],
+ ['Biceps',/curl(?!.*leg)|bicep|chin/i],['Triceps',/tricep|pushdown|skull|dip|close.?grip|extension(?!.*leg)/i],['Quads',/squat|leg press|lunge|step.?up|leg extension|split/i],
+ ['Hamstrings',/rdl|romanian|deadlift|leg curl|hamstring|good morning|nordic/i],['Glutes',/hip thrust|glute|squat|lunge|split|deadlift|step.?up/i],['Calves',/calf/i],['Core',/plank|crunch|ab\b|abs|core|pallof|dead.?bug|hollow|leg raise|russian/i]];
+export const musclesOf=name=>MUSCLES.filter(([,re])=>re.test(name)).map(([m])=>m);
+export function weeklyMuscleSets(history,days=7){
+ const cut=localDate(new Date(Date.now()-(days-1)*864e5)),by={};
+ history.filter(w=>w.date>=cut).forEach(w=>(w.exercises||[]).forEach(e=>{const n=(e.sets||[]).filter(working).length;if(n)musclesOf(e.name).forEach(m=>{by[m]=(by[m]||0)+n;});}));
+ return Object.entries(by).sort((a,b)=>b[1]-a[1]);
+}
+// Every session of one lift, newest first.
+export const exerciseLog=(history,name)=>[...history].reverse().map(w=>{const e=(w.exercises||[]).find(x=>key(x.name)===key(name));const s=e?.sets?.filter(x=>x.done);return s?.length?{date:w.date,title:w.title,sets:s}:null;}).filter(Boolean);

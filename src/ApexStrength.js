@@ -1,16 +1,21 @@
 // APEX · Strength. Routines (Push A, Pull B…), a live workout with per-exercise rest timers and last time's numbers,
 // history, and progress per lift. The coach builds and edits routines (see strength.js for the format).
-import {useState,useEffect,useMemo} from 'react';
+import {useState,useEffect,useMemo,useRef} from 'react';
 import {Icon} from './ApexUI';
 import {PREVIEW} from './ApexPreview';
 import {localDate} from './apexDates';
-import {readRoutines,historyOf,repsStart,restLabel,lastSets,progress,newBests,nextUp,uid,setLabel} from './strength';
+import {readRoutines,historyOf,repsStart,restLabel,lastSets,progress,newBests,nextUp,uid,setLabel,SET_KINDS,SET_KIND_NAMES,suggestion,plates,isBarbell,weeklyMuscleSets,exerciseLog} from './strength';
+import {restAlert} from './reminders';
+import {tap} from './native';
 
 const DRAFT='apex-strength-draft';
 const n=v=>Number(v||0).toLocaleString('en-GB');
 const dayLabel=d=>d?new Date(d+'T12:00:00').toLocaleDateString('en-GB',{day:'numeric',month:'short'}):'';
 const mins=(a,b)=>Math.max(1,Math.round((new Date(b)-new Date(a))/60000));
 const validSet=s=>s.weight!==''&&Number(s.weight)>=0&&Number.isFinite(Number(s.weight))&&Number(s.reps)>0;
+const volumeOf=sets=>sets.filter(s=>s.done&&s.kind!=='W').reduce((b,s)=>b+Number(s.weight||0)*Number(s.reps||0),0);
+// A short two-note chime when rest ends (the phone also buzzes in the app).
+function chime(){try{const C=window.AudioContext||window.webkitAudioContext;if(!C)return;const c=new C();[[880,0],[1175,.16]].forEach(([f,t])=>{const o=c.createOscillator(),g=c.createGain();o.frequency.value=f;g.gain.setValueAtTime(.0001,c.currentTime+t);g.gain.exponentialRampToValueAtTime(.25,c.currentTime+t+.02);g.gain.exponentialRampToValueAtTime(.0001,c.currentTime+t+.35);o.connect(g).connect(c.destination);o.start(c.currentTime+t);o.stop(c.currentTime+t+.4);});setTimeout(()=>c.close(),1200);}catch{}}
 
 // A button that needs a second tap, for things that can't be undone.
 function Confirm({label,sure='Tap again to confirm',onYes,className='text-button'}){
@@ -20,10 +25,13 @@ function Confirm({label,sure='Tap again to confirm',onYes,className='text-button
 }
 
 function exerciseFrom(e,history){
- const last=lastSets(history,e.name),guess=String(e.weight||'').match(/[\d.]+/)?.[0]||'';
- return {name:e.name,target:`${e.sets} × ${e.reps}${e.weight?` · ${e.weight}`:''}`,rest:Number(e.rest)||90,notes:e.notes||'',
-  lastTime:last?`${dayLabel(last.date)}: ${last.sets.map(s=>`${s.weight}×${s.reps}`).join(', ')}`:null,
-  sets:Array.from({length:Math.min(10,Number(e.sets)||3)},(_,i)=>{const p=last?.sets?.[i]||last?.sets?.[last.sets.length-1];return {weight:p?String(p.weight):guess,reps:p?String(p.reps):repsStart(e.reps),done:false};})};
+ const last=lastSets(history,e.name),guess=String(e.weight||'').match(/[\d.]+/)?.[0]||'',up=suggestion(history,e);
+ const warm=(last?.sets||[]).filter(s=>s.kind==='W'),work=(last?.sets||[]).filter(s=>s.kind!=='W');
+ const sets=[...warm.map(s=>({weight:String(s.weight),reps:String(s.reps),kind:'W',done:false})),
+  ...Array.from({length:Math.min(10,Number(e.sets)||3)},(_,i)=>{const p=work[i]||work[work.length-1];return up?{weight:String(up.weight),reps:up.reps,kind:'',done:false}:{weight:p?String(p.weight):guess,reps:p?String(p.reps):repsStart(e.reps),kind:p?.kind==='W'?'':(p?.kind||''),done:false};})];
+ return {name:e.name,target:`${e.sets} × ${e.reps}${e.weight?` · ${e.weight}`:''}`,rest:Number(e.rest)||90,notes:e.notes||'',superset:!!e.superset,
+  hint:up?`↑ Try ${up.weight} kg today. ${up.why}.`:null,
+  lastTime:last?`${dayLabel(last.date)}: ${last.sets.map(s=>`${s.kind==='W'?'W ':''}${s.weight}×${s.reps}`).join(', ')}`:null,sets};
 }
 
 function Live({workout,setWorkout,history,names,onFinish,onDiscard}){
@@ -31,23 +39,33 @@ function Live({workout,setWorkout,history,names,onFinish,onDiscard}){
  useEffect(()=>{if(!workout.restUntil){setSeconds(0);return;}const f=()=>setSeconds(Math.max(0,Math.ceil((workout.restUntil-Date.now())/1000)));f();const id=setInterval(f,500);return()=>clearInterval(id);},[workout.restUntil]);
  useEffect(()=>{const id=setInterval(()=>tick(t=>t+1),30000);return()=>clearInterval(id);},[]);
  const ex=(i,patch)=>setWorkout({...workout,exercises:workout.exercises.map((e,j)=>j===i?{...e,...patch}:e)});
- const set=(i,si,patch)=>{const e=workout.exercises[i];setWorkout({...workout,...(patch.done?{restUntil:Date.now()+e.rest*1000}:{}),exercises:workout.exercises.map((x,j)=>j===i?{...x,sets:x.sets.map((s,k)=>k===si?{...s,...patch}:s)}:x)});};
+ // Finishing a set starts its rest, except inside a superset, where you go straight to the next exercise.
+ const set=(i,si,patch)=>{const e=workout.exercises[i],next=workout.exercises[i+1],inPair=e.superset&&next;
+  const rest=patch.done&&!inPair?{restUntil:Date.now()+e.rest*1000,restFor:(e.superset||workout.exercises[i-1]?.superset)?workout.exercises.find((x,j)=>j<=i&&!workout.exercises.slice(j,i).some(y=>!y.superset))?.name||e.name:e.name}:{};
+  setWorkout({...workout,...rest,exercises:workout.exercises.map((x,j)=>j===i?{...x,sets:x.sets.map((s,k)=>k===si?{...s,...patch}:s)}:x)});};
+ const cycle=(i,si)=>{const s=workout.exercises[i].sets[si];set(i,si,{kind:SET_KINDS[(SET_KINDS.indexOf(s.kind||'')+1)%SET_KINDS.length]});};
+ useEffect(()=>{restAlert(workout.restUntil,workout.restFor);},[workout.restUntil,workout.restFor]);
+ const rang=useRef(0);
+ useEffect(()=>{if(workout.restUntil&&seconds===0&&rang.current!==workout.restUntil&&Date.now()>=workout.restUntil){rang.current=workout.restUntil;chime();tap('HEAVY');}},[seconds,workout.restUntil]);
  const done=workout.exercises.reduce((a,e)=>a+e.sets.filter(s=>s.done).length,0),total=workout.exercises.reduce((a,e)=>a+e.sets.length,0);
- const volume=workout.exercises.reduce((a,e)=>a+e.sets.filter(s=>s.done).reduce((b,s)=>b+Number(s.weight||0)*Number(s.reps||0),0),0);
+ const volume=workout.exercises.reduce((a,e)=>a+volumeOf(e.sets),0);
  const add=e=>{e.preventDefault();const name=adding.trim();if(!name)return;setWorkout({...workout,exercises:[...workout.exercises,exerciseFrom({name,sets:3,reps:'10',rest:90},history)]});setAdding('');};
  return <div className="live-workout">
   <div className="workout-progress"><div><span className="eyebrow">In progress · {mins(workout.startedAt,new Date())} min</span><h2>{workout.title}</h2></div><div><strong>{done}<small> / {total}</small></strong><span>sets done</span></div><div><strong>{n(volume)}<small> kg</small></strong><span>volume</span></div></div>
   <div className="fuel-track"><i style={{width:`${total?done/total*100:0}%`}}/></div>
   {seconds>0&&<button className="rest-timer st-rest" onClick={()=>setWorkout({...workout,restUntil:null})} aria-label="Skip rest">Rest {Math.floor(seconds/60)}:{String(seconds%60).padStart(2,'0')} <span>Skip</span></button>}
-  {workout.exercises.map((e,i)=><section className="exercise-card" key={i}>
-   <div className="exercise-heading"><span>{String(i+1).padStart(2,'0')}</span><div><h3>{e.name}</h3><p>{[e.target,`rest ${restLabel(e.rest)}`].filter(Boolean).join(' · ')}</p>{e.lastTime&&<p className="st-last">Last time {e.lastTime}</p>}{e.notes&&<p className="st-note">{e.notes}</p>}</div><button className="st-x" aria-label={`Remove ${e.name}`} onClick={()=>setWorkout({...workout,exercises:workout.exercises.filter((_,j)=>j!==i)})}>×</button></div>
+  {workout.exercises.map((e,i)=>{const nextSet=e.sets.find(s=>!s.done),pl=isBarbell(e.name)&&nextSet?plates(nextSet.weight):null,paired=e.superset||workout.exercises[i-1]?.superset;
+  return <section className={`exercise-card${paired?' is-superset':''}`} key={i}>
+   {e.superset&&workout.exercises[i+1]&&<span className="st-ss">Superset with {workout.exercises[i+1].name} ↓</span>}
+   <div className="exercise-heading"><span>{String(i+1).padStart(2,'0')}</span><div><h3>{e.name}</h3><p>{[e.target,e.superset&&workout.exercises[i+1]?'no rest, straight into the next':`rest ${restLabel(e.rest)}`].filter(Boolean).join(' · ')}</p>{e.hint&&<p className="st-hint">{e.hint}</p>}{e.lastTime&&<p className="st-last">Last time {e.lastTime}</p>}{pl&&<p className="st-plates">{nextSet.weight} kg: {pl.length?pl.join(' + '):'empty bar'} each side</p>}{e.notes&&<p className="st-note">{e.notes}</p>}</div><button className="st-x" aria-label={`Remove ${e.name}`} onClick={()=>setWorkout({...workout,exercises:workout.exercises.filter((_,j)=>j!==i)})}>×</button></div>
    <div className="set-head"><span>SET</span><span>KG</span><span>REPS</span><span>DONE</span></div>
-   {e.sets.map((s,si)=><div className={`set-row ${s.done?'set-done':''}`} key={si}><span>{si+1}</span>
+   {e.sets.map((s,si)=><div className={`set-row ${s.done?'set-done':''}${s.kind?' kind-'+s.kind:''}`} key={si}><button className="st-kind" onClick={()=>cycle(i,si)} aria-label={`Set ${si+1}: ${SET_KIND_NAMES[s.kind||'']}. Tap to change`}>{s.kind||e.sets.slice(0,si+1).filter(x=>x.kind!=='W').length}</button>
     <input aria-label={`${e.name} set ${si+1} weight`} type="number" inputMode="decimal" min="0" step="0.5" value={s.weight} onChange={ev=>set(i,si,{weight:ev.target.value,done:false})} placeholder="0"/>
     <input aria-label={`${e.name} set ${si+1} reps`} type="number" inputMode="numeric" min="1" step="1" value={s.reps} onChange={ev=>set(i,si,{reps:ev.target.value,done:false})}/>
     <button aria-label={`${s.done?'Undo':'Complete'} ${e.name} set ${si+1}`} disabled={!validSet(s)} onClick={()=>set(i,si,{done:!s.done})}>{s.done?'✓':'○'}</button></div>)}
-   <div className="st-setbtns"><button className="text-button" onClick={()=>ex(i,{sets:[...e.sets,{...(e.sets[e.sets.length-1]||{weight:'',reps:'10'}),done:false}]})}><Icon name="plus" size={16}/> Add set</button>{e.sets.length>1&&<button className="text-button" onClick={()=>ex(i,{sets:e.sets.slice(0,-1)})}>Remove last set</button>}</div>
-  </section>)}
+   <div className="st-setbtns"><button className="text-button" onClick={()=>ex(i,{sets:[...e.sets,{...(e.sets[e.sets.length-1]||{weight:'',reps:'10'}),kind:'',done:false}]})}><Icon name="plus" size={16}/> Add set</button>{e.sets.length>1&&<button className="text-button" onClick={()=>ex(i,{sets:e.sets.slice(0,-1)})}>Remove last set</button>}{workout.exercises[i+1]&&<button className="text-button" onClick={()=>ex(i,{superset:!e.superset})}>{e.superset?'Unlink superset':'Superset with next'}</button>}</div>
+  </section>;})}
+  <p className="form-note">Tap a set number to mark it W (warm-up), D (drop set) or F (to failure). Warm-ups don’t count towards volume or bests.</p>
   <form className="st-add" onSubmit={add}><input list="st-names" value={adding} onChange={e=>setAdding(e.target.value)} placeholder="Add an exercise" aria-label="Add an exercise"/><datalist id="st-names">{names.map(x=><option key={x} value={x}/>)}</datalist><button className="secondary-action set-small-btn" disabled={!adding.trim()}>Add</button></form>
   <div className="workout-finish"><Confirm label="Discard workout" sure="Tap again to discard" onYes={onDiscard}/><button className="primary-action" disabled={!done} onClick={()=>onFinish({volume})}>Finish workout <Icon name="arrow" size={18}/></button></div>
  </div>;
@@ -66,6 +84,7 @@ function RoutineEditor({routine,onSave,onCancel,onDelete,names}){
    <label>Reps<input value={e.reps} onChange={v=>ex(i,{reps:v.target.value})} placeholder="8-10"/></label>
    <label>Target<input value={e.weight||''} onChange={v=>ex(i,{weight:v.target.value})} placeholder="60kg"/></label>
    <label>Rest (s)<input type="number" inputMode="numeric" min="0" step="15" value={e.rest??90} onChange={v=>ex(i,{rest:Number(v.target.value)})}/></label>
+   {i<r.exercises.length-1&&<label className="st-sscheck"><input type="checkbox" checked={!!e.superset} onChange={v=>ex(i,{superset:v.target.checked})}/> Superset with next</label>}
    <div className="st-eact"><button aria-label="Move up" onClick={()=>move(i,-1)} disabled={!i}>↑</button><button aria-label="Move down" onClick={()=>move(i,1)} disabled={i===r.exercises.length-1}>↓</button><button aria-label={`Remove ${e.name||'exercise'}`} onClick={()=>setR({...r,exercises:r.exercises.filter((_,j)=>j!==i)})}>×</button></div>
   </div>)}
   <datalist id="st-names">{names.map(x=><option key={x} value={x}/>)}</datalist>
@@ -87,16 +106,16 @@ export default function Strength({userPrefs,onSavePrefs,plan,openCoach}){
  const [workout,setWorkout]=useState(()=>{if(PREVIEW)return null;try{const w=JSON.parse(localStorage.getItem(DRAFT));return w?.exercises?w:null;}catch{return null;}});
  useEffect(()=>{if(PREVIEW)return;try{workout?localStorage.setItem(DRAFT,JSON.stringify(workout)):localStorage.removeItem(DRAFT);}catch{}},[workout]);
  const names=useMemo(()=>[...new Set([...routines.flatMap(r=>r.exercises.map(e=>e.name)),...history.flatMap(w=>(w.exercises||[]).map(e=>e.name))])].filter(Boolean).sort(),[routines,history]);
- const stats=useMemo(()=>progress(history),[history]);
+ const stats=useMemo(()=>progress(history),[history]),muscles=useMemo(()=>weeklyMuscleSets(history),[history]);
  const up=nextUp(routines,history,plan);
  const saveRoutines=list=>onSavePrefs({...userPrefs,routines:list});
  const start=r=>{setWorkout({routineId:r?.id||null,title:r?.name||'Workout',startedAt:new Date().toISOString(),exercises:(r?.exercises||[]).map(e=>exerciseFrom(e,history))});setTab('train');setNotice(null);};
  const finish=({volume})=>{
   const record={routineId:workout.routineId,title:workout.title,date:localDate(new Date()),startedAt:workout.startedAt,endedAt:new Date().toISOString(),volume,
-   exercises:workout.exercises.map(e=>({name:e.name,sets:e.sets.map(s=>({weight:Number(s.weight)||0,reps:Number(s.reps)||0,done:!!s.done}))}))};
+   exercises:workout.exercises.map(e=>({name:e.name,...(e.superset?{superset:true}:{}),sets:e.sets.map(s=>({weight:Number(s.weight)||0,reps:Number(s.reps)||0,done:!!s.done,...(s.kind?{kind:s.kind}:{})}))}))};
   const bests=newBests(history,record);
   onSavePrefs({...userPrefs,strengthHistory:[...history,record].slice(-200)});
-  setWorkout(null);setTab('history');
+  setWorkout(null);setTab('history');restAlert(null);
   setNotice(bests.length?`Saved. New bests: ${bests.join(' · ')} 🎉`:`Saved: ${record.exercises.reduce((a,e)=>a+e.sets.filter(s=>s.done).length,0)} sets, ${n(volume)} kg in ${mins(record.startedAt,record.endedAt)} min.`);
  };
  const last=id=>[...history].reverse().find(w=>w.routineId===id)?.date;
@@ -107,7 +126,7 @@ export default function Strength({userPrefs,onSavePrefs,plan,openCoach}){
   {!workout&&<div className="strength-toolbar"><div className="apex-segments">{[['train','Train'],['routines','Routines'],['history','History'],['progress','Progress']].map(([id,l])=><button key={id} aria-pressed={tab===id} onClick={()=>{setTab(id);setEditing(null);}}>{l}</button>)}</div></div>}
   {notice&&<p className="save-notice" role="status">{notice}</p>}
 
-  {workout&&<Live workout={workout} setWorkout={setWorkout} history={history} names={names} onFinish={finish} onDiscard={()=>{setWorkout(null);setNotice('Workout discarded.');}}/>}
+  {workout&&<Live workout={workout} setWorkout={setWorkout} history={history} names={names} onFinish={finish} onDiscard={()=>{setWorkout(null);restAlert(null);setNotice('Workout discarded.');}}/>}
 
   {!workout&&tab==='train'&&<div className="st-train">
    {up?<section className="st-next"><span className="eyebrow">Next up · {up.why}</span><h2>{up.routine.name}</h2><p>{up.routine.exercises.map(e=>e.name).join(' · ')}</p><button className="primary-action" onClick={()=>start(up.routine)}>Start {up.routine.name} <Icon name="arrow" size={18}/></button></section>
@@ -136,8 +155,12 @@ export default function Strength({userPrefs,onSavePrefs,plan,openCoach}){
    :<p className="form-note">Finish your first workout to start your record.</p>}
   </section>}
 
-  {!workout&&tab==='progress'&&<section className="routine-library"><span className="eyebrow">Best estimated max per lift</span><h2>Progress</h2>
-   {stats.length?stats.map(p=><div className="st-prog" key={p.name}><span><b>{p.name}</b><small>Best {setLabel(p.best)}{p.bestE1?` · ~${Math.round(p.bestE1)} kg max`:''} · {p.sessions} session{p.sessions>1?'s':''} · last {dayLabel(p.last)}</small></span><Trend points={p.trend}/></div>)
+  {!workout&&tab==='progress'&&<section className="routine-library">
+   {muscles.length>0&&<div className="st-muscles"><span className="eyebrow">Last 7 days</span><h2>Sets per muscle</h2><p className="form-note">Working sets. Around 10–20 a week per muscle is a common target for building muscle; less is fine for maintaining alongside running.</p>
+    {muscles.map(([m,c])=><div className="st-mrow" key={m}><span>{m}</span><i style={{width:`${Math.min(100,c/20*100)}%`}}/><b>{c}</b></div>)}</div>}
+   <span className="eyebrow">Best estimated max per lift</span><h2>Progress</h2>
+   {stats.length?stats.map(p=><details className="st-prog" key={p.name}><summary><span><b>{p.name}</b><small>Best {setLabel(p.best)}{p.bestE1?` · ~${Math.round(p.bestE1)} kg max`:''} · {p.sessions} session{p.sessions>1?'s':''} · last {dayLabel(p.last)}</small></span><Trend points={p.trend}/></summary>
+    <div className="st-log">{exerciseLog(history,p.name).slice(0,12).map((x,k)=><div key={k}><span>{dayLabel(x.date)}</span><small>{x.sets.map(s=>`${s.kind?s.kind+' ':''}${setLabel(s)}`).join(' · ')}</small></div>)}</div></details>)
    :<p className="form-note">Your lifts appear here after your first workout.</p>}
    {stats.length>0&&<p className="form-note">“Max” is an estimate from your best set (weight × reps), so you can compare sessions with different reps.</p>}
   </section>}
