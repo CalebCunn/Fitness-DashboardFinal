@@ -161,7 +161,7 @@ function ApexApp({account}={}){
   shoes:<Shoes gear={gear} acts={shownActs} userPrefs={userPrefs} onSavePrefs={savePrefs}/>,
   settings:<Settings userPrefs={userPrefs} onSavePrefs={savePrefs} acts={acts} whoop={whoop} gear={gear} theme={theme} setTheme={setTheme} nav={navigate}/>,
   performance:<ProPage feature="performance" nav={navigate}><Performance acts={shownActs} gear={gear} whoop={whoop} userPrefs={userPrefs} nav={navigate}/></ProPage>,
-  nutrition:<Nutrition userPrefs={userPrefs} onSavePrefs={savePrefs}/>,
+  nutrition:<Nutrition userPrefs={userPrefs} onSavePrefs={savePrefs} acts={shownActs}/>,
   plan:<Training acts={shownActs} races={userPrefs?.races} openRaces={()=>navigate('races')} plan={savedPlan} onChange={savePlan} openCoach={()=>navigate('coach')}/>,
   activity:<Activity source={runSource} acts={shownActs} gear={gear} initialId={activityId} nav={navigate} userPrefs={userPrefs} onSavePrefs={savePrefs} settings={readSettings(userPrefs)} hr={heartRate(readSettings(userPrefs),shownActs,whoop)}/>,
   gym:<Strength userPrefs={userPrefs} onSavePrefs={savePrefs} plan={savedPlan} openCoach={openCoachWith}/>,

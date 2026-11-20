@@ -1,9 +1,11 @@
 // Short, non-streaming Claude calls (Fuel's meal estimates). Same guard as the coach:
 // public site needs a signed-in user with credit left; owner site needs APEX_ACCESS_CODE if set.
+const { hasOwnerKey } = require("../lib/owner");
 const json = (statusCode, body) => ({ statusCode, headers: { "Content-Type": "application/json", "Cache-Control": "no-store" }, body: JSON.stringify(body) });
 
 async function guard(event) {
   const h = Object.fromEntries(Object.entries(event.headers || {}).map(([k, v]) => [k.toLowerCase(), v]));
+  if (hasOwnerKey(event)) return null; // Claude testing estimates with the owner key (no credit used)
   if (process.env.APEX_PUBLIC === "true") {
     const url = process.env.SUPABASE_URL || process.env.REACT_APP_SUPABASE_URL, anon = process.env.SUPABASE_ANON_KEY || process.env.REACT_APP_SUPABASE_KEY, service = process.env.SUPABASE_SERVICE_ROLE_KEY;
     const token = (h.authorization || "").replace(/^Bearer\s+/i, "");
@@ -33,14 +35,20 @@ exports.handler = async (event) => {
   if (denied) return denied;
   let body;
   try { body = JSON.parse(event.body || "{}"); } catch { return json(400, { error: "Invalid request" }); }
-  const { messages, system } = body;
+  const { messages, system, format } = body;
   if (!Array.isArray(messages) || !messages.length || messages.length > 4 || (system && typeof system !== "string")) return json(400, { error: "Invalid request" });
+  // Optional JSON schema for the answer (food estimates). Small and plain objects only.
+  const schema = format && typeof format === "object" && JSON.stringify(format).length < 4000 ? format : null;
   try {
-    const response = await fetch("https://api.anthropic.com/v1/messages", {
+    // The model thinks before answering, so it needs room; low effort keeps it quick.
+    const call = withSchema => fetch("https://api.anthropic.com/v1/messages", {
       method: "POST",
       headers: { "Content-Type": "application/json", "x-api-key": process.env.ANTHROPIC_API_KEY, "anthropic-version": "2023-06-01" },
-      body: JSON.stringify({ model: process.env.APEX_FOOD_MODEL || "claude-sonnet-4-6", max_tokens: 600, system: (system || "").slice(0, 2000), messages }),
+      body: JSON.stringify({ model: process.env.APEX_FOOD_MODEL || "claude-sonnet-5-5", max_tokens: 4000, system: (system || "").slice(0, 4000), messages,
+        output_config: { effort: "low", ...(withSchema ? { format: { type: "json_schema", schema } } : {}) } }),
     });
+    let response = await call(!!schema);
+    if (response.status === 400 && schema) response = await call(false); // the schema was refused: ask without it
     const data = await response.json();
     return json(response.ok ? 200 : response.status, data);
   } catch (err) {
